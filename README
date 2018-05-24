@@ -43,3 +43,13 @@ low overhead history (to support undo/redo).
 - multi cursor editing, basic clipboard (only paste now) support
 
 * there are also other great libraries this project uses, but it was "already done" section. See Cargo.toml for list of dependencies.
+
+How to run
+
+As file_dialog (open/save as) is not wired yet, the example way to run sly is:
+
+touch sly.profile #this requirement will be removed soon
+cargo build ;and cargo run . CONTRIBUTING.md 2>/dev/pts/2
+
+(you can change /dev/pts/2 to any other place you want stderr to go, it's just
+writing a lot of debug communicates now)
