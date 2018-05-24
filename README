@@ -1,0 +1,45 @@
+Disclaimer
+
+This is not an official Google product (experimental or otherwise), it is just code that happens to be owned by Google.
+
+Readme
+
+This is a work in progress project of a command line text editor. The goals are:
+- support sublime-like editing experience
+- minimal delays
+- fuzzy search bars for:
+  - file navigation
+  - all options
+  - options in given context (example: code symbol)
+  * all key shortcuts customizable
+  * all key shortcuts visualized to learn-as-you-use
+- interstellar code navigation via language server protocol, services like kythe.io and custom scripts.
+- syntax highlighting
+- themes
+- scripts for compiler output filtering to support "jump to error" or code annotations
+- scripts for browsing the relevant api documentation, or even making queries about code in search services.
+- nice default settings for best out-of-box experience
+- strong focus on usability
+- easy to learn
+
+Future goals may include:
+- more tool integration (I like debuggers)
+- reading from non-file buffers
+- modal editing, but more like Kakoune than Vim
+
+I plan no support for:
+- other encodings than utf-8 (at least in first versions)
+- javascript plugins
+
+The script language of choice will most probably be either Python or Go.
+
+What is already done:
+- reading and editing (but not saving) files
+- thanks to the great libraries of fst and Cursive, fuzzy search bar already works
+for files, other menus will be implemented soon.
+- thanks to the great serde_json library, settings mechanism (including keybindings) is implemented.
+- thanks to the great Ropey library the editing backend is already performing well, supporting
+low overhead history (to support undo/redo).
+- multi cursor editing, basic clipboard (only paste now) support
+
+* there are also other great libraries this project uses, but it was "already done" section. See Cargo.toml for list of dependencies.
