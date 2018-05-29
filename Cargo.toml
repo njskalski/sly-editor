@@ -24,10 +24,10 @@ futures = "0.2"
 [dependencies.cursive]
 version = "0.8.2"
 default-features = false
-features = ["termion-backend"]
+# features = ["termion-backend"]
 
 [dependencies.cursive_tree_view]
 # version = "0.2.1"
 git = "https://github.com/gyscos/cursive_tree_view.git"
 default-features = false
-features = ["termion-backend"]
+# features = ["termion-backend"]

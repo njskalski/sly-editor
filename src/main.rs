@@ -44,6 +44,7 @@ mod file_view;
 mod lazy_dir_tree;
 mod color_view_wrapper;
 
+extern crate ignore;
 extern crate cpuprofiler;
 extern crate serde_json;
 extern crate unicode_segmentation;
@@ -63,6 +64,7 @@ use std::path::Path;
 use app_state::AppState;
 use interface::Interface;
 use cpuprofiler::PROFILER;
+use std::path;
 
 // Reason for it being string is that I want to be able to load filelists from remote locations
 fn get_file_list_from_dir(path: &Path) -> Vec<String> {
@@ -96,13 +98,23 @@ fn main() {
         .init()
         .unwrap();
 
-    // let profile_file = format!("./sly-{:?}.profile", time::precise_time_s());
-    let profile_file = "./sly.profile";
-    // debug!("profile file: {:?}", &profile_file);
-    // log::logger().flush();
-    // PROFILER.lock().unwrap().start(profile_file);
+    // TODO(njskalski) use proper input parsing library
 
-    PROFILER.lock().unwrap().start(profile_file).unwrap();
+    let profiling_enabled : bool = {
+        let profile_directory_path = Path::new("./profiles");
+        if profile_directory_path.exists() && profile_directory_path.is_dir() {
+            true
+        } else { false }
+    };
+
+    if profiling_enabled {
+        let profile_file : String = format!("./profiles/sly-{:?}.profile", time::precise_time_s());
+        let profile_path : &Path = Path::new(&profile_file);
+        if !profile_path.exists() { //with timestamp in name this is probably never true
+            fs::File::create(&profile_file);
+        }
+        PROFILER.lock().unwrap().start(profile_file.clone()).unwrap();
+    };
 
     let args: Vec<String> = env::args().skip(1).collect();
     let mut commandline_args : Vec<String> = vec![];
@@ -148,7 +160,8 @@ fn main() {
 
     let mut interface = Interface::new(app_state);
     interface.run();
-
-    PROFILER.lock().unwrap().stop().unwrap();
+    if profiling_enabled {
+        PROFILER.lock().unwrap().stop().unwrap();
+    };
     debug!("goodbye!");
 }

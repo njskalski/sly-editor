@@ -47,8 +47,6 @@ low overhead history (to support undo/redo).
 How to run
 
 As file_dialog (open/save as) is not wired yet, the example way to run sly is:
-
-touch sly.profile #this requirement will be removed soon
 cargo build ;and cargo run . CONTRIBUTING.md 2>/dev/pts/2
 
 (you can change /dev/pts/2 to any other place you want stderr to go, it's just

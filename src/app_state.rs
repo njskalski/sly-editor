@@ -29,6 +29,7 @@ use serde_json;
 use std::sync::Arc;
 use std::path::Path;
 use std::fs;
+use ignore::gitignore;
 
 use fuzzy_index::FuzzyIndex;
 use fuzzy_view_item::file_list_to_items;
@@ -42,6 +43,7 @@ use cursive;
 use std::io;
 
 use lazy_dir_tree::LazyTreeNode;
+
 
 pub enum BufferOpenMode {
     ReadOnly,
@@ -144,7 +146,7 @@ impl AppState{
         let dir_tree = LazyTreeNode::new(&directories);
 
         for directory in directories {
-            build_file_index(&mut file_index, Path::new(&directory));
+            build_file_index(&mut file_index, Path::new(&directory), true, None);
         }
 
         let buffers : Vec<_> = files.iter().map(|file| {
@@ -188,21 +190,49 @@ impl AppState{
     }
 }
 
-fn build_file_index(mut index : &mut Vec<String>, dir : &Path) {
+/// this method takes into account .git and other directives set in .gitignore. However it only takes into account most recent .gitignore
+fn build_file_index(mut index : &mut Vec<String>, dir : &Path, enable_gitignore : bool, gi_op : Option<&gitignore::Gitignore>) {
     match fs::read_dir(dir) {
         Ok(read_dir) => {
+            let gitignore_op : Option<gitignore::Gitignore> = if enable_gitignore {
+                let pathbuf = dir.join(Path::new("/.gitignore"));
+                let gitignore_path = pathbuf.as_path();
+                if gitignore_path.exists() && gitignore_path.is_file() {
+                    let (gi, error_op) = gitignore::Gitignore::new(&gitignore_path);
+                    if let Some(error) = error_op {
+                        info!("Error while parsing gitignore file {:?} : {:}", gitignore_path, error);
+                    }
+                    Some(gi)
+                } else { None }
+            } else { None };
+
             for entry_res in read_dir {
                 match entry_res {
                     Ok(entry) => {
                         let path_buf = entry.path();
                         let path = path_buf.as_path();
+
+                        if enable_gitignore {
+                            if path.ends_with(Path::new(".git")) {
+                                return;
+                            }
+                        }
+
                         if path.is_file() {
+                            if let Some(ref gitignore) = &gitignore_op {
+                                if gitignore.matched(path, false).is_ignore() { continue };
+                            };
                             match path.to_str() {
                                 Some(s) => index.push(s.to_string()),
                                 None => error!("unable to parse non-unicode file path: \"{:?}\". Skipping.", path)
                             };
                         } else {
-                            build_file_index(&mut index, &path);
+                            if let Some(ref gitignore) = &gitignore_op {
+                                if gitignore.matched(path, true).is_ignore() { continue };
+                            };
+
+                            let most_recent_gitignore = if gitignore_op.is_some() { gitignore_op.as_ref() } else { gi_op };
+                            build_file_index(&mut index, &path, enable_gitignore, most_recent_gitignore);
                         }
                     },
                     Err(e) => error!("error listing directory \"{:?}\": {:?}. Skipping.", dir, e)
