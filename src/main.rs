@@ -108,7 +108,7 @@ fn main() {
     };
 
     if profiling_enabled {
-        let profile_file : String = format!("./profiles/sly-{:?}.profile", time::precise_time_s());
+        let profile_file : String = format!("./profiles/sly-{:?}.profile", time::now().rfc3339());
         let profile_path : &Path = Path::new(&profile_file);
         if !profile_path.exists() { //with timestamp in name this is probably never true
             fs::File::create(&profile_file);
