@@ -56,6 +56,7 @@ extern crate regex;
 extern crate stderrlog;
 extern crate syntect;
 extern crate core;
+extern crate enumset;
 
 use std::env;
 use std::fs;

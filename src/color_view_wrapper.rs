@@ -18,23 +18,33 @@ use cursive::Printer;
 use cursive::view::View;
 use cursive::view::ViewWrapper;
 use cursive::theme::Theme;
+use cursive::theme;
 use std::rc::Rc;
+use enumset::EnumSet;
+use cursive::vec::Vec2;
 
 pub type PrinterModifierType = Rc<Box<Fn(&Printer) -> Theme>>;
 
 pub struct ColorViewWrapper<T: View> {
-    pub view: T,
-    pub printer_modifier : PrinterModifierType
+    view: T,
+    printer_modifier : PrinterModifierType,
+    // effects : EnumSet<theme::Effect>,
+    fill_background : bool,
+    size : Vec2,
 }
 
 impl <T: View> ColorViewWrapper<T> {
+    // TODO(njskalski) extend constructor, un-hardcode parameters
     pub fn new(view: T, printer_modifier : PrinterModifierType) -> Self
       where
         T: View/* + ?Sized*/,
         {
             ColorViewWrapper {
                 view : view,
-                printer_modifier : printer_modifier
+                printer_modifier : printer_modifier,
+                // effects : EnumSet::new(),
+                fill_background : true,
+                size : Vec2::new(0,0)
             }
         }
 
@@ -44,12 +54,28 @@ impl <T: View> ColorViewWrapper<T> {
 impl <T: View + Sized> ViewWrapper for ColorViewWrapper<T> {
     wrap_impl!(self.view: T);
 
+    fn wrap_layout(&mut self, size: Vec2) {
+        self.size = size;
+        self.view.layout(size);
+    }
+
     fn wrap_draw(&self, printer: &Printer)
     {
         let new_theme = { (self.printer_modifier)(printer) };
-        debug!("new_theme : {:?}", new_theme);
+        // debug!("new_theme : {:?}", new_theme);
+
         printer.with_theme(&new_theme, |printer| {
-            self.view.draw(printer);
+            if self.fill_background {
+                for y in 0..self.size.y {
+                    for x in 0..self.size.x {
+                        printer.print((x, y), ".");
+                    }
+                }
+            }
+
+            // printer.with_effects(self.effects, |printer| {
+                self.view.draw(printer);
+            // });
         });
     }
 }

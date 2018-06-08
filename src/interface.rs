@@ -48,7 +48,7 @@ pub struct Interface {
     siv : Cursive,
     done : bool,
     file_bar_visible : bool,
-    file_view_visible : bool,
+    filedialog_visible : bool,
     buffer_to_screen : HashMap<String, ScreenId>
 }
 
@@ -86,7 +86,7 @@ impl Interface {
             siv : siv,
             done : false,
             file_bar_visible : false,
-            file_view_visible : false,
+            filedialog_visible : false,
             buffer_to_screen : HashMap::new()
         };
 
@@ -134,7 +134,7 @@ impl Interface {
                     self.done = true;
                 },
                 IEvent::CloseWindow => {
-                    self.close_file_bar();
+                    self.close_floating_windows();
                 },
                 IEvent::BufferEditEvent(screen_id, events) => {
                     self.state.submit_edit_events_to_buffer(screen_id, events);
@@ -156,17 +156,29 @@ impl Interface {
         }
     }
 
+    pub fn close_floating_windows(&mut self) {
+        self.close_file_bar();
+        self.close_filedialog();
+    }
+
     pub fn get_event_channel(&self) -> IChannel {
         self.channel.0.clone()
     }
 
     fn show_save_as(&mut self) {
-        if !self.file_view_visible {
+        if !self.filedialog_visible {
             let file_view = FileView::new(FileViewVariant::SaveAsFile, self.state.get_dir_tree(), &self.settings);
-            self.siv.add_layer(IdView::new("save_file_view", file_view));
-            self.file_view_visible = true;
-            debug!("file_view_visible = {:?}", self.file_view_visible);
-        }        
+            self.siv.add_layer(IdView::new("filedialog", file_view));
+            self.filedialog_visible = true;
+            debug!("filedialog_visible = {:?}", self.filedialog_visible);
+        }
+    }
+
+    fn close_filedialog(&mut self) {
+        if self.siv.focus_id("filedialog").is_ok() {
+            self.siv.pop_layer();
+            self.filedialog_visible = false;
+        }
     }
 
     fn close_file_bar(&mut self) {

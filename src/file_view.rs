@@ -196,37 +196,45 @@ impl FileView {
         let selected_bg_color = settings.get_color("theme/file_view/selected_background");
         let non_selected_bg_color = settings.get_color("theme/file_view/non_selected_background");
 
+        // TODO(njskalski) put it into some kind of theme cache (settings? interface?)
         let printer_to_theme : PrinterModifierType = Rc::new(Box::new(move |p : &Printer| {
 
-            // let mut palette = theme::default_palette();
+            let mut palette = theme::default_palette();
 
             // if p.focused {
             //     palette[PaletteColor::View] = selected_bg_color;
             // } else {
             //     palette[PaletteColor::View] = non_selected_bg_color;
             // }
-            // palette[PaletteColor::Background] = palette[PaletteColor::View].clone();
-            // palette[PaletteColor::Shadow] = palette[PaletteColor::View].clone();
+            // palette[PaletteColor::Background] = palette[PaletteColor::View];
+            // palette[PaletteColor::Shadow] = palette[PaletteColor::View];
             //
-            // palette[PaletteColor::Primary] = Color::Dark(BaseColor::Red);
-            // palette[PaletteColor::Secondary] = Color::Dark(BaseColor::Green);
-            // palette[PaletteColor::Tertiary] = Color::Dark(BaseColor::Yellow);
-            // palette[PaletteColor::TitlePrimary] = Color::Dark(BaseColor::Blue);
-            // palette[PaletteColor::TitleSecondary] = Color::Dark(BaseColor::Magenta);
-            // palette[PaletteColor::Highlight] = Color::Dark(BaseColor::Cyan);
-            // palette[PaletteColor::HighlightInactive] = Color::Dark(BaseColor::White);
+            // palette[PaletteColor::Primary] = primary_text_color;
+            // palette[PaletteColor::Secondary] = primary_text_color;
+            // palette[PaletteColor::Tertiary] = primary_text_color;
+            // palette[PaletteColor::TitlePrimary] = primary_text_color;
+            // palette[PaletteColor::TitleSecondary] = primary_text_color;
+            //
+            // palette[PaletteColor::Highlight] = primary_text_color;
+            // palette[PaletteColor::HighlightInactive] = primary_text_color;
 
-            // let theme = Theme {
-            //     shadow : false,
-            //     borders : BorderStyle::None,
-            //     palette : palette
-            // };
+            let theme = Theme {
+                shadow : false,
+                borders : BorderStyle::None,
+                palette : palette
+            };
 
-            // theme
-            Theme::default()
+            theme
         }));
 
+
+
+        let mut vl = LinearLayout::new(Orientation::Vertical);
         let mut hl = LinearLayout::new(Orientation::Horizontal);
+
+        // TODO(njskalski) title should reflect use case
+        // TODO(njskalski) add a separate theme to disable color inversion effect on edit.
+        vl.add_child(ColorViewWrapper::new(Layer::new(TextView::new("Save file")), printer_to_theme.clone()));
 
         let mut dir_tree : TreeView<Rc<LazyTreeNode>> = TreeView::new();
         // dir_tree.h_align(HAlign::Left);
@@ -238,14 +246,22 @@ impl FileView {
         dir_tree.set_on_collapse(dir_tree_on_collapse_callback);
         dir_tree.set_on_select(dir_tree_on_select_callback);
 
-        hl.add_child(ColorViewWrapper::new((BoxView::with_fixed_size((30, 20), dir_tree.with_id(DIR_TREE_VIEW_ID))), printer_to_theme.clone()));
+        hl.add_child(
+            ColorViewWrapper::new(
+                BoxView::with_fixed_size((30, 20), dir_tree.with_id(DIR_TREE_VIEW_ID)),
+                printer_to_theme.clone()
+            ));
 
         let mut file_select : SelectView<Rc<LazyTreeNode>> = SelectView::new().v_align(VAlign::Top);
         // file_select.set_on_select(file_list_on_select);
         file_select.set_on_submit(file_list_on_submit);
-        hl.add_child(ColorViewWrapper::new((BoxView::with_fixed_size((50, 20), file_select.with_id(FILE_LIST_VIEW_ID))), printer_to_theme.clone()));
+        hl.add_child(
+            ColorViewWrapper::new(
+                BoxView::with_fixed_size((50, 20), file_select.with_id(FILE_LIST_VIEW_ID)),
+                printer_to_theme.clone()
+            ));
 
-        let mut vl = LinearLayout::new(Orientation::Vertical);
+
         vl.add_child(hl);
 
         let mut edit_view = EditView::new().filler(" ");

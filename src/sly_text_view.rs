@@ -29,6 +29,8 @@ limitations under the License.
 
 // TODO(njskalski) never allow overlapping cursors
 // TODO(njskalski) update cursors on autoreload from hard drive (autoreload enabled if non-modified, and not disabled in options)
+// TODO(njskalski) use View::layout instead of View::required_size to determine window size.
+
 
 use time;
 
