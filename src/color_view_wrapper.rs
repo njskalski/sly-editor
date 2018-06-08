@@ -25,11 +25,13 @@ use cursive::vec::Vec2;
 
 pub type PrinterModifierType = Rc<Box<Fn(&Printer) -> Theme>>;
 
+
+// TODO(njskalski) it has not been decided yet what is the final structure of this wrapper.
 pub struct ColorViewWrapper<T: View> {
     view: T,
     printer_modifier : PrinterModifierType,
     // effects : EnumSet<theme::Effect>,
-    fill_background : bool,
+    // fill_background : bool,
     size : Vec2,
 }
 
@@ -43,7 +45,7 @@ impl <T: View> ColorViewWrapper<T> {
                 view : view,
                 printer_modifier : printer_modifier,
                 // effects : EnumSet::new(),
-                fill_background : true,
+                // fill_background : true,
                 size : Vec2::new(0,0)
             }
         }
@@ -65,13 +67,13 @@ impl <T: View + Sized> ViewWrapper for ColorViewWrapper<T> {
         // debug!("new_theme : {:?}", new_theme);
 
         printer.with_theme(&new_theme, |printer| {
-            if self.fill_background {
-                for y in 0..self.size.y {
-                    for x in 0..self.size.x {
-                        printer.print((x, y), ".");
-                    }
-                }
-            }
+            // if self.fill_background {
+            //     for y in 0..self.size.y {
+            //         for x in 0..self.size.x {
+            //             printer.print((x, y), " ");
+            //         }
+            //     }
+            // }
 
             // printer.with_effects(self.effects, |printer| {
                 self.view.draw(printer);
