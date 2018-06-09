@@ -39,6 +39,7 @@ use std::env;
 use settings::Settings;
 use color_view_wrapper::{ColorViewWrapper, PrinterModifierType};
 
+use interface::IChannel;
 
 // TODO(njskalski) implement caching or remove Rcs.
 // TODO(njskalski) this file is work-in-progress. Most commented code is to be reused, as
@@ -51,10 +52,11 @@ pub enum FileViewVariant {
 
 pub struct FileView {
     variant : FileViewVariant,
-    // tree_view : TreeView<String>
-    mv : LinearLayout
+    channel : IChannel,
+    mv : LinearLayout,
 }
 
+pub const FILE_VIEW_ID : &'static str = "file_view";
 const DIR_TREE_VIEW_ID : &'static str = "fv_dir_tree_view";
 const FILE_LIST_VIEW_ID : &'static str = "fv_file_list_view";
 const EDIT_VIEW_ID : &'static str = "fv_edit_view";
@@ -168,9 +170,9 @@ fn dir_tree_on_select_callback(siv: &mut Cursive, row: usize) {
     dir_vec.sort();
     file_vec.sort();
 
-    for dir in dir_vec.iter() {
-        file_list_view.add_item(dir.to_string(), dir.clone());
-    }
+    // for dir in dir_vec.iter() {
+    //     file_list_view.add_item(dir.to_string(), dir.clone());
+    // }
 
     for file in file_vec.iter() {
         file_list_view.add_item(file.to_string(), file.clone());
@@ -184,13 +186,19 @@ fn dir_tree_on_select_callback(siv: &mut Cursive, row: usize) {
 
 fn file_list_on_submit(siv: &mut Cursive, item : &Rc<LazyTreeNode>) {
     let mut edit_view : ViewRef<EditView> = siv.find_id(EDIT_VIEW_ID).unwrap();
-    (*edit_view).borrow_mut().set_content(item.to_string());
-    // (*edit_view).borrow_mut().take_focus(Direction::Rel(Relative::Front));
+    edit_view.borrow_mut().set_content(item.to_string());
+
+    let mut file_view : ViewRef<FileView> = siv.find_id(FILE_VIEW_ID).unwrap();
+    file_view.borrow_mut().focus_view(&Selector::Id(EDIT_VIEW_ID));
 }
 
 impl FileView {
 
-    pub fn new(variant : FileViewVariant, root : Rc<LazyTreeNode>, settings : &Rc<Settings>) -> Self {
+    fn on_file_selected(&self) {
+
+    }
+
+    pub fn new(ch : IChannel, variant : FileViewVariant, root : Rc<LazyTreeNode>, settings : &Rc<Settings>) -> IdView<Self> {
 
         let primary_text_color = settings.get_color("theme/file_view/primary_text_color");
         let selected_bg_color = settings.get_color("theme/file_view/selected_background");
@@ -248,7 +256,7 @@ impl FileView {
 
         hl.add_child(
             ColorViewWrapper::new(
-                BoxView::with_fixed_size((30, 20), dir_tree.with_id(DIR_TREE_VIEW_ID)),
+                BoxView::with_fixed_size((30, 15), dir_tree.with_id(DIR_TREE_VIEW_ID)),
                 printer_to_theme.clone()
             ));
 
@@ -257,7 +265,7 @@ impl FileView {
         file_select.set_on_submit(file_list_on_submit);
         hl.add_child(
             ColorViewWrapper::new(
-                BoxView::with_fixed_size((50, 20), file_select.with_id(FILE_LIST_VIEW_ID)),
+                BoxView::with_fixed_size((50, 15), file_select.with_id(FILE_LIST_VIEW_ID)),
                 printer_to_theme.clone()
             ));
 
@@ -288,14 +296,15 @@ impl FileView {
             debug!("filename {} {}", prefix, s);
 
         });
-        vl.add_child(ColorViewWrapper::new((BoxView::with_fixed_size((50, 1), edit_view.with_id(EDIT_VIEW_ID))), printer_to_theme.clone()));
+        vl.add_child(ColorViewWrapper::new((BoxView::with_fixed_size((80, 1), edit_view.with_id(EDIT_VIEW_ID))), printer_to_theme.clone()));
 
         // hl.add_child(vl);
 
-        FileView {
+        IdView::<FileView>::new(FILE_VIEW_ID, FileView {
             variant : variant,
+            channel : ch,
             mv : vl
-        }
+        })
     }
 }
 

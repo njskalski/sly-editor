@@ -31,7 +31,7 @@ use settings::Settings;
 use events::IEvent;
 use sly_text_view::SlyTextView;
 use fuzzy_query_view::FuzzyQueryView;
-use file_view::*;
+use file_view::{self, *};
 use std::thread;
 
 use std::rc::{Rc, Weak};
@@ -165,9 +165,16 @@ impl Interface {
         self.channel.0.clone()
     }
 
+    // TODO(njskalski) this assertion is temporary, in use only because the interface is built
+    // agile, not pre-designed.
+    fn assert_no_file_view(&mut self) {
+        assert!(self.siv.find_id::<FileView>(file_view::FILE_VIEW_ID).is_none());
+    }
+
     fn show_save_as(&mut self) {
+        self.assert_no_file_view();
         if !self.filedialog_visible {
-            let file_view = FileView::new(FileViewVariant::SaveAsFile, self.state.get_dir_tree(), &self.settings);
+            let file_view = FileView::new(self.get_event_channel(), FileViewVariant::SaveAsFile, self.state.get_dir_tree(), &self.settings);
             self.siv.add_layer(IdView::new("filedialog", file_view));
             self.filedialog_visible = true;
             debug!("filedialog_visible = {:?}", self.filedialog_visible);
