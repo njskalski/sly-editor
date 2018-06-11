@@ -30,6 +30,7 @@ use std::sync::Arc;
 use std::path::Path;
 use std::fs;
 use ignore::gitignore;
+use std::env;
 
 use fuzzy_index::FuzzyIndex;
 use fuzzy_view_item::file_list_to_items;
@@ -164,10 +165,15 @@ impl AppState{
 
         let buffers : Vec<_> = files.iter().map(|file| {
             let path = Path::new(&file);
-            let buf_state = if path.exists() {
+
+            // this also checks for file existence:
+            // https://doc.rust-lang.org/std/fs/fn.canonicalize.html
+            let canon_path = path.canonicalize();
+
+            let buf_state = if canon_path.is_ok() {
                 debug!("reading file {:?}", &file);
                 BufferState {
-                    ss : BufferStateS { path : Some(file.clone()) },
+                    ss : BufferStateS { path : Some(canon_path.unwrap().to_string_lossy().to_string()) },
                     modified : false,
                     exists : true,
                     screen_id : None,
@@ -175,8 +181,15 @@ impl AppState{
                     mode : BufferOpenMode::ReadWrite
                 }
             } else {
+                let mut current_dir = env::current_dir().unwrap();
+                // join semantics is interesting and it does exactly what I want: if new filename
+                // does not have an absolute path, it attaches it to current_dir. If it does define
+                // absolute path, the current_dir part is dropped.
+                // see https://doc.rust-lang.org/std/path/struct.PathBuf.html#method.push
+                current_dir.join(path);
+
                 BufferState {
-                    ss : BufferStateS { path : Some(file.clone()) },
+                    ss : BufferStateS { path : Some(current_dir.to_string_lossy().to_string()) },
                     modified : false,
                     exists : false,
                     screen_id : None,

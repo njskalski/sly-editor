@@ -23,8 +23,8 @@ use std::cmp::{Ord, PartialOrd, PartialEq, Ordering};
 
 #[derive(Debug)]
 pub enum LazyTreeNode {
-    RootNode(Vec<Rc<String>>),
-    // ExpansionPlaceholder,
+    RootNode(Vec<Rc<String>>), // TODO(njskalski) start here!
+    // RootNode(Vec<Rc<String>>, Vec<Rc<String>>), // root contains list of directories, and list of files.
     DirNode(Rc<String>), //full path TODO(njskalski) add RefCell<Vec<LazyTreeNode>> cache, refresh "on file change"
     FileNode(Rc<String>),
 }
