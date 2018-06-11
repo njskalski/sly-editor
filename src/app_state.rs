@@ -55,7 +55,7 @@ struct BufferStateS {
     path : Option<String>, //unnamed possible, right?
 }
 
-struct BufferState {
+pub struct BufferState {
     ss : BufferStateS,
     modified : bool,
     exists : bool,
@@ -71,6 +71,10 @@ impl BufferState {
     {
         self.content.submit_events(events);
         self.modified = true; // TODO modified should be moved to history.
+    }
+
+    pub fn get_path_ref(&self) -> &Option<String> {
+        &self.ss.path
     }
 }
 
@@ -95,6 +99,10 @@ impl BufferStateObserver {
     pub fn get_screen_id(&self) -> cursive::ScreenId {
         self.buffer_state.borrow().screen_id.unwrap()
     }
+
+    pub fn get_path(&self) -> Option<String> {
+        self.buffer_state.borrow().ss.path.clone()
+    }
 }
 
 pub struct AppState {
@@ -109,6 +117,11 @@ fn path_to_reader(path : &String) -> fs::File {
 }
 
 impl AppState{
+
+    pub fn get_buffer_for_screen(&mut self, screen_id : &cursive::ScreenId) -> Option<Rc<RefCell<BufferState>>> {
+        self.loaded_buffers.get(screen_id).map(|x| x.clone())
+    }
+
     pub fn get_file_index(&self) -> Arc<RefCell<FuzzyIndex>> {
         self.index.clone()
     }

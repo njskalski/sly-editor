@@ -33,6 +33,7 @@ use sly_text_view::SlyTextView;
 use fuzzy_query_view::FuzzyQueryView;
 use file_view::{self, *};
 use std::thread;
+use utils;
 
 use std::rc::{Rc, Weak};
 use std::sync::Arc;
@@ -172,9 +173,24 @@ impl Interface {
     }
 
     fn show_save_as(&mut self) {
-        self.assert_no_file_view();
         if !self.filedialog_visible {
-            let file_view = FileView::new(self.get_event_channel(), FileViewVariant::SaveAsFile, self.state.get_dir_tree(), &self.settings);
+            self.assert_no_file_view();
+
+            let current_screen_id = self.siv.active_screen();
+            let buffer_obs = match self.state.get_buffer_observer(&current_screen_id) {
+                None => {
+                    debug!("unable to save if there is no buffer attached to screen {}", current_screen_id);
+                    return;
+                },
+                Some(bo) => bo
+            };
+
+            let (folder_op, file_op) = match buffer_obs.get_path()  {
+                None => (None, None),
+                Some(path) => utils::path_string_to_pair(path)
+            };
+
+            let file_view = FileView::new(self.get_event_channel(), FileViewVariant::SaveAsFile(folder_op, file_op), self.state.get_dir_tree(), &self.settings);
             self.siv.add_layer(IdView::new("filedialog", file_view));
             self.filedialog_visible = true;
             debug!("filedialog_visible = {:?}", self.filedialog_visible);

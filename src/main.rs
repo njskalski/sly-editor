@@ -43,6 +43,7 @@ mod events;
 mod file_view;
 mod lazy_dir_tree;
 mod color_view_wrapper;
+mod utils;
 
 extern crate ignore;
 extern crate cpuprofiler;

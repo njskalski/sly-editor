@@ -40,14 +40,35 @@ use settings::Settings;
 use color_view_wrapper::{ColorViewWrapper, PrinterModifierType};
 
 use interface::IChannel;
+use events::IEvent;
 
+// TODO(njskalski) this view took longer than anticipated to implement, so I rushed to the end
+// sacrificing quality a refactor is required.
 // TODO(njskalski) implement caching or remove Rcs.
 // TODO(njskalski) this file is work-in-progress. Most commented code is to be reused, as
 // I will need different variants of file tree / directory tree in many places.
+// TODO(njskalski) add support directories outside any of selected directories?
+// TODO(njskalski) add opening a proper folder and filling file field while data is provided
 
 pub enum FileViewVariant {
-    SaveAsFile,
-    OpenFile
+    SaveAsFile(Option<String>, Option<String>), // directory, filename
+    OpenFile(Option<String>) //directory
+}
+
+impl FileViewVariant {
+    fn get_folder_op(&self) -> &Option<String> {
+        match self {
+            FileViewVariant::SaveAsFile(folder_op, file_op) => folder_op,
+            FileViewVariant::OpenFile(folder_op) => folder_op
+        }
+    }
+
+    fn get_file_op(&self) -> &Option<String> {
+        match self {
+            FileViewVariant::SaveAsFile(folder_op, file_op) => file_op,
+            FileViewVariant::OpenFile(folder_op) => &None
+        }
+    }
 }
 
 pub struct FileView {
@@ -192,14 +213,33 @@ fn file_list_on_submit(siv: &mut Cursive, item : &Rc<LazyTreeNode>) {
     file_view.borrow_mut().focus_view(&Selector::Id(EDIT_VIEW_ID));
 }
 
-impl FileView {
-
-    fn on_file_selected(&self) {
-
+fn on_file_selected(siv: &mut Cursive, s : &str) {
+    if s.len() == 0 {
+        return;
     }
 
+    // TODO(njskalski) refactor these uwraps.
+    let edit_view : ViewRef<EditView> = siv.find_id(EDIT_VIEW_ID).unwrap();
+    let mut tree_view : ViewRef<TreeView<Rc<LazyTreeNode>>> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
+    let row = tree_view.row().unwrap();
+    let item = tree_view.borrow_item(row).unwrap().clone();
+
+    let prefix : &String = match *item {
+        LazyTreeNode::RootNode(_) => return, // root selected, no action. // TODO(njskalsk) add a warning?
+        LazyTreeNode::DirNode(ref path) => path,
+        _ => panic!() //no support for FileNodes in this tree.
+    };
+
+    let mut file_view : ViewRef<FileView> = siv.find_id(FILE_VIEW_ID).unwrap();
+
+    let filename : String = prefix.clone() + s;
+    file_view.channel.send(IEvent::SaveBufferAs(filename));
+}
+
+impl FileView {
     pub fn new(ch : IChannel, variant : FileViewVariant, root : Rc<LazyTreeNode>, settings : &Rc<Settings>) -> IdView<Self> {
 
+        // TODO(njskalski) implement styling with new solution when Cursive updates.
         let primary_text_color = settings.get_color("theme/file_view/primary_text_color");
         let selected_bg_color = settings.get_color("theme/file_view/selected_background");
         let non_selected_bg_color = settings.get_color("theme/file_view/non_selected_background");
@@ -235,8 +275,6 @@ impl FileView {
             theme
         }));
 
-
-
         let mut vl = LinearLayout::new(Orientation::Vertical);
         let mut hl = LinearLayout::new(Orientation::Horizontal);
 
@@ -269,33 +307,11 @@ impl FileView {
                 printer_to_theme.clone()
             ));
 
-
         vl.add_child(hl);
 
         let mut edit_view = EditView::new().filler(" ");
-        edit_view.set_on_submit(|siv : &mut Cursive, s : &str| {
-
-            let mut view : ViewRef<TreeView<Rc<LazyTreeNode>>> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
-            let row_op = (*view).row();
-
-            let prefix : String = match row_op {
-                Some(row) => {
-                    let item = (*view).borrow_item(row).unwrap().clone();
-
-                    debug!("item {:?}", item);
-
-                    match *item {
-                        LazyTreeNode::DirNode(ref path) => (**path).clone(),
-                        // LazyTreeNode::RootNode(_) => env::current_dir().expect("unable to get current_dir").to_str().expect("unable to unwrap current_dir").to_string(),
-                        _ => "".to_string()
-                    }
-                },
-                _ => "".to_string()
-            };
-
-            debug!("filename {} {}", prefix, s);
-
-        });
+        edit_view.set_on_submit(on_file_selected);
+        variant.get_file_op().clone().map(|file| edit_view.set_content(file));
         vl.add_child(ColorViewWrapper::new((BoxView::with_fixed_size((80, 1), edit_view.with_id(EDIT_VIEW_ID))), printer_to_theme.clone()));
 
         // hl.add_child(vl);
