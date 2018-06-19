@@ -156,12 +156,22 @@ impl AppState{
     pub fn new(directories : Vec<String>, files : Vec<String>) -> Self {
 
         let mut file_index : Vec<String> = Vec::new();
-
-        let dir_tree = LazyTreeNode::new(&directories);
+        let mut canonized_directories : Vec<String> = Vec::new();
 
         for directory in directories {
-            build_file_index(&mut file_index, Path::new(&directory), true, None);
+
+            let path = Path::new(&directory);
+            match path.canonicalize() {
+                Ok(canon_path) => {
+                    debug!("reading directory: {:?}", canon_path.to_string_lossy());
+                    canonized_directories.push(canon_path.to_string_lossy().to_string());
+                    build_file_index(&mut file_index, &canon_path, true, None);
+                },
+                _ => error!("unable to read directory {:?}", directory)
+            }
         }
+
+        let dir_tree = LazyTreeNode::new(&canonized_directories);
 
         let buffers : Vec<_> = files.iter().map(|file| {
             let path = Path::new(&file);
