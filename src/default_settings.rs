@@ -33,7 +33,8 @@ const default_settings_string : &'static str = r####"
       "command_mode" : ["ctrl", "e"],
       "quit" : ["ctrl", "q"],
       "close_window" : ["esc"],
-      "save_as" : ["ctrl","w"]
+      "save_as" : ["ctrl","w"],
+      "open_file_dialog" : ["ctrl", "u"]
     },
     "file_bar" : {
     }

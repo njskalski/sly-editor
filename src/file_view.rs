@@ -50,6 +50,7 @@ use events::IEvent;
 // TODO(njskalski) add support directories outside any of selected directories?
 // TODO(njskalski) add opening a proper folder and filling file field while data is provided
 
+#[derive(Debug)]
 pub enum FileViewVariant {
     SaveAsFile(Option<String>, Option<String>), // directory, filename
     OpenFile(Option<String>) //directory
@@ -67,6 +68,13 @@ impl FileViewVariant {
         match self {
             FileViewVariant::SaveAsFile(folder_op, file_op) => file_op,
             FileViewVariant::OpenFile(folder_op) => &None
+        }
+    }
+
+    fn is_open(&self) -> bool {
+        match self {
+            FileViewVariant::OpenFile(_) => true,
+            _ => false
         }
     }
 }
@@ -200,44 +208,57 @@ fn dir_tree_on_select_callback(siv: &mut Cursive, row: usize) {
     }
 }
 
-// fn file_list_on_select(siv: &mut Cursive, item : &Rc<LazyTreeNode>) {
-//     let mut edit_view : ViewRef<EditView> = siv.find_id(EDIT_VIEW_ID).unwrap();
-//     (*edit_view).borrow_mut().set_content(item.to_string());
-// }
-
-fn file_list_on_submit(siv: &mut Cursive, item : &Rc<LazyTreeNode>) {
-    let mut edit_view : ViewRef<EditView> = siv.find_id(EDIT_VIEW_ID).unwrap();
-    edit_view.borrow_mut().set_content(item.to_string());
-
+fn file_list_on_submit(siv: &mut Cursive, item : &Rc<LazyTreeNode>, is_open_file : bool) {
     let mut file_view : ViewRef<FileView> = siv.find_id(FILE_VIEW_ID).unwrap();
-    file_view.borrow_mut().focus_view(&Selector::Id(EDIT_VIEW_ID));
+    let mut edit_view : ViewRef<EditView> = siv.find_id(EDIT_VIEW_ID).unwrap();
+
+    if is_open_file {
+        edit_view.borrow_mut().set_content(item.to_string());
+        file_view.borrow_mut().focus_view(&Selector::Id(EDIT_VIEW_ID));
+    } else {
+
+        if let Some(prefix) = get_prefix_op(siv) {
+            file_view.channel.send(IEvent::OpenFile(prefix + &item.to_string()));
+        } else {
+            return // no prefix, no action. TODO(njskalski) add a warning? Focus back on tree?
+        }
+    }
 }
 
-fn on_file_selected(siv: &mut Cursive, s : &str) {
-    if s.len() == 0 {
-        return;
-    }
-
+fn get_prefix_op(siv : &mut Cursive) -> Option<String> {
     // TODO(njskalski) refactor these uwraps.
     let edit_view : ViewRef<EditView> = siv.find_id(EDIT_VIEW_ID).unwrap();
     let mut tree_view : ViewRef<TreeView<Rc<LazyTreeNode>>> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
     let row = tree_view.row().unwrap();
     let item = tree_view.borrow_item(row).unwrap().clone();
 
-    let prefix : &String = match *item {
-        LazyTreeNode::RootNode(_) => return, // root selected, no action. // TODO(njskalsk) add a warning?
-        LazyTreeNode::DirNode(ref path) => path,
+    let prefix : String = match *item {
+        LazyTreeNode::RootNode(_) => return None, // root selected, no prefix
+        LazyTreeNode::DirNode(ref path) => (**path).clone(),
         _ => panic!() //no support for FileNodes in this tree.
     };
 
-    let mut file_view : ViewRef<FileView> = siv.find_id(FILE_VIEW_ID).unwrap();
+    Some(prefix)
+}
 
-    let filename : String = prefix.clone() + s;
-    file_view.channel.send(IEvent::SaveBufferAs(filename));
+fn on_file_edit_submit(siv: &mut Cursive, s : &str) {
+    if s.len() == 0 {
+        return;
+    }
+
+    if let Some(prefix) = get_prefix_op(siv) {
+        let mut file_view : ViewRef<FileView> = siv.find_id(FILE_VIEW_ID).unwrap();
+        let filename : String = prefix + s;
+        file_view.channel.send(IEvent::SaveBufferAs(filename));
+    } else {
+        return // no prefix, no action. TODO(njskalski) add a warning? Focus back on tree?
+    };
 }
 
 impl FileView {
     pub fn new(ch : IChannel, variant : FileViewVariant, root : Rc<LazyTreeNode>, settings : &Rc<Settings>) -> IdView<Self> {
+
+        debug!("creating file view with variant {:?}", variant);
 
         // TODO(njskalski) implement styling with new solution when Cursive updates.
         let primary_text_color = settings.get_color("theme/file_view/primary_text_color");
@@ -280,7 +301,13 @@ impl FileView {
 
         // TODO(njskalski) title should reflect use case
         // TODO(njskalski) add a separate theme to disable color inversion effect on edit.
-        vl.add_child(ColorViewWrapper::new(Layer::new(TextView::new("Save file")), printer_to_theme.clone()));
+
+        let title : &'static str = match variant {
+            FileViewVariant::SaveAsFile(_, _) =>  "Save file",
+            FileViewVariant::OpenFile(_) => "Open file"
+        };
+
+        vl.add_child(ColorViewWrapper::new(Layer::new(TextView::new(title)), printer_to_theme.clone()));
 
         let mut dir_tree : TreeView<Rc<LazyTreeNode>> = TreeView::new();
         // dir_tree.h_align(HAlign::Left);
@@ -300,7 +327,8 @@ impl FileView {
 
         let mut file_select : SelectView<Rc<LazyTreeNode>> = SelectView::new().v_align(VAlign::Top);
         // file_select.set_on_select(file_list_on_select);
-        file_select.set_on_submit(file_list_on_submit);
+        let is_open = variant.is_open();
+        file_select.set_on_submit(move |siv, item| file_list_on_submit(siv, item, is_open));
         hl.add_child(
             ColorViewWrapper::new(
                 BoxView::with_fixed_size((50, 15), file_select.with_id(FILE_LIST_VIEW_ID)),
@@ -310,11 +338,18 @@ impl FileView {
         vl.add_child(hl);
 
         let mut edit_view = EditView::new().filler(" ");
-        edit_view.set_on_submit(on_file_selected);
-        variant.get_file_op().clone().map(|file| edit_view.set_content(file));
-        vl.add_child(ColorViewWrapper::new((BoxView::with_fixed_size((80, 1), edit_view.with_id(EDIT_VIEW_ID))), printer_to_theme.clone()));
 
-        // hl.add_child(vl);
+        match variant {
+            FileViewVariant::OpenFile(_) => {
+                edit_view.disable()
+            },
+            _ => {
+                edit_view.set_on_submit(on_file_edit_submit);
+                variant.get_file_op().clone().map(|file| edit_view.set_content(file));
+            }
+        };
+
+        vl.add_child(ColorViewWrapper::new((BoxView::with_fixed_size((80, 1), edit_view.with_id(EDIT_VIEW_ID))), printer_to_theme.clone()));
 
         IdView::<FileView>::new(FILE_VIEW_ID, FileView {
             variant : variant,

@@ -25,10 +25,13 @@ pub enum IEvent { //Interface event
     ShowFileBar,
     ShowBufferBar,
     ShowSaveAs, // TODO add buffer, default filename etc.
+    OpenFileDialog,
     SaveBuffer, // TODO add buffer
     SaveBufferAs(String), // TODO add buffer
+    OpenFile(String),
     FuzzyQueryBarSelected(String, String), // marker (the word that search ran agains), selection (value)
     CloseWindow,
+
 
     // Buffer edit events are now in the same queue, not sure yet if that's final.
     BufferEditEvent(cursive::ScreenId, Vec<content_provider::EditEvent>),

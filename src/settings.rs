@@ -177,7 +177,7 @@ impl Settings {
                 _ => panic!("unsupported key combination = {:?} (now).", option_keys)
             };
 
-            debug!("assigning {:?} to action {:?}", event, option_name);
+            // debug!("assigning {:?} to action {:?}", event, option_name);
             result.insert(event, option_name.clone());
         };
 
