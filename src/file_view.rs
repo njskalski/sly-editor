@@ -90,9 +90,11 @@ const DIR_TREE_VIEW_ID : &'static str = "fv_dir_tree_view";
 const FILE_LIST_VIEW_ID : &'static str = "fv_file_list_view";
 const EDIT_VIEW_ID : &'static str = "fv_edit_view";
 
+type TreeViewType = TreeView<Rc<LazyTreeNode>>;
+
 fn dir_tree_on_collapse_callback(siv : &mut Cursive, row:usize, is_collapsed: bool, children: usize) {
     // debug!("dir tree on collapse callback at {:}, ic = {:}. children = {:}", row, is_collapsed, children);
-    let mut view : ViewRef<TreeView<Rc<LazyTreeNode>>> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
+    let mut view : ViewRef<TreeViewType> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
     //the line below looks complicated, but it boils down to copying Rc<LazyTreeNode>, so view borrow can end immediately.
     let item = (*view).borrow_item(row).unwrap().clone();
 
@@ -160,7 +162,7 @@ fn dir_tree_on_collapse_callback(siv : &mut Cursive, row:usize, is_collapsed: bo
 
 fn dir_tree_on_select_callback(siv: &mut Cursive, row: usize) {
     // debug!("dir tree on select callback at {:}", row);
-    let mut view : ViewRef<TreeView<Rc<LazyTreeNode>>> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
+    let mut view : ViewRef<TreeViewType> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
     //the line below looks complicated, but it boils down to copying Rc<LazyTreeNode>, so view borrow can end immediately.
     let item = (*view).borrow_item(row).unwrap().clone();
 
@@ -209,26 +211,28 @@ fn dir_tree_on_select_callback(siv: &mut Cursive, row: usize) {
 }
 
 fn file_list_on_submit(siv: &mut Cursive, item : &Rc<LazyTreeNode>, is_open_file : bool) {
-    let mut file_view : ViewRef<FileView> = siv.find_id(FILE_VIEW_ID).unwrap();
-    let mut edit_view : ViewRef<EditView> = siv.find_id(EDIT_VIEW_ID).unwrap();
-
+    // TODO(njskalski): for some reason if the line below is uncommented (and shadowing ones
+    // are disabled) the unwrap inside get_prefix_op fails. Investigate why.
+    //let mut file_view : ViewRef<FileView> = siv.find_id::<FileView>(FILE_VIEW_ID).unwrap();
     if is_open_file {
-        edit_view.borrow_mut().set_content(item.to_string());
-        file_view.borrow_mut().focus_view(&Selector::Id(EDIT_VIEW_ID));
-    } else {
-
         if let Some(prefix) = get_prefix_op(siv) {
+            let mut file_view : ViewRef<FileView> = siv.find_id::<FileView>(FILE_VIEW_ID).unwrap();
             file_view.channel.send(IEvent::OpenFile(prefix + &item.to_string()));
+            debug!("x");
         } else {
             return // no prefix, no action. TODO(njskalski) add a warning? Focus back on tree?
         }
+    } else {
+        siv.focus_id(EDIT_VIEW_ID);
+        let mut edit_view : ViewRef<EditView> = siv.find_id::<EditView>(EDIT_VIEW_ID).unwrap();
+        edit_view.borrow_mut().set_content(item.to_string());
     }
 }
 
 fn get_prefix_op(siv : &mut Cursive) -> Option<String> {
     // TODO(njskalski) refactor these uwraps.
-    let edit_view : ViewRef<EditView> = siv.find_id(EDIT_VIEW_ID).unwrap();
-    let mut tree_view : ViewRef<TreeView<Rc<LazyTreeNode>>> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
+    let mut tree_view : ViewRef<TreeViewType> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
+
     let row = tree_view.row().unwrap();
     let item = tree_view.borrow_item(row).unwrap().clone();
 
@@ -309,7 +313,7 @@ impl FileView {
 
         vl.add_child(ColorViewWrapper::new(Layer::new(TextView::new(title)), printer_to_theme.clone()));
 
-        let mut dir_tree : TreeView<Rc<LazyTreeNode>> = TreeView::new();
+        let mut dir_tree : TreeViewType = TreeView::new();
         // dir_tree.h_align(HAlign::Left);
 
         dir_tree.insert_container_item(root, Placement::LastChild, 0);
@@ -343,13 +347,12 @@ impl FileView {
             FileViewVariant::OpenFile(_) => {
                 edit_view.disable()
             },
-            _ => {
+            FileViewVariant::SaveAsFile(_, _) => {
                 edit_view.set_on_submit(on_file_edit_submit);
                 variant.get_file_op().clone().map(|file| edit_view.set_content(file));
+                vl.add_child(ColorViewWrapper::new((BoxView::with_fixed_size((80, 1), edit_view.with_id(EDIT_VIEW_ID))), printer_to_theme.clone()));
             }
         };
-
-        vl.add_child(ColorViewWrapper::new((BoxView::with_fixed_size((80, 1), edit_view.with_id(EDIT_VIEW_ID))), printer_to_theme.clone()));
 
         IdView::<FileView>::new(FILE_VIEW_ID, FileView {
             variant : variant,
