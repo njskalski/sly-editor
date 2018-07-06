@@ -212,12 +212,12 @@ fn dir_tree_on_select_callback(siv: &mut Cursive, row: usize) {
 
 fn file_list_on_submit(siv: &mut Cursive, item : &Rc<LazyTreeNode>, is_open_file : bool) {
     // TODO(njskalski): for some reason if the line below is uncommented (and shadowing ones
-    // are disabled) the unwrap inside get_prefix_op fails. Investigate why.
+    // are disabled) the unwrap inside get_path_op fails. Investigate why.
     //let mut file_view : ViewRef<FileView> = siv.find_id::<FileView>(FILE_VIEW_ID).unwrap();
     if is_open_file {
-        if let Some(prefix) = get_prefix_op(siv) {
+        if let Some(prefix) = get_path_op(siv) {
             let mut file_view : ViewRef<FileView> = siv.find_id::<FileView>(FILE_VIEW_ID).unwrap();
-            file_view.channel.send(IEvent::OpenFile(prefix + &item.to_string()));
+            file_view.channel.send(IEvent::OpenFile(prefix, (**item).to_string()));
             debug!("x");
         } else {
             return // no prefix, no action. TODO(njskalski) add a warning? Focus back on tree?
@@ -229,7 +229,7 @@ fn file_list_on_submit(siv: &mut Cursive, item : &Rc<LazyTreeNode>, is_open_file
     }
 }
 
-fn get_prefix_op(siv : &mut Cursive) -> Option<String> {
+fn get_path_op(siv : &mut Cursive) -> Option<String> {
     // TODO(njskalski) refactor these uwraps.
     let mut tree_view : ViewRef<TreeViewType> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
 
@@ -250,10 +250,9 @@ fn on_file_edit_submit(siv: &mut Cursive, s : &str) {
         return;
     }
 
-    if let Some(prefix) = get_prefix_op(siv) {
+    if let Some(path) = get_path_op(siv) {
         let mut file_view : ViewRef<FileView> = siv.find_id(FILE_VIEW_ID).unwrap();
-        let filename : String = prefix + s;
-        file_view.channel.send(IEvent::SaveBufferAs(filename));
+        file_view.channel.send(IEvent::SaveBufferAs(path, s.to_string()));
     } else {
         return // no prefix, no action. TODO(njskalski) add a warning? Focus back on tree?
     };

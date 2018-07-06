@@ -45,7 +45,6 @@ use std::io;
 
 use lazy_dir_tree::LazyTreeNode;
 
-
 pub enum BufferOpenMode {
     ReadOnly,
     ReadWrite

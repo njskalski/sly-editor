@@ -27,8 +27,8 @@ pub enum IEvent { //Interface event
     ShowSaveAs, // TODO add buffer, default filename etc.
     OpenFileDialog,
     SaveBuffer, // TODO add buffer
-    SaveBufferAs(String), // TODO add buffer
-    OpenFile(String),
+    SaveBufferAs(String, String), // folder, file, TODO add buffer
+    OpenFile(String, String), // folder, file
     FuzzyQueryBarSelected(String, String), // marker (the word that search ran agains), selection (value)
     CloseWindow,
 
