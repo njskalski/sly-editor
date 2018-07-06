@@ -149,9 +149,9 @@ impl AppState{
         self.loaded_buffers.get(screen_id).map(|x| BufferStateObserver::new(x.clone()))
     }
 
-    // pub fn schedule_file_for_load(&mut self, path : String) {
-    //     self.buffers_to_load
-    // }
+    pub fn schedule_file_for_load(&mut self, file : &String) {
+        self.buffers_to_load.push(path_to_buffer_state(file));
+    }
 
     // This method takes first buffer scheduled for load and assigns it a ScreenId.
     pub fn load_buffer(&mut self, screen_id : cursive::ScreenId) -> BufferStateObserver {

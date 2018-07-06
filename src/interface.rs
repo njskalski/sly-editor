@@ -150,7 +150,7 @@ impl Interface {
                     self.show_open_file_dialog();
                 },
                 IEvent::OpenFile(file_path) => {
-                    
+                    self.app_state.schedule_file_for_load(&file_path);
                 },
                 _ => {
                     debug!("unhandled IEvent {:?}", &msg);
