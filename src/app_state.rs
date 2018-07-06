@@ -107,8 +107,12 @@ impl BufferStateObserver {
 }
 
 pub struct AppState {
+    // Map of buffers that has been loaded into memory AND assigned a ScreenID.
     loaded_buffers : HashMap<cursive::ScreenId, Rc<RefCell<BufferState>>>,
+
+    /// List of buffers that have been loaded into memory, but yet have no assigned ScreenIDs
     buffers_to_load : Vec<Rc<RefCell<BufferState>>>,
+
     index : Arc<RefCell<FuzzyIndex>>, //because searches are mutating the cache TODO this can be solved with "interior mutability", as other caches in this app
     dir_tree: Rc<LazyTreeNode>,
 }
@@ -145,6 +149,11 @@ impl AppState{
         self.loaded_buffers.get(screen_id).map(|x| BufferStateObserver::new(x.clone()))
     }
 
+    // pub fn schedule_file_for_load(&mut self, path : String) {
+    //     self.buffers_to_load
+    // }
+
+    // This method takes first buffer scheduled for load and assigns it a ScreenId.
     pub fn load_buffer(&mut self, screen_id : cursive::ScreenId) -> BufferStateObserver {
         assert!(!self.loaded_buffers.contains_key(&screen_id));
         let mut buffer = self.buffers_to_load.pop().unwrap();
@@ -152,6 +161,8 @@ impl AppState{
         self.loaded_buffers.insert(screen_id, buffer);
         self.get_buffer_observer(&screen_id).unwrap()
     }
+
+
 
     pub fn new(directories : Vec<String>, files : Vec<String>) -> Self {
 
@@ -174,41 +185,7 @@ impl AppState{
         let dir_tree = LazyTreeNode::new(&canonized_directories);
 
         let buffers : Vec<_> = files.iter().map(|file| {
-            let path = Path::new(&file);
-
-            // this also checks for file existence:
-            // https://doc.rust-lang.org/std/fs/fn.canonicalize.html
-            let canon_path = path.canonicalize();
-
-            let buf_state = if canon_path.is_ok() {
-                debug!("reading file {:?}", &file);
-                BufferState {
-                    ss : BufferStateS { path : Some(canon_path.unwrap().to_string_lossy().to_string()) },
-                    modified : false,
-                    exists : true,
-                    screen_id : None,
-                    content : RopeBasedContentProvider::new(Some(&mut path_to_reader(file))),
-                    mode : BufferOpenMode::ReadWrite
-                }
-            } else {
-                let mut current_dir = env::current_dir().unwrap();
-                // join semantics is interesting and it does exactly what I want: if new filename
-                // does not have an absolute path, it attaches it to current_dir. If it does define
-                // absolute path, the current_dir part is dropped.
-                // see https://doc.rust-lang.org/std/path/struct.PathBuf.html#method.push
-                current_dir.join(path);
-
-                BufferState {
-                    ss : BufferStateS { path : Some(current_dir.to_string_lossy().to_string()) },
-                    modified : false,
-                    exists : false,
-                    screen_id : None,
-                    content : RopeBasedContentProvider::new(None),
-                    mode : BufferOpenMode::ReadWrite
-                }
-            };
-
-            Rc::new(RefCell::new(buf_state))
+            Rc::new(RefCell::new(path_to_buffer_state(file)))
         }).collect();
 
         let file_index_items = file_list_to_items(&file_index);
@@ -223,6 +200,42 @@ impl AppState{
 
     fn empty() -> Self {
         Self::new(Vec::new(), Vec::new())
+    }
+}
+
+fn path_to_buffer_state(file : &String) -> BufferState {
+    let path = Path::new(file);
+
+    // this also checks for file existence:
+    // https://doc.rust-lang.org/std/fs/fn.canonicalize.html
+    let canon_path = path.canonicalize();
+
+    if canon_path.is_ok() {
+        debug!("reading file {:?}", file);
+        BufferState {
+            ss : BufferStateS { path : Some(canon_path.unwrap().to_string_lossy().to_string()) },
+            modified : false,
+            exists : true,
+            screen_id : None,
+            content : RopeBasedContentProvider::new(Some(&mut path_to_reader(file))),
+            mode : BufferOpenMode::ReadWrite
+        }
+    } else {
+        let mut current_dir = env::current_dir().unwrap();
+        // join semantics is interesting and it does exactly what I want: if new filename
+        // does not have an absolute path, it attaches it to current_dir. If it does define
+        // absolute path, the current_dir part is dropped.
+        // see https://doc.rust-lang.org/std/path/struct.PathBuf.html#method.push
+        current_dir.join(path);
+
+        BufferState {
+            ss : BufferStateS { path : Some(current_dir.to_string_lossy().to_string()) },
+            modified : false,
+            exists : false,
+            screen_id : None,
+            content : RopeBasedContentProvider::new(None),
+            mode : BufferOpenMode::ReadWrite
+        }
     }
 }
 
