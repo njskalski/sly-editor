@@ -162,8 +162,6 @@ impl AppState{
         self.get_buffer_observer(&screen_id).unwrap()
     }
 
-
-
     pub fn new(directories : Vec<String>, files : Vec<String>) -> Self {
 
         let mut file_index : Vec<String> = Vec::new();
@@ -185,7 +183,7 @@ impl AppState{
         let dir_tree = LazyTreeNode::new(&canonized_directories);
 
         let buffers : Vec<_> = files.iter().map(|file| {
-            Rc::new(RefCell::new(path_to_buffer_state(file)))
+            path_to_buffer_state(file)
         }).collect();
 
         let file_index_items = file_list_to_items(&file_index);
@@ -203,14 +201,14 @@ impl AppState{
     }
 }
 
-fn path_to_buffer_state(file : &String) -> BufferState {
+fn path_to_buffer_state(file : &String) -> Rc<RefCell<BufferState>> {
     let path = Path::new(file);
 
     // this also checks for file existence:
     // https://doc.rust-lang.org/std/fs/fn.canonicalize.html
     let canon_path = path.canonicalize();
 
-    if canon_path.is_ok() {
+    let buffer_state = if canon_path.is_ok() {
         debug!("reading file {:?}", file);
         BufferState {
             ss : BufferStateS { path : Some(canon_path.unwrap().to_string_lossy().to_string()) },
@@ -236,7 +234,9 @@ fn path_to_buffer_state(file : &String) -> BufferState {
             content : RopeBasedContentProvider::new(None),
             mode : BufferOpenMode::ReadWrite
         }
-    }
+    };
+
+    Rc::new(RefCell::new(buffer_state))
 }
 
 /// this method takes into account .git and other directives set in .gitignore. However it only takes into account most recent .gitignore
