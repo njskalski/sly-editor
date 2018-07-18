@@ -149,8 +149,12 @@ impl Interface {
                 IEvent::OpenFileDialog => {
                     self.show_open_file_dialog();
                 },
-                IEvent::OpenFile(file_path) => {
-                    self.state.schedule_file_for_load(&file_path);
+                IEvent::OpenFile(folder, file) => {
+                    self.state.schedule_file_for_load(&(folder + &file));
+                    self.close_filedialog();
+                },
+                IEvent::SaveBufferAs(folder, file) => {
+                    self.close_filedialog();
                 },
                 _ => {
                     debug!("unhandled IEvent {:?}", &msg);
