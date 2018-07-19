@@ -42,6 +42,8 @@ use content_provider::RopeBasedContentProvider;
 use content_provider;
 use cursive;
 use std::io;
+use std::error;
+use std::io::Write;
 
 use lazy_dir_tree::LazyTreeNode;
 
@@ -75,6 +77,44 @@ impl BufferState {
 
     pub fn get_path_ref(&self) -> &Option<String> {
         &self.ss.path
+    }
+
+    fn proceed_with_save(&mut self, mut file : fs::File) -> Result<(), io::Error> {
+
+
+        file.flush()
+    }
+
+    pub fn save(&mut self, path : Option<String>) -> Result<(), io::Error> {
+        if path.is_none() && self.ss.path.is_none() {
+            return Err(io::Error::new(io::ErrorKind::NotFound, "No path provided."));
+        }
+
+        if path == self.ss.path && self.exists && !self.modified {
+            info!("Early exit from BufferState.save - file not modified.");
+            return Ok(());
+        }
+
+        // let final_path = match path {
+        //     Some(p) => p.clone(),
+        //     None => self.ss.path.unwrap();
+        // }
+
+        let final_path : String = match path {
+            Some(ref p) => p.clone(),
+            None => self.ss.path.clone().unwrap()
+        };
+
+        let mut file = fs::File::create(final_path)?;
+        self.proceed_with_save(file)?;
+
+        if path != None {
+            self.ss.path = path;
+        }
+
+        self.modified = false;
+        self.exists = true;
+        Ok(())
     }
 }
 

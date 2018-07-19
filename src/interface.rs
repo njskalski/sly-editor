@@ -177,7 +177,7 @@ impl Interface {
 
     pub fn get_event_channel(&self) -> IChannel {
         self.channel.0.clone()
-    }
+    }    
 
     // TODO(njskalski) this assertion is temporary, in use only because the interface is built
     // agile, not pre-designed.
