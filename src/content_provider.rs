@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 use std::io::{BufRead, Read};
+use std::io;
 use std::rc::Rc;
 use time;
 use unicode_segmentation::UnicodeSegmentation;
@@ -37,35 +38,38 @@ pub enum EditEvent {
 }
 
 #[derive(Debug)]
-struct StringBasedContent {
+struct RopeBasedContent {
     lines: Rope,
     timestamp: time::Tm,
 }
 
-impl StringBasedContent {
+impl RopeBasedContent {
     pub fn new(reader_op: Option<&mut Read>) -> Self {
-
         match reader_op {
-            Some(reader) => StringBasedContent {
+            Some(reader) => RopeBasedContent {
                 lines: Rope::from_reader(reader).expect("failed to build rope from reader"), // TODO(njskalski) error handling
                 timestamp: time::now(),
             },
-            None => StringBasedContent {
-                lines: Rope::from_str(""),
+            None => RopeBasedContent {
+                lines: Rope::new(),
                 timestamp: time::now(),
             }
         }
     }
+
+    pub fn save<T : io::Write>(&self, writer : T) -> io::Result<()> {
+        self.lines.write_to(writer)
+    }
 }
 
 pub struct RopeBasedContentProvider {
-    history: Vec<StringBasedContent>,
+    history: Vec<RopeBasedContent>,
     current: usize,
 }
 
 //now events are applied one after another.
 //TODO in some combinations offsets should be recomputed. But I expect no such combinations appear. I should however check it just in case.
-fn apply_events(c: &StringBasedContent, events: &Vec<EditEvent>) -> StringBasedContent {
+fn apply_events(c: &RopeBasedContent, events: &Vec<EditEvent>) -> RopeBasedContent {
     let mut new_lines : Rope = c.lines.clone();
     // let mut offsets = c.offsets.clone();
     for event in events {
@@ -88,7 +92,7 @@ fn apply_events(c: &StringBasedContent, events: &Vec<EditEvent>) -> StringBasedC
         }
     }
 
-    StringBasedContent {
+    RopeBasedContent {
         lines: new_lines,
         timestamp: time::now(),
     }
@@ -97,7 +101,7 @@ fn apply_events(c: &StringBasedContent, events: &Vec<EditEvent>) -> StringBasedC
 impl RopeBasedContentProvider {
     pub fn new(reader_op : Option<&mut Read>) -> Self {
         RopeBasedContentProvider {
-            history: vec![StringBasedContent::new(reader_op)],
+            history: vec![RopeBasedContent::new(reader_op)],
             current: 0,
         }
     }
@@ -120,5 +124,9 @@ impl RopeBasedContentProvider {
         self.history.truncate(self.current + 1); //droping redo's
         self.history.push(new_content);
         self.current += 1;
+    }
+
+    pub fn save<T : io::Write>(&self, writer : T) -> io::Result<()> {
+        self.history.last().unwrap().lines.write_to(writer)        
     }
 }

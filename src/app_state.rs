@@ -80,9 +80,7 @@ impl BufferState {
     }
 
     fn proceed_with_save(&mut self, mut file : fs::File) -> Result<(), io::Error> {
-
-
-        file.flush()
+        self.content.save(file)
     }
 
     pub fn save(&mut self, path : Option<String>) -> Result<(), io::Error> {
@@ -114,6 +112,7 @@ impl BufferState {
 
         self.modified = false;
         self.exists = true;
+        debug!("{:?} saved.", &self.ss.path);
         Ok(())
     }
 }
@@ -162,7 +161,7 @@ fn path_to_reader(path : &String) -> fs::File {
 
 impl AppState{
 
-    pub fn get_buffer_for_screen(&mut self, screen_id : &cursive::ScreenId) -> Option<Rc<RefCell<BufferState>>> {
+    pub fn get_buffer_for_screen(&self, screen_id : &cursive::ScreenId) -> Option<Rc<RefCell<BufferState>>> {
         self.loaded_buffers.get(screen_id).map(|x| x.clone())
     }
 

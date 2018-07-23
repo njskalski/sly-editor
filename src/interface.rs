@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-use app_state::AppState;
+use app_state::*;
 use cursive;
 use cursive::*;
 use cursive::views::*;
@@ -154,6 +154,10 @@ impl Interface {
                     self.close_filedialog();
                 },
                 IEvent::SaveBufferAs(folder, file) => {
+                    let screen_id = self.siv.active_screen();
+                    let path = folder + "/" + file.as_str();
+                    let buffer_state : Rc<RefCell<BufferState>> = self.state.get_buffer_for_screen(&screen_id).unwrap();
+                    buffer_state.borrow_mut().save(Some(path));
                     self.close_filedialog();
                 },
                 _ => {
@@ -177,7 +181,7 @@ impl Interface {
 
     pub fn get_event_channel(&self) -> IChannel {
         self.channel.0.clone()
-    }    
+    }
 
     // TODO(njskalski) this assertion is temporary, in use only because the interface is built
     // agile, not pre-designed.
