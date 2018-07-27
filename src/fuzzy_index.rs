@@ -57,7 +57,29 @@ pub struct FuzzyIndex {
     cache_order: LinkedList<String>,
 }
 
-impl FuzzyIndex{
+impl FuzzyIndexTrait for FuzzyIndex {
+
+    fn get_results_for(&mut self, query : &String, limit : usize) -> Vec<Rc<ComplexViewItem>> {
+        let mut results : Vec<Rc<ComplexViewItem>> = Vec::new();
+
+        // this has no effect if we already had such task in progress.
+        self.start_search(query, limit);
+        let task = self.cache.get(query).unwrap(); // unwrap always succeeds, see line above
+
+        let result_ids = task.get_result_ids();
+
+        for id in result_ids.iter() {
+            assert!(self.items.contains_key(id));
+            for item in self.items[id].iter() {
+                results.push(item.clone());
+            }
+        }
+
+        results
+    }
+}
+
+impl FuzzyIndex {
     pub fn new(word_list : Vec<ComplexViewItem>) -> FuzzyIndex {
         // TODO we can consume word_list here instead of calling ci.copy() below
         let mut items : HashMap<u64, Vec<Rc<ComplexViewItem>>> = HashMap::new();
@@ -80,7 +102,6 @@ impl FuzzyIndex{
 
         let mut header_to_key_sorted : Vec<(String, u64)> = header_to_key.iter().map(|item| (item.0.clone(), item.1.clone())).collect();
         header_to_key_sorted.sort();
-
         let map = Map::from_iter(header_to_key_sorted).unwrap();
 
         let mut item_sizes : HashMap<u64, usize> = HashMap::new();
@@ -95,9 +116,7 @@ impl FuzzyIndex{
             cache : HashMap::new(),
             cache_order : LinkedList::new(),
         };
-
         i.start_search(&"".to_string(), HARD_QUERY_LIMIT);
-
         i
     }
 
@@ -126,25 +145,6 @@ impl FuzzyIndex{
                 self.cache.remove(&oldest_query);
             }
         }
-    }
-
-    pub fn get_results_for(&mut self, query : &String, limit : usize) -> Vec<Rc<ComplexViewItem>> {
-        let mut results : Vec<Rc<ComplexViewItem>> = Vec::new();
-
-        // this has no effect if we already had such task in progress.
-        self.start_search(query, limit);
-        let task = self.cache.get(query).unwrap(); // unwrap always succeeds, see line above
-
-        let result_ids = task.get_result_ids();
-
-        for id in result_ids.iter() {
-            assert!(self.items.contains_key(id));
-            for item in self.items[id].iter() {
-                results.push(item.clone());
-            }
-        }
-
-        results
     }
 }
 

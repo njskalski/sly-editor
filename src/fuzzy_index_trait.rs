@@ -18,6 +18,6 @@ use fuzzy_view_item::*;
 use std::rc::Rc;
 
 pub trait FuzzyIndexTrait {
-    fn new<T : FuzzyIndexTrait>(word_list : Vec<ComplexViewItem>) -> T;
+    // fn new(word_list : Vec<ComplexViewItem>) -> Self;
     fn get_results_for(&mut self, query : &String, limit : usize) -> Vec<Rc<ComplexViewItem>>;
 }

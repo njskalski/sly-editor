@@ -49,7 +49,8 @@ use cursive::views::*;
 use cursive::{Cursive, Printer};
 use cursive::theme::*;
 
-use fuzzy_index::{FuzzyIndex, HARD_QUERY_LIMIT};
+use fuzzy_index::{HARD_QUERY_LIMIT};
+use fuzzy_index_trait::FuzzyIndexTrait;
 use settings::Settings;
 use unicode_segmentation::UnicodeSegmentation as us;
 
@@ -66,7 +67,7 @@ pub struct FuzzyQueryView {
     marker: String,
     query: String,
     scrollbase: ScrollBase,
-    index: Arc<RefCell<FuzzyIndex>>,
+    index: Arc<RefCell<FuzzyIndexTrait>>,
     last_view_size: Option<Vec2>,
     selected: usize,
     settings: Rc<Settings>,
@@ -138,7 +139,7 @@ impl View for FuzzyQueryView {
                         .unwrap();
                 }
                 EventResult::Consumed(None)
-            }            
+            }
             _ => {
                 debug!("fuzzy got unhandled event {:?}", &event);
                 EventResult::Ignored
@@ -229,7 +230,7 @@ impl FuzzyQueryView {
         desc_len + 1
     }
 
-    pub fn new(index: Arc<RefCell<FuzzyIndex>>, marker: String, channel: IChannel, settings : Rc<Settings>) -> Self {
+    pub fn new(index: Arc<RefCell<FuzzyIndexTrait>>, marker: String, channel: IChannel, settings : Rc<Settings>) -> Self {
         let mut res = FuzzyQueryView {
             context: "context".to_string(),
             query: String::new(),

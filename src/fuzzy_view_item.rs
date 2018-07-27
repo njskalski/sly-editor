@@ -27,7 +27,6 @@ use cursive::views::*;
 use cursive::{Cursive, Printer};
 use cursive::theme::*;
 
-use fuzzy_index::FuzzyIndex;
 use settings::KeybindingsType;
 use unicode_segmentation::UnicodeSegmentation as us;
 
