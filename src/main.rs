@@ -29,6 +29,7 @@ extern crate cursive_tree_view;
 extern crate serde_derive;
 
 mod fuzzy_index;
+mod fuzzy_index_trait;
 mod fuzzy_query_view;
 mod fuzzy_view_item;
 mod syntax;

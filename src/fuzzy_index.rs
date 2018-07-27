@@ -25,8 +25,10 @@ use self::fst_regex::Regex;
 use std::iter::FromIterator;
 use std::char::{ToLowercase, ToUppercase};
 
-use std::collections::HashMap;
 use fuzzy_view_item::*;
+use fuzzy_index_trait::*;
+
+use std::collections::HashMap;
 use std::sync::mpsc::*;
 use std::sync::mpsc;
 use std::thread;
@@ -99,7 +101,7 @@ impl FuzzyIndex{
         i
     }
 
-    pub fn start_search(&mut self, query : &String, limit : usize) {
+    fn start_search(&mut self, query : &String, limit : usize) {
         if self.cache.contains_key(query) {
             if self.cache[query].get_limit() >= &limit {
                 // we got it.
