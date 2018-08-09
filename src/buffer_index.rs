@@ -14,9 +14,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+use fuzzy_index_trait::FuzzyIndexTrait;
 use fuzzy_view_item::*;
+use buffer_state_observer::BufferStateObserver;
 use std::rc::Rc;
 
-pub trait FuzzyIndexTrait {
-    fn get_results_for(&mut self, query : &String, limit : usize) -> Vec<Rc<ComplexViewItem>>;
+pub struct BufferIndex {
+    buffers: Vec<BufferStateObserver>
+}
+
+impl BufferIndex {
+    pub fn new(buffers : Vec<BufferStateObserver>) -> Self {
+        BufferIndex{buffers : buffers}
+    }
+}
+
+impl FuzzyIndexTrait for BufferIndex {
+    fn get_results_for(&mut self, query : &String, limit : usize) -> Vec<Rc<ComplexViewItem>> {
+        vec!{} //TODO
+    }
 }

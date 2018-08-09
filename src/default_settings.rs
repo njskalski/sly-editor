@@ -29,7 +29,7 @@ const default_settings_string : &'static str = r####"
     },
     "global" : {
       "show_file_bar" : ["ctrl", "p"],
-      "show_buffer_bar" : ["ctrl", "o"],
+      "show_buffer_list" : ["ctrl", "o"],
       "command_mode" : ["ctrl", "e"],
       "quit" : ["ctrl", "q"],
       "close_window" : ["esc"],

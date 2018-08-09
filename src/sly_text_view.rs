@@ -55,7 +55,7 @@ use std::cmp;
 use std::usize::MAX;
 use std::rc::Rc;
 use settings::Settings;
-use app_state::BufferStateObserver;
+use buffer_state_observer::BufferStateObserver;
 use interface::IChannel;
 use content_provider::{EditEvent, RopeBasedContentProvider};
 use events::IEvent;

@@ -27,6 +27,8 @@ use cursive::traits::*;
 use settings::load_default_settings;
 use settings;
 use settings::Settings;
+use buffer_state::BufferState;
+use buffer_state_observer::BufferStateObserver;
 
 use events::IEvent;
 use sly_text_view::SlyTextView;
@@ -102,8 +104,8 @@ impl Interface {
                 "quit" => {
                     i.siv.add_global_callback(event, move |_| { ch.send(IEvent::QuitSly).unwrap(); });
                 },
-                "show_buffer_bar" => {
-                    i.siv.add_global_callback(event, move |_| { ch.send(IEvent::ShowBufferBar).unwrap(); });
+                "show_buffer_list" => {
+                    i.siv.add_global_callback(event, move |_| { ch.send(IEvent::ShowBufferList).unwrap(); });
                 },
                 "save_as" => {
                     i.siv.add_global_callback(event, move |_| { ch.send(IEvent::ShowSaveAs).unwrap(); });
@@ -160,6 +162,9 @@ impl Interface {
                     buffer_state.borrow_mut().save(Some(path));
                     self.close_filedialog();
                 },
+                IEvent::ShowBufferList => {
+                    self.show_buffer_list();
+                },
                 _ => {
                     debug!("unhandled IEvent {:?}", &msg);
                 }
@@ -183,6 +188,14 @@ impl Interface {
         self.channel.0.clone()
     }
 
+    fn show_buffer_list(&self) {
+        debug!("showing buffer list");
+        let buffers : Vec<BufferStateObserver> = self.state.get_buffers();
+
+
+
+    }
+
     // TODO(njskalski) this assertion is temporary, in use only because the interface is built
     // agile, not pre-designed.
     fn assert_no_file_view(&mut self) {
@@ -204,7 +217,7 @@ impl Interface {
         };
         let (folder_op, file_op) = match buffer_obs.get_path()  {
                 None => (None, None),
-                Some(path) => utils::path_string_to_pair(path)
+                Some(path) => utils::path_string_to_pair(path.clone())
         };
         self.show_file_dialog(FileViewVariant::SaveAsFile(folder_op, file_op));
     }

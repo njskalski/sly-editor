@@ -32,8 +32,13 @@ use std::fs;
 use ignore::gitignore;
 use std::env;
 
+use fuzzy_index_trait::FuzzyIndexTrait;
 use fuzzy_index::FuzzyIndex;
 use fuzzy_view_item::file_list_to_items;
+use buffer_state::BufferState;
+use buffer_state::BufferStateS;
+use buffer_state::BufferReadMode;
+use buffer_state_observer::BufferStateObserver;
 
 use std::cell::{RefCell, Ref};
 use std::rc::Rc;
@@ -47,103 +52,6 @@ use std::io::Write;
 
 use lazy_dir_tree::LazyTreeNode;
 
-pub enum BufferOpenMode {
-    ReadOnly,
-    ReadWrite
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct BufferStateS {
-    path : Option<String>, //unnamed possible, right?
-}
-
-pub struct BufferState {
-    ss : BufferStateS,
-    modified : bool,
-    exists : bool,
-    mode : BufferOpenMode,
-    content : RopeBasedContentProvider,
-    screen_id : Option<cursive::ScreenId> //no screen no buffer, but can be None after load. TODO fix it later
-    // also above will be changed. Multiple buffers will be able to share same screen (so identifier
-    // will get longer. I might also implement transferring buffers between instances (for working on multiple screens)
-}
-
-impl BufferState {
-    pub fn submit_edit_events(&mut self, events: Vec<content_provider::EditEvent>)
-    {
-        self.content.submit_events(events);
-        self.modified = true; // TODO modified should be moved to history.
-    }
-
-    pub fn get_path_ref(&self) -> &Option<String> {
-        &self.ss.path
-    }
-
-    fn proceed_with_save(&mut self, mut file : fs::File) -> Result<(), io::Error> {
-        self.content.save(file)
-    }
-
-    pub fn save(&mut self, path : Option<String>) -> Result<(), io::Error> {
-        if path.is_none() && self.ss.path.is_none() {
-            return Err(io::Error::new(io::ErrorKind::NotFound, "No path provided."));
-        }
-
-        if path == self.ss.path && self.exists && !self.modified {
-            info!("Early exit from BufferState.save - file not modified.");
-            return Ok(());
-        }
-
-        // let final_path = match path {
-        //     Some(p) => p.clone(),
-        //     None => self.ss.path.unwrap();
-        // }
-
-        let final_path : String = match path {
-            Some(ref p) => p.clone(),
-            None => self.ss.path.clone().unwrap()
-        };
-
-        let mut file = fs::File::create(final_path)?;
-        self.proceed_with_save(file)?;
-
-        if path != None {
-            self.ss.path = path;
-        }
-
-        self.modified = false;
-        self.exists = true;
-        debug!("{:?} saved.", &self.ss.path);
-        Ok(())
-    }
-}
-
-pub struct BufferStateObserver {
-    buffer_state : Rc<RefCell<BufferState>>,
-}
-
-impl BufferStateObserver {
-    fn new(buffer_state : Rc<RefCell<BufferState>>) -> Self {
-        BufferStateObserver{ buffer_state : buffer_state }
-    }
-
-    /// borrows unmutably content
-    pub fn content(&self) -> Ref<RopeBasedContentProvider> {
-        Ref::map(self.buffer_state.borrow(), |x| &x.content)
-    }
-
-    pub fn is_loaded(&self) -> bool {
-        self.buffer_state.borrow().screen_id.is_some()
-    }
-
-    pub fn get_screen_id(&self) -> cursive::ScreenId {
-        self.buffer_state.borrow().screen_id.unwrap()
-    }
-
-    pub fn get_path(&self) -> Option<String> {
-        self.buffer_state.borrow().ss.path.clone()
-    }
-}
-
 pub struct AppState {
     // Map of buffers that has been loaded into memory AND assigned a ScreenID.
     loaded_buffers : HashMap<cursive::ScreenId, Rc<RefCell<BufferState>>>,
@@ -155,17 +63,21 @@ pub struct AppState {
     dir_tree: Rc<LazyTreeNode>,
 }
 
-fn path_to_reader(path : &String) -> fs::File {
-    fs::File::open(path.as_str()).expect(&format!("file {:?} did not exist!", path))
-}
-
 impl AppState{
 
+    //TODO this interface is temporary.
     pub fn get_buffer_for_screen(&self, screen_id : &cursive::ScreenId) -> Option<Rc<RefCell<BufferState>>> {
         self.loaded_buffers.get(screen_id).map(|x| x.clone())
     }
 
-    pub fn get_file_index(&self) -> Arc<RefCell<FuzzyIndex>> {
+    /// Returns list of buffers. Rather stable.
+    pub fn get_buffers(&self) -> Vec<BufferStateObserver> {
+        assert!(!self.has_buffers_to_load()); //TODO not decided yet.
+        self.loaded_buffers.iter().map(|(k, v)| BufferStateObserver::new(v.clone())).collect()
+    }
+
+    /// Returns file index. Rather stable.
+    pub fn get_file_index(&self) -> Arc<RefCell<FuzzyIndexTrait>> {
         self.index.clone()
     }
 
@@ -173,7 +85,7 @@ impl AppState{
         self.dir_tree.clone()
     }
 
-    // TODO(njskalski) this interface is temporary
+    // TODO(njskalski) this interface is temporary. We should submit events to buffer, not screen.
     pub fn submit_edit_events_to_buffer(&mut self, screen_id : cursive::ScreenId, events : Vec<content_provider::EditEvent>) {
         self.loaded_buffers[&screen_id].borrow_mut().submit_edit_events(events);
     }
@@ -187,15 +99,15 @@ impl AppState{
         self.loaded_buffers.get(screen_id).map(|x| BufferStateObserver::new(x.clone()))
     }
 
-    pub fn schedule_file_for_load(&mut self, file : &String) {
-        self.buffers_to_load.push(path_to_buffer_state(file));
+    pub fn schedule_file_for_load(&mut self, file : &String) -> Result<(), io::Error>{
+        self.buffers_to_load.push(BufferState::open(file)?);
     }
 
     // This method takes first buffer scheduled for load and assigns it a ScreenId.
     pub fn load_buffer(&mut self, screen_id : cursive::ScreenId) -> BufferStateObserver {
         assert!(!self.loaded_buffers.contains_key(&screen_id));
         let mut buffer = self.buffers_to_load.pop().unwrap();
-        buffer.borrow_mut().screen_id = Some(screen_id);
+        buffer.borrow_mut().set_screen_id(screen_id);
         self.loaded_buffers.insert(screen_id, buffer);
         self.get_buffer_observer(&screen_id).unwrap()
     }
@@ -221,7 +133,7 @@ impl AppState{
         let dir_tree = LazyTreeNode::new(&canonized_directories);
 
         let buffers : Vec<_> = files.iter().map(|file| {
-            path_to_buffer_state(file)
+            BufferState::new(file).unwrap()
         }).collect();
 
         let file_index_items = file_list_to_items(&file_index);
@@ -237,44 +149,6 @@ impl AppState{
     fn empty() -> Self {
         Self::new(Vec::new(), Vec::new())
     }
-}
-
-fn path_to_buffer_state(file : &String) -> Rc<RefCell<BufferState>> {
-    let path = Path::new(file);
-
-    // this also checks for file existence:
-    // https://doc.rust-lang.org/std/fs/fn.canonicalize.html
-    let canon_path = path.canonicalize();
-
-    let buffer_state = if canon_path.is_ok() {
-        debug!("reading file {:?}", file);
-        BufferState {
-            ss : BufferStateS { path : Some(canon_path.unwrap().to_string_lossy().to_string()) },
-            modified : false,
-            exists : true,
-            screen_id : None,
-            content : RopeBasedContentProvider::new(Some(&mut path_to_reader(file))),
-            mode : BufferOpenMode::ReadWrite
-        }
-    } else {
-        let mut current_dir = env::current_dir().unwrap();
-        // join semantics is interesting and it does exactly what I want: if new filename
-        // does not have an absolute path, it attaches it to current_dir. If it does define
-        // absolute path, the current_dir part is dropped.
-        // see https://doc.rust-lang.org/std/path/struct.PathBuf.html#method.push
-        current_dir.join(path);
-
-        BufferState {
-            ss : BufferStateS { path : Some(current_dir.to_string_lossy().to_string()) },
-            modified : false,
-            exists : false,
-            screen_id : None,
-            content : RopeBasedContentProvider::new(None),
-            mode : BufferOpenMode::ReadWrite
-        }
-    };
-
-    Rc::new(RefCell::new(buffer_state))
 }
 
 /// this method takes into account .git and other directives set in .gitignore. However it only takes into account most recent .gitignore

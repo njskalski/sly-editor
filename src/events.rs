@@ -23,7 +23,7 @@ use content_provider;
 pub enum IEvent { //Interface event
     QuitSly,
     ShowFileBar,
-    ShowBufferBar,
+    ShowBufferList,
     ShowSaveAs, // TODO add buffer, default filename etc.
     OpenFileDialog,
     SaveBuffer, // TODO add buffer

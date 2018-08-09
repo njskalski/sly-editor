@@ -2,6 +2,13 @@ Disclaimer
 
 This is not an official Google product (experimental or otherwise), it is just code that happens to be owned by Google.
 
+Code quality disclaimer
+
+The project is developed in "agile" way, and by that I mean that I focus
+primarily on interface and functionality. Also, I am still learning Rust. So
+code is full of temporary solutions and workarounds. I am yet to figure the
+complete internal design after I fully understand requirements of goals.
+
 Readme
 
 This is a work in progress project of a command line text editor. The goals are:
@@ -34,7 +41,7 @@ I plan no support for:
 The script language of choice will most probably be either Python or Go.
 
 What is already done:
-- reading and editing (but not saving) files
+- reading and editing, saving files.
 - thanks to the great libraries of fst and Cursive, fuzzy search bar already works
 for files, other menus will be implemented soon.
 - thanks to the great serde_json library, settings mechanism (including keybindings) is implemented.
