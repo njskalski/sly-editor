@@ -99,8 +99,10 @@ impl AppState{
         self.loaded_buffers.get(screen_id).map(|x| BufferStateObserver::new(x.clone()))
     }
 
-    pub fn schedule_file_for_load(&mut self, file : &String) -> Result<(), io::Error>{
-        self.buffers_to_load.push(BufferState::open(file)?);
+    pub fn schedule_file_for_load(&mut self, file : &String) -> Result<(), io::Error> {
+        let buffer_state = BufferState::open(file)?;
+        self.buffers_to_load.push(buffer_state);
+        Ok(())
     }
 
     // This method takes first buffer scheduled for load and assigns it a ScreenId.
@@ -133,7 +135,7 @@ impl AppState{
         let dir_tree = LazyTreeNode::new(&canonized_directories);
 
         let buffers : Vec<_> = files.iter().map(|file| {
-            BufferState::new(file).unwrap()
+            BufferState::open(file).unwrap()
         }).collect();
 
         let file_index_items = file_list_to_items(&file_index);

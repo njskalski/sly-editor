@@ -127,8 +127,8 @@ impl BufferState {
         self.modified = true; // TODO modified should be moved to history.
     }
 
-    pub fn get_path_ref(&self) -> &Option<String> {
-        &self.ss.path
+    pub fn get_path(&self) -> Option<String> {
+        self.ss.path.clone()
     }
 
     fn proceed_with_save(&mut self, mut file : fs::File) -> Result<(), io::Error> {

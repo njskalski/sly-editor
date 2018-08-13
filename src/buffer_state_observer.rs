@@ -46,7 +46,7 @@ impl BufferStateObserver {
         self.buffer_state.borrow().get_screen_id().unwrap()
     }
 
-    pub fn get_path(&self) -> &Option<String> {
-        self.buffer_state.borrow().get_path_ref()
+    pub fn get_path(&self) -> Option<String> {
+        self.buffer_state.borrow().get_path()
     }
 }
