@@ -20,17 +20,37 @@ use buffer_state_observer::BufferStateObserver;
 use std::rc::Rc;
 
 pub struct BufferIndex {
-    buffers: Vec<BufferStateObserver>
+    buffers: Vec<BufferStateObserver>,
+    items : Vec<Rc<ComplexViewItem>>
 }
 
 impl BufferIndex {
     pub fn new(buffers : Vec<BufferStateObserver>) -> Self {
-        BufferIndex{buffers : buffers}
+        let items : Vec<Rc<ComplexViewItem>> = Vec::new();
+
+        for (i, buffer) in buffers.into_iter().enumerate() {
+            if buffer.get_filename().is_none() {
+                continue;
+            }
+            items.push(Rc::new(BufferIndex::buffer_to_item(buffer, i.to_string())))
+        }
+
+        BufferIndex{buffers : buffers, items : items}
     }
+
+    fn buffer_to_item(buffer : BufferStateObserver, marker: String) -> ComplexViewItem {
+        ComplexViewItem {
+            header: buffer.get_filename().unwrap().to_string_lossy().to_string(),
+            desc: buffer.get_path().map(|path| path.to_string_lossy().to_string()),
+            marker: marker
+        }
+    }
+
 }
 
 impl FuzzyIndexTrait for BufferIndex {
     fn get_results_for(&mut self, query : &String, limit : usize) -> Vec<Rc<ComplexViewItem>> {
-        vec!{} //TODO
+        //TODO(njskalski) ignoring limit now
+        self.items
     }
 }

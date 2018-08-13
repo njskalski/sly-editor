@@ -38,7 +38,7 @@ use std::path::Path;
 pub trait ViewItem {
     fn get_header(&self) -> &String;
     fn get_description(&self) -> &Option<String>;
-    fn get_marker(&self) -> &String;
+    fn get_marker(&self) -> &String; //TODO this should vary
 }
 
 #[derive(Clone, Debug)]

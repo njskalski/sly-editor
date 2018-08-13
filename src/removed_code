@@ -77,3 +77,43 @@ let textWindow = match self.last_view_size {
         Some(max) => TextWindow::get_for_constraints_2(self.position, max),
         None => TextWindow::get_for_constraints_1(self.position),
     };
+
+
+    // pub fn new(file : &String, force_create : bool) -> Result<Rc<RefCell<BufferState>>, io::Error> {
+      //
+      //
+      //
+      //
+      //     let buffer_state_res : Result<BufferState, io::Error> = match canon_path_res {
+      //         Ok(canon_path) => {
+      //
+      //         },
+      //         Err(err) => {
+      //             debug!("got error {}, but still trying to read/create file", err);
+      //
+      //             let mut current_dir = env::current_dir().unwrap();
+      //             // join semantics is interesting and it does exactly what I want: if new filename
+      //             // does not have an absolute path, it attaches it to current_dir. If it does define
+      //             // absolute path, the current_dir part is dropped.
+      //             // see https://doc.rust-lang.org/std/path/struct.PathBuf.html#method.push
+      //             current_dir.join(path);
+      //
+      //             //TODO(njskalski) filter out errors that are different from "file not found",
+      //             // and propagate their.
+      //
+      //             Ok(BufferState {
+      //                 ss : BufferStateS { path : Some(current_dir.to_string_lossy().to_string()) },
+      //                 modified : false,
+      //                 exists : false,
+      //                 screen_id : None,
+      //                 content : RopeBasedContentProvider::new(None),
+      //                 mode : BufferReadMode::ReadWrite
+      //             })
+      //         }
+      //     };
+      //
+      //     match buffer_state_res {
+      //         Ok(buffer_state) => Rc::new(RefCell::new(buffer_state)),
+      //         Err(err) => err
+      //     }
+      // }

@@ -18,6 +18,9 @@ use std::cell::Ref;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use std::path::PathBuf;
+use std::ffi::OsString;
+
 use content_provider::RopeBasedContentProvider;
 use buffer_state::BufferState;
 
@@ -46,7 +49,11 @@ impl BufferStateObserver {
         self.buffer_state.borrow().get_screen_id().unwrap()
     }
 
-    pub fn get_path(&self) -> Option<String> {
+    pub fn get_path(&self) -> Option<PathBuf> {
         self.buffer_state.borrow().get_path()
+    }
+
+    pub fn get_filename(&self) -> Option<OsString> {
+        self.buffer_state.borrow().get_filename()
     }
 }

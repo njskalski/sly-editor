@@ -217,7 +217,7 @@ impl Interface {
         };
         let (folder_op, file_op) = match buffer_obs.get_path()  {
                 None => (None, None),
-                Some(path) => utils::path_string_to_pair(path.clone())
+                Some(path) => utils::path_string_to_pair(path.to_string_lossy()) // TODO get rid of path_string_to_pair
         };
         self.show_file_dialog(FileViewVariant::SaveAsFile(folder_op, file_op));
     }

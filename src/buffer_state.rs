@@ -21,7 +21,8 @@ use cursive;
 use std::fs;
 use std::io;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::ffi::OsString;
 use std::env;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -33,7 +34,7 @@ pub enum BufferReadMode {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BufferStateS {
-    path : Option<String>, //unnamed possible, right?
+    path : Option<PathBuf>, //unnamed possible, right?
 }
 
 pub struct BufferState {
@@ -60,7 +61,7 @@ impl BufferState {
             Err(io::Error::new(io::ErrorKind::InvalidInput, format!("\"{}\" (canonized: \"{:?}\") is not file.", file, canon_path)))
         } else {
             Ok(Rc::new(RefCell::new(BufferState {
-                ss : BufferStateS { path : Some(canon_path.to_string_lossy().to_string()) },
+                ss : BufferStateS { path : Some(canon_path) },
                 modified : false,
                 exists : true,
                 screen_id : None,
@@ -69,45 +70,6 @@ impl BufferState {
             })))
         }
     }
-
-    // pub fn new(file : &String, force_create : bool) -> Result<Rc<RefCell<BufferState>>, io::Error> {
-    //
-    //
-    //
-    //
-    //     let buffer_state_res : Result<BufferState, io::Error> = match canon_path_res {
-    //         Ok(canon_path) => {
-    //
-    //         },
-    //         Err(err) => {
-    //             debug!("got error {}, but still trying to read/create file", err);
-    //
-    //             let mut current_dir = env::current_dir().unwrap();
-    //             // join semantics is interesting and it does exactly what I want: if new filename
-    //             // does not have an absolute path, it attaches it to current_dir. If it does define
-    //             // absolute path, the current_dir part is dropped.
-    //             // see https://doc.rust-lang.org/std/path/struct.PathBuf.html#method.push
-    //             current_dir.join(path);
-    //
-    //             //TODO(njskalski) filter out errors that are different from "file not found",
-    //             // and propagate their.
-    //
-    //             Ok(BufferState {
-    //                 ss : BufferStateS { path : Some(current_dir.to_string_lossy().to_string()) },
-    //                 modified : false,
-    //                 exists : false,
-    //                 screen_id : None,
-    //                 content : RopeBasedContentProvider::new(None),
-    //                 mode : BufferReadMode::ReadWrite
-    //             })
-    //         }
-    //     };
-    //
-    //     match buffer_state_res {
-    //         Ok(buffer_state) => Rc::new(RefCell::new(buffer_state)),
-    //         Err(err) => err
-    //     }
-    // }
 
     pub fn set_screen_id(&mut self, screen_id : cursive::ScreenId) {
         self.screen_id = Some(screen_id);
@@ -127,7 +89,14 @@ impl BufferState {
         self.modified = true; // TODO modified should be moved to history.
     }
 
-    pub fn get_path(&self) -> Option<String> {
+    pub fn get_filename(&self) -> Option<OsString> {
+        match self.ss.path {
+            Some(path) => path.file_name().map(|osstr| osstr.to_os_string()),
+            None => None
+        }
+    }
+
+    pub fn get_path(&self) -> Option<PathBuf> {
         self.ss.path.clone()
     }
 
@@ -140,7 +109,8 @@ impl BufferState {
             return Err(io::Error::new(io::ErrorKind::NotFound, "No path provided."));
         }
 
-        if path == self.ss.path && self.exists && !self.modified {
+        // TODO decide where OsString, where String
+        if path == self.ss.path.map(|path| path.to_string_lossy().to_string()) && self.exists && !self.modified {
             info!("Early exit from BufferState.save - file not modified.");
             return Ok(());
         }
@@ -150,8 +120,8 @@ impl BufferState {
         //     None => self.ss.path.unwrap();
         // }
 
-        let final_path : String = match path {
-            Some(ref p) => p.clone(),
+        let final_path : PathBuf = match path {
+            Some(ref p) => Path::new(p).to_path_buf(),
             None => self.ss.path.clone().unwrap()
         };
 
@@ -159,7 +129,7 @@ impl BufferState {
         self.proceed_with_save(file)?;
 
         if path != None {
-            self.ss.path = path;
+            self.ss.path = Some(Path::new(&path.unwrap()).to_path_buf())
         }
 
         self.modified = false;
