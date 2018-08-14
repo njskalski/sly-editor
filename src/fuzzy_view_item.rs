@@ -48,6 +48,16 @@ pub struct ComplexViewItem {
     marker: String,
 }
 
+impl ComplexViewItem {
+    pub fn new(header : String, desc : Option<String>, marker : String) -> Self {
+        ComplexViewItem {
+            header : header,
+            desc : desc,
+            marker : marker
+        }
+    }
+}
+
 impl ViewItem for ComplexViewItem {
     fn get_header(&self) -> &String {
         &self.header

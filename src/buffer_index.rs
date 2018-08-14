@@ -26,9 +26,9 @@ pub struct BufferIndex {
 
 impl BufferIndex {
     pub fn new(buffers : Vec<BufferStateObserver>) -> Self {
-        let items : Vec<Rc<ComplexViewItem>> = Vec::new();
+        let mut items : Vec<Rc<ComplexViewItem>> = Vec::new();
 
-        for (i, buffer) in buffers.into_iter().enumerate() {
+        for (i, buffer) in buffers.iter().enumerate() {
             if buffer.get_filename().is_none() {
                 continue;
             }
@@ -38,12 +38,12 @@ impl BufferIndex {
         BufferIndex{buffers : buffers, items : items}
     }
 
-    fn buffer_to_item(buffer : BufferStateObserver, marker: String) -> ComplexViewItem {
-        ComplexViewItem {
-            header: buffer.get_filename().unwrap().to_string_lossy().to_string(),
-            desc: buffer.get_path().map(|path| path.to_string_lossy().to_string()),
-            marker: marker
-        }
+    fn buffer_to_item(buffer : &BufferStateObserver, marker: String) -> ComplexViewItem {
+        ComplexViewItem::new(
+            buffer.get_filename().unwrap().to_string_lossy().to_string(),
+            buffer.get_path().map(|path| path.to_string_lossy().to_string()),
+            marker
+        )
     }
 
 }
@@ -51,6 +51,6 @@ impl BufferIndex {
 impl FuzzyIndexTrait for BufferIndex {
     fn get_results_for(&mut self, query : &String, limit : usize) -> Vec<Rc<ComplexViewItem>> {
         //TODO(njskalski) ignoring limit now
-        self.items
+        self.items.clone()
     }
 }

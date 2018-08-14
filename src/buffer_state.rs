@@ -91,7 +91,7 @@ impl BufferState {
 
     pub fn get_filename(&self) -> Option<OsString> {
         match self.ss.path {
-            Some(path) => path.file_name().map(|osstr| osstr.to_os_string()),
+            Some(ref path) => path.file_name().map(|osstr| osstr.to_os_string()),
             None => None
         }
     }
@@ -110,7 +110,7 @@ impl BufferState {
         }
 
         // TODO decide where OsString, where String
-        if path == self.ss.path.map(|path| path.to_string_lossy().to_string()) && self.exists && !self.modified {
+        if path == self.ss.path.clone().map(|path| path.to_string_lossy().to_string()) && self.exists && !self.modified {
             info!("Early exit from BufferState.save - file not modified.");
             return Ok(());
         }
