@@ -42,7 +42,7 @@ pub const HARD_QUERY_LIMIT: usize = 50;
 /*
 Disclaimer:
 index matches a fuzzy query to u64, that can be converted to items. So basically we have
-items[index[header]] = Vec<ComplexViewItem>, because MULTIPLE ITEMS can have a SINGLE header.
+items[index[header]] = Vec<ViewItem>, because MULTIPLE ITEMS can have a SINGLE header.
 example: multiple files with SAME NAME
 example: mutliple methods with same names from different files.
 
@@ -50,7 +50,7 @@ It is not possible to add items after a fst::Map has been built.
 */
 pub struct FuzzyIndex {
     index : Arc<Map>, //this is Map<String, u64>. It's Arc, because queries are ran in worker threads.
-    items : HashMap<u64, Vec<Rc<ComplexViewItem>>>,
+    items : HashMap<u64, Vec<Rc<ViewItem>>>,
     items_sizes : Arc<HashMap<u64, usize>>, //this field is used by workers to determine whether they hit the limit of records or not.
     cache: HashMap<String, FuzzySearchTask>,
     /// used to know in what order clear the cache. Does not contain empty query, which is computed in cache immediately. Also, cache_order and cache sizes are not synchronized, as cache_order can contain duplicates in rare situations.
@@ -59,8 +59,8 @@ pub struct FuzzyIndex {
 
 impl FuzzyIndexTrait for FuzzyIndex {
 
-    fn get_results_for(&mut self, query : &String, limit : usize) -> Vec<Rc<ComplexViewItem>> {
-        let mut results : Vec<Rc<ComplexViewItem>> = Vec::new();
+    fn get_results_for(&mut self, query : &String, limit : usize) -> Vec<Rc<ViewItem>> {
+        let mut results : Vec<Rc<ViewItem>> = Vec::new();
 
         // this has no effect if we already had such task in progress.
         self.start_search(query, limit);
@@ -80,9 +80,9 @@ impl FuzzyIndexTrait for FuzzyIndex {
 }
 
 impl FuzzyIndex {
-    pub fn new(word_list : Vec<ComplexViewItem>) -> FuzzyIndex {
+    pub fn new(word_list : Vec<ViewItem>) -> FuzzyIndex {
         // TODO we can consume word_list here instead of calling ci.copy() below
-        let mut items : HashMap<u64, Vec<Rc<ComplexViewItem>>> = HashMap::new();
+        let mut items : HashMap<u64, Vec<Rc<ViewItem>>> = HashMap::new();
         let mut header_to_key : HashMap<String, u64> = HashMap::new();
         let mut key = 0;
         for ci in word_list {
@@ -92,7 +92,7 @@ impl FuzzyIndex {
                 let id : u64 = header_to_key[header];
                 items.get_mut(&id).unwrap().push(Rc::new(ci.clone()));
             } else {
-                let mut vec : Vec<Rc<ComplexViewItem>> = Vec::new();
+                let mut vec : Vec<Rc<ViewItem>> = Vec::new();
                 vec.push(Rc::new(ci.clone()));
                 header_to_key.insert(header.clone(), key);
                 items.insert(key, vec);
@@ -172,7 +172,7 @@ impl FuzzySearchTask {
             let mut stream = stream_builder.into_stream();
 
             debug!("2");
-            let mut results : Vec<&ComplexViewItem> = Vec::new();
+            let mut results : Vec<&ViewItem> = Vec::new();
             let mut it : usize = 0;
             while let Some((header, key)) = stream.next() {
                 if sender.send(key).is_err() {

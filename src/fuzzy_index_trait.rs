@@ -18,5 +18,5 @@ use fuzzy_view_item::*;
 use std::rc::Rc;
 
 pub trait FuzzyIndexTrait {
-    fn get_results_for(&mut self, query : &String, limit : usize) -> Vec<Rc<ComplexViewItem>>;
+    fn get_results_for(&mut self, query : &String, limit : usize) -> Vec<Rc<ViewItem>>;
 }

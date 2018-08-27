@@ -35,61 +35,52 @@ use std::marker::Sized;
 
 use std::path::Path;
 
-pub trait ViewItem {
-    fn get_header(&self) -> &String;
-    fn get_description(&self) -> &Option<String>;
-    fn get_marker(&self) -> &String; //TODO this should vary
-    fn get_height_in_lines(&self) -> usize;
-}
-
 #[derive(Clone, Debug)]
-pub struct ComplexViewItem {
+pub struct ViewItem {
     header: String,
     desc: Option<String>,
     marker: String,
 }
 
-impl ComplexViewItem {
+impl ViewItem {
     pub fn new(header : String, desc : Option<String>, marker : String) -> Self {
-        ComplexViewItem {
+        ViewItem {
             header : header,
             desc : desc,
             marker : marker
         }
     }
-}
 
-impl ViewItem for ComplexViewItem {
-    fn get_header(&self) -> &String {
+    pub fn get_header(&self) -> &String {
         &self.header
     }
 
-    fn get_description(&self) -> &Option<String> {
+    pub fn get_description(&self) -> &Option<String> {
         &self.desc
     }
 
-    fn get_marker(&self) -> &String {
+    pub fn get_marker(&self) -> &String {
         &self.marker
     }
 
-    fn get_height_in_lines(&self) -> usize {
+    pub fn get_height_in_lines(&self) -> usize {
         1 + (if self.desc.is_none() { 0 } else { 1 })
     }
 }
 
-pub fn get_dummy_items() -> Vec<ComplexViewItem> {
+pub fn get_dummy_items() -> Vec<ViewItem> {
     vec![
-        ComplexViewItem {
+        ViewItem {
             header: "header 1".to_string(),
             desc: Some("some boring desc1".to_string()),
             marker: "1".to_string(),
         },
-        ComplexViewItem {
+        ViewItem {
             header: "hakuna 2".to_string(),
             desc: Some("some boring desc2".to_string()),
             marker: "2".to_string(),
         },
-        ComplexViewItem {
+        ViewItem {
             header: "matata 3".to_string(),
             desc: Some("some boringmultiline\ndesc3".to_string()),
             marker: "3".to_string(),
@@ -97,19 +88,19 @@ pub fn get_dummy_items() -> Vec<ComplexViewItem> {
     ]
 }
 
-pub fn file_list_to_items(file_list : &Vec<String>) -> Vec<ComplexViewItem> {
+pub fn file_list_to_items(file_list : &Vec<String>) -> Vec<ViewItem> {
     file_list.iter().map(|f| {
         // TODO support windows?
         match f.rfind("/") {
             None => {
-                ComplexViewItem {
+                ViewItem {
                     header : f.clone(),
                     desc : None,
                     marker: f.clone()
                 }
             },
             Some(sep_pos) => {
-                ComplexViewItem {
+                ViewItem {
                     header : f[sep_pos+1..].to_string(),
                     desc : Some(f[0..sep_pos].to_string()),
                     marker: f.clone()

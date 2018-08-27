@@ -21,12 +21,12 @@ use std::rc::Rc;
 
 pub struct BufferIndex {
     buffers: Vec<BufferStateObserver>,
-    items : Vec<Rc<ComplexViewItem>>
+    items : Vec<Rc<ViewItem>>
 }
 
 impl BufferIndex {
     pub fn new(buffers : Vec<BufferStateObserver>) -> Self {
-        let mut items : Vec<Rc<ComplexViewItem>> = Vec::new();
+        let mut items : Vec<Rc<ViewItem>> = Vec::new();
 
         for (i, buffer) in buffers.iter().enumerate() {
             if buffer.get_filename().is_none() {
@@ -38,8 +38,8 @@ impl BufferIndex {
         BufferIndex{buffers : buffers, items : items}
     }
 
-    fn buffer_to_item(buffer : &BufferStateObserver, marker: String) -> ComplexViewItem {
-        ComplexViewItem::new(
+    fn buffer_to_item(buffer : &BufferStateObserver, marker: String) -> ViewItem {
+        ViewItem::new(
             buffer.get_filename().unwrap().to_string_lossy().to_string(),
             buffer.get_path().map(|path| path.to_string_lossy().to_string()),
             marker
@@ -49,7 +49,7 @@ impl BufferIndex {
 }
 
 impl FuzzyIndexTrait for BufferIndex {
-    fn get_results_for(&mut self, query : &String, limit : usize) -> Vec<Rc<ComplexViewItem>> {
+    fn get_results_for(&mut self, query : &String, limit : usize) -> Vec<Rc<ViewItem>> {
         //TODO(njskalski) ignoring limit now
         self.items.clone()
     }

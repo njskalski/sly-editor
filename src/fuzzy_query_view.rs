@@ -70,7 +70,7 @@ pub struct FuzzyQueryView {
     selected: usize,
     settings: Rc<Settings>,
     channel: IChannel,
-    items_cache : RefCell<Option<Rc<Vec<Rc<ComplexViewItem>>>>>
+    items_cache : RefCell<Option<Rc<Vec<Rc<ViewItem>>>>>
 }
 
 impl View for FuzzyQueryView {
@@ -160,13 +160,13 @@ impl FuzzyQueryView {
         (*self.items_cache.borrow_mut()) = None;
     }
 
-    fn get_current_items(&self) -> Rc<Vec<Rc<ComplexViewItem>>> {
+    fn get_current_items(&self) -> Rc<Vec<Rc<ViewItem>>> {
         let mut refmut = self.items_cache.borrow_mut();
         if refmut.is_none() {
             *refmut = Some(Rc::new(self.index.borrow_mut().get_results_for(&self.query, HARD_QUERY_LIMIT)));
         }
 
-        let rc : Rc<Vec<Rc<ComplexViewItem>>> = refmut.as_ref().unwrap().clone();
+        let rc : Rc<Vec<Rc<ViewItem>>> = refmut.as_ref().unwrap().clone();
         rc
     }
 
