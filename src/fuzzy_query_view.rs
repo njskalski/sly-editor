@@ -24,7 +24,7 @@ description. Example: search line is filename, description is it's location. (do
 */
 
 // TODO(njskalski) profile and remove unnecessary copies. (actually profiling never pointed to this part of code so far)
-// TODO(njskalski) allow other types than ComplexItemType (so abstract ItemType)
+// TODO(njskalski) parallelism is disabled right now. Need to update cursive to enable it.
 
 // (CONCURRENCY) we are calling get_current_items twice here, not sure if the
 // results are going to be the same, and I rely on them being in the same order. Clearly
@@ -59,6 +59,9 @@ use std::collections::{HashMap, LinkedList};
 use std::marker::Sized;
 use std::sync::Arc;
 use std::cell::RefCell;
+use std::cell::Cell;
+
+const WIDTH : usize = 100;
 
 pub struct FuzzyQueryView {
     context: String,
@@ -66,7 +69,8 @@ pub struct FuzzyQueryView {
     query: String,
     scrollbase: ScrollBase,
     index: Arc<RefCell<FuzzyIndexTrait>>,
-    last_view_size: Option<Vec2>,
+    size: Option<Vec2>,
+    needs_relayout: Cell<bool>,
     selected: usize,
     settings: Rc<Settings>,
     channel: IChannel,
@@ -74,6 +78,11 @@ pub struct FuzzyQueryView {
 }
 
 impl View for FuzzyQueryView {
+
+    fn layout(&mut self, size : Vec2) {
+        self.size = Some(size);
+    }
+
     fn draw(&self, printer: &Printer) {
         self.clear_cache();
 
@@ -91,10 +100,18 @@ impl View for FuzzyQueryView {
         }
     }
 
+    fn needs_relayout(&self) -> bool {
+        self.needs_relayout.get()
+    }
+
     fn required_size(&mut self, constraint: Vec2) -> Vec2 {
-        let size = Vec2::new(100, 30); // TODO(njskalski) ??
-        self.last_view_size = Some(size);
-        size
+        // one stands for header.
+        let height = 1 + match *self.items_cache.borrow() {
+            Some(ref items) => count_items_lines(items.iter()),
+            None => 0
+        };
+
+        Vec2::new(WIDTH, height)
     }
 
     fn on_event(&mut self, event: Event) -> EventResult {
@@ -146,13 +163,13 @@ impl View for FuzzyQueryView {
     }
 }
 
-// fn count_items_lines<'a, I, T : 'a>(items : I) -> usize
-// where
-//     T: AsRef<ViewItem> + Sized,
-//     I: Iterator<Item = &'a T>
-// {
-//     items.fold(0, |acc, &x| acc + x.get_height_in_lines())
-// }
+fn count_items_lines<I, T>(items : I) -> usize
+where
+    T: AsRef<ViewItem>,
+    I: Iterator<Item = T>
+{
+    items.fold(0, |acc, x| acc + x.as_ref().get_height_in_lines())
+}
 
 impl FuzzyQueryView {
 
@@ -160,10 +177,12 @@ impl FuzzyQueryView {
         (*self.items_cache.borrow_mut()) = None;
     }
 
+    //blocking!
     fn get_current_items(&self) -> Rc<Vec<Rc<ViewItem>>> {
         let mut refmut = self.items_cache.borrow_mut();
         if refmut.is_none() {
             *refmut = Some(Rc::new(self.index.borrow_mut().get_results_for(&self.query, HARD_QUERY_LIMIT)));
+            self.needs_relayout.set(true);
         }
 
         let rc : Rc<Vec<Rc<ViewItem>>> = refmut.as_ref().unwrap().clone();
@@ -181,7 +200,7 @@ impl FuzzyQueryView {
     fn draw_item(&self, item: &ViewItem, selected: bool, pos: (usize, usize), printer: &Printer) -> usize {
         //drawing header
 
-        let row_width = self.last_view_size.unwrap().x;
+        let row_width = self.size.unwrap().x;
 
         let header = us::graphemes(item.get_header().as_str(), true).collect::<Vec<&str>>();
         let query = us::graphemes(self.query.as_str(), true).collect::<Vec<&str>>();
@@ -247,7 +266,8 @@ impl FuzzyQueryView {
             channel: channel,
             marker: marker,
             items_cache : RefCell::new(None),
-            last_view_size : None
+            size : None,
+            needs_relayout: Cell::new(false)
         };
         res.update_view();
         res
@@ -256,7 +276,7 @@ impl FuzzyQueryView {
     fn update_view(&mut self) {
         let items = self.get_current_items(); //just call to update cache, start search if necessary
         self.selected = 0; //TODO add following currently highlighted item (if not removed).
-        // self.scrollbase.set_heights(50, count_items_lines(items.iter()));
+        self.scrollbase.set_heights(50, count_items_lines(items.iter()));
     }
 
     fn add_letter(&mut self, letter: char) {
