@@ -38,8 +38,6 @@ type BoxedCallback<'a> = Box<for<'b> FnMut(&'b mut Any) + 'a>;
 
 use std::rc::Rc;
 
-use cursive::align::{Align, HAlign, VAlign};
-use cursive::direction::Direction;
 use cursive::event;
 use cursive::event::*;
 use cursive::traits::*;
@@ -148,6 +146,14 @@ impl View for FuzzyQueryView {
     }
 }
 
+// fn count_items_lines<'a, I, T : 'a>(items : I) -> usize
+// where
+//     T: AsRef<ViewItem> + Sized,
+//     I: Iterator<Item = &'a T>
+// {
+//     items.fold(0, |acc, &x| acc + x.get_height_in_lines())
+// }
+
 impl FuzzyQueryView {
 
     fn clear_cache(&self) {
@@ -248,8 +254,9 @@ impl FuzzyQueryView {
     }
 
     fn update_view(&mut self) {
-        self.get_current_items(); //just call to update cache, start search if necessary
-        self.selected = 0;
+        let items = self.get_current_items(); //just call to update cache, start search if necessary
+        self.selected = 0; //TODO add following currently highlighted item (if not removed).
+        // self.scrollbase.set_heights(50, count_items_lines(items.iter()));
     }
 
     fn add_letter(&mut self, letter: char) {

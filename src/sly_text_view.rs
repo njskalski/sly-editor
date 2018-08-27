@@ -148,14 +148,15 @@ impl View for SlyTextView {
             let mut x: usize = 0;
 
             let y = line_no - self.position.y;
-            let local_index_length = line_no.to_string().len(); //logarithm? never heard of it.
+            let line_desc = (line_no + 1).to_string();
+            let local_index_length = line_desc.len(); //logarithm? never heard of it.
 
             printer.with_color(ColorStyle::secondary(), |printer| {
                 for _ in 0..(index_length - local_index_length) {
                     printer.print((x, y), " ");
                     x += 1;
                 }
-                printer.print((x, y), &line_no.to_string());
+                printer.print((x, y), &line_desc);
                 x += local_index_length;
                 for _ in 0..INDEX_MARGIN {
                     printer.print((x, y), " ");

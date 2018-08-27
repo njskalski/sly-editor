@@ -39,6 +39,7 @@ pub trait ViewItem {
     fn get_header(&self) -> &String;
     fn get_description(&self) -> &Option<String>;
     fn get_marker(&self) -> &String; //TODO this should vary
+    fn get_height_in_lines(&self) -> usize;
 }
 
 #[derive(Clone, Debug)]
@@ -69,6 +70,10 @@ impl ViewItem for ComplexViewItem {
 
     fn get_marker(&self) -> &String {
         &self.marker
+    }
+
+    fn get_height_in_lines(&self) -> usize {
+        1 + (if self.desc.is_none() { 0 } else { 1 })
     }
 }
 

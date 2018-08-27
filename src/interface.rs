@@ -163,7 +163,7 @@ impl Interface {
                     self.close_filedialog();
                 },
                 IEvent::ShowBufferList => {
-                    self.show_buffer_list();
+                    self.show_file_bar();
                 },
                 _ => {
                     debug!("unhandled IEvent {:?}", &msg);
@@ -186,14 +186,6 @@ impl Interface {
 
     pub fn get_event_channel(&self) -> IChannel {
         self.channel.0.clone()
-    }
-
-    fn show_buffer_list(&self) {
-        debug!("showing buffer list");
-        let buffers : Vec<BufferStateObserver> = self.state.get_buffers();
-
-
-
     }
 
     // TODO(njskalski) this assertion is temporary, in use only because the interface is built
@@ -256,6 +248,7 @@ impl Interface {
     fn show_file_bar(&mut self) {
         if !self.file_bar_visible {
             let ebar = FuzzyQueryView::new(self.state.get_file_index(), "filebar".to_string(), self.get_event_channel(), self.settings.clone());
+
             self.siv.add_layer(IdView::new("filebar",ebar));
             self.file_bar_visible = true;
         }
