@@ -163,7 +163,7 @@ impl Interface {
                     self.close_filedialog();
                 },
                 IEvent::ShowBufferList => {
-                    self.show_file_bar();
+                    self.show_buffer_list();
                 },
                 _ => {
                     debug!("unhandled IEvent {:?}", &msg);
@@ -252,5 +252,9 @@ impl Interface {
             self.siv.add_layer(IdView::new("filebar",ebar));
             self.file_bar_visible = true;
         }
+    }
+
+    fn show_buffer_list(&mut self) {
+        //TODO implement
     }
 }
