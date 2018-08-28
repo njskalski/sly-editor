@@ -231,7 +231,6 @@ impl FuzzyQueryView {
     }
 
     fn draw_item(&self, item: &ViewItem, selected: bool, line_no: usize, printer: &Printer) {
-        let pos = (0, 0);
         assert!(line_no < MAX_VIEWITEM_HEIGHT);
         let row_width = self.size.unwrap().x;
 
@@ -261,30 +260,28 @@ impl FuzzyQueryView {
 
                 let colorstyle = self.get_item_colorstyle(selected, highlighted);
                 printer.with_color(colorstyle, |printer| {
-                    printer.print((pos.0 + header_pos, pos.1), header[header_pos]);
+                    printer.print((header_pos, 0), header[header_pos]);
                 });
             }
             //empty suffix:
             let colorstyle = self.get_item_colorstyle(selected, false);
             for i in header.len()..row_width {
                 printer.with_color(colorstyle, |printer| {
-                    printer.print((pos.0 + i, pos.1), " ");
+                    printer.print((0 + i, 0), " ");
                 });
             };
             //end of drawing header
         } else { //drawing description
             //TODO lines below ignores the fact that now I temporarily imposed description lines limit of 1.
-
-            let line_no = line_no-1;
             let colorstyle = self.get_item_colorstyle(selected, false);
 
             let desc_len = match item.get_description() {
-                &Some(ref desc) => match desc.lines().skip(line_no).next() {
+                &Some(ref desc) => match desc.lines().skip(line_no-1).next() {
                         Some(line) => {
                             printer.with_color(colorstyle, |printer| {
-                                printer.print((pos.0, pos.1 + line_no), line);
+                                printer.print((0, 0), line);
                                 for x in line.len()..row_width {
-                                    printer.print((pos.0 + x, pos.1 + line_no), " ");
+                                    printer.print((x, 0), " ");
                                 }
                             });
                         },
