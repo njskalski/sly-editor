@@ -94,14 +94,15 @@ impl View for FuzzyQueryView {
             &format!("Context : {:?} \tquery: {:?}", &self.context, &self.query),
         );
 
-        debug!("size: {:?}", self.size);
+        // debug!("size: {:?}", self.size);
         // debug!("items: {:?}", self.get_current_items());
 
         self.scrollbase.draw(&printer.offset((0,1), printer.focused), |printer, line| {
             let items = self.get_current_items();
-            let (i, item) = get_item_for_line(items.iter(), line).unwrap();
+            let (i, item_idx) = get_item_for_line(items.iter(), line).unwrap();
             // debug!("i : {:?} s : {:?}", line, (i, item));
-            self.draw_item(item, false, line-i, printer);
+            let selected = item_idx == self.selected;
+            self.draw_item(&items[item_idx], selected, line-i, printer);
         });
     }
 
@@ -179,28 +180,28 @@ where
 }
 
 //TODO tests
-/// Returns Option<(number of lines preceeding items consumed, Item)>
-fn get_item_for_line<I, T>(mut items : I, line: usize) -> Option<(usize, T)>
+/// Returns Option<(number of lines preceeding items consumed, item_idx)>
+fn get_item_for_line<I, T>(mut items : I, line: usize) -> Option<(usize, usize)>
 where
     T: AsRef<ViewItem>,
     I: Iterator<Item = T>
 {
-    let res : (usize, Option<T>) = items.fold((0, None), |acc, item| {
+    let res : (usize, Option<usize>) = items.enumerate().fold((0, None), |acc, (item_idx, item)| {
         match acc {
             (l, None) => {
                 if l <= line && line < l + item.as_ref().get_height_in_lines() {
-                    (l, Some(item))
+                    (l, Some(item_idx))
                 } else {
                     (l + item.as_ref().get_height_in_lines(), None)
                 }
             },
-            (l, Some(old_item)) => (l, Some(old_item))
+            (l, Some(old_item_idx)) => (l, Some(old_item_idx))
         }
     });
 
     match res {
         (line, None) => None,
-        (line, Some(item)) => Some((line, item))
+        (line, Some(item_idx)) => Some((line, item_idx))
     }
 }
 
@@ -234,7 +235,7 @@ impl FuzzyQueryView {
         assert!(line_no < MAX_VIEWITEM_HEIGHT);
         let row_width = self.size.unwrap().x;
 
-        debug!("item: {:?}, selected: {:?}, line_no: {:?}", item, selected, line_no);
+        // debug!("item: {:?}, selected: {:?}, line_no: {:?}", item, selected, line_no);
 
         if line_no == 0 {//drawing header
             let header = us::graphemes(item.get_header().as_str(), true).collect::<Vec<&str>>();
