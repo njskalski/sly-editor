@@ -77,14 +77,15 @@ pub struct FuzzyQueryView {
     selected: usize,
     settings: Rc<Settings>,
     channel: IChannel,
-    items_cache : RefCell<Option<Rc<Vec<Rc<ViewItem>>>>>
+    items_cache : RefCell<Option<Rc<Vec<Rc<ViewItem>>>>>,
+    old_selection : Option<Rc<ViewItem>>
 }
 
 impl View for FuzzyQueryView {
 
     fn layout(&mut self, size : Vec2) {
         self.size = Some(size);
-        self.update_view();
+        self.try_update_scrollbase();
     }
 
     fn draw(&self, printer: &Printer) {
@@ -136,17 +137,15 @@ impl View for FuzzyQueryView {
             Event::Key(Key::Up) => {
                 if self.selected > 0 {
                     self.selected -= 1;
-                };
-                debug!("sel1 {:?}", &self.selected);
+                }
+                self.after_update_selection();
                 EventResult::Consumed(None)
             }
             Event::Key(Key::Down) => {
-                if self.selected + 1 < self.get_current_items().len()
-                 {
+                if self.selected + 1 < self.get_current_items().len() {
                     self.selected += 1;
                 }
-
-                debug!("sel2 {:?}", &self.selected);
+                self.after_update_selection();
                 EventResult::Consumed(None)
             }
             Event::Key(Key::Enter) => {
@@ -211,6 +210,25 @@ impl FuzzyQueryView {
         (*self.items_cache.borrow_mut()) = None;
     }
 
+    fn get_selected_item_lines(&self) -> (usize, usize) {
+        let items = self.get_current_items();
+
+        if items.len() == 0 {
+            return (0,0);
+        }
+
+        let mut acc = 0;
+        for (idx, item) in items.iter().enumerate() {
+            if idx == self.selected {
+                return (acc, acc + item.get_height_in_lines())
+            } else {
+                acc += item.get_height_in_lines();
+            }
+        };
+
+        panic!("selected item {:?} not on list of current items (len = {:?}).", self.selected, items.len())
+    }
+
     //blocking!
     fn get_current_items(&self) -> Rc<Vec<Rc<ViewItem>>> {
         let mut refmut = self.items_cache.borrow_mut();
@@ -232,7 +250,6 @@ impl FuzzyQueryView {
     }
 
     fn draw_item(&self, item: &ViewItem, selected: bool, line_no: usize, printer: &Printer) {
-        assert!(line_no < MAX_VIEWITEM_HEIGHT);
         let row_width = self.size.unwrap().x;
 
         // debug!("item: {:?}, selected: {:?}, line_no: {:?}", item, selected, line_no);
@@ -305,34 +322,57 @@ impl FuzzyQueryView {
             marker: marker,
             items_cache : RefCell::new(None),
             size : None,
-            needs_relayout: Cell::new(false)
+            needs_relayout: Cell::new(false),
+            old_selection : None
         };
-        res.update_view();
         res
     }
 
-    fn update_view(&mut self) {
-        self.selected = 0; //TODO add following currently highlighted item (if not removed).
-        self.try_update_scrollbase();
+    fn after_update_selection(&mut self) {
+        let (begin_line, end_line) = self.get_selected_item_lines();
+
+        self.scrollbase.scroll_to(end_line);
+        self.scrollbase.scroll_to(begin_line);
     }
 
     fn try_update_scrollbase(&mut self) {
-        let items = self.get_current_items(); //just call to update cache, start search if necessary //TODO this is blocking now
+        let items = self.get_current_items(); //just call to update cache, start search if necessary
         match self.size {
             Some(xy) => self.scrollbase.set_heights(xy.y - 1, count_items_lines(items.iter())),
             None => {}
         };
     }
 
+
+    fn after_query_ended(&mut self) {
+        let items = self.get_current_items();
+        match self.old_selection {
+            Some(ref old_selection) => {
+                match items.iter().enumerate().position(|(idx, item)| {item == old_selection}) {
+                    Some(idx) => self.selected = idx,
+                    None => self.selected = 0
+                }
+            },
+            None => {}
+        }
+        self.old_selection = None;
+    }
+
     fn add_letter(&mut self, letter: char) {
+        self.old_selection = self.get_current_items().get(self.selected).map(|x| x.clone());
         self.query.push(letter);
         self.clear_cache();
-        self.update_view();
+
+        self.after_query_ended(); //TODO remove this blocking
+        self.try_update_scrollbase();
     }
 
     fn backspace(&mut self) {
+        self.old_selection = self.get_current_items().get(self.selected).map(|x| x.clone());
         self.query.pop();
         self.clear_cache();
-        self.update_view();
+
+        self.after_query_ended(); //TODO remove this blocking
+        self.try_update_scrollbase();
     }
 }

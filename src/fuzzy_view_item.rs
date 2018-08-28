@@ -34,8 +34,7 @@ use std::collections::HashMap;
 use std::marker::Sized;
 
 use std::path::Path;
-
-pub const MAX_VIEWITEM_HEIGHT : usize = 2;
+use std::cmp::{Eq, PartialEq};
 
 #[derive(Clone, Debug)]
 pub struct ViewItem {
@@ -69,6 +68,14 @@ impl ViewItem {
         1 + (if self.desc.is_none() { 0 } else { 1 })
     }
 }
+
+impl PartialEq for ViewItem {
+    fn eq(&self, other: &ViewItem) -> bool {
+        self.marker == other.marker
+    }
+}
+
+impl Eq for ViewItem {}
 
 pub fn get_dummy_items() -> Vec<ViewItem> {
     vec![
