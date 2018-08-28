@@ -84,6 +84,7 @@ impl View for FuzzyQueryView {
 
     fn layout(&mut self, size : Vec2) {
         self.size = Some(size);
+        self.update_view();
     }
 
     fn draw(&self, printer: &Printer) {
@@ -95,9 +96,14 @@ impl View for FuzzyQueryView {
             &format!("Context : {:?} \tquery: {:?}", &self.context, &self.query),
         );
 
-        self.scrollbase.draw(printer, |printer, line| {
+        debug!("size: {:?}", self.size);
+        debug!("items: {:?}", self.get_current_items());
+
+        self.scrollbase.draw(&printer.offset((0,1), printer.focused), |printer, line| {
             let items = self.get_current_items();
-            printer.print((0,0), &get_string_for_line(items.iter(), line).unwrap());
+            let s = get_string_for_line(items.iter(), line).unwrap();
+            debug!("i : {} s : {}", line, s);
+            printer.print((0,0), &s);
         });
     }
 
@@ -186,7 +192,7 @@ where
             Right(s) => Right(s),
             Left(l) => {
                 let item = item.as_ref();
-                if l <= line && line <= l + item.get_height_in_lines() {
+                if l <= line && line < l + item.get_height_in_lines() {
                     const_assert!(MAX_VIEWITEM_HEIGHT == 2); //if it fails, update the code below
                     let line_idx = line - l;
                     let s : String = if line_idx == 0 {
