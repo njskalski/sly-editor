@@ -27,6 +27,10 @@ extern crate cursive;
 extern crate cursive_tree_view;
 #[macro_use]
 extern crate serde_derive;
+#[macro_use]
+extern crate static_assertions;
+#[macro_use]
+extern crate either;
 
 mod fuzzy_index;
 mod fuzzy_index_trait;

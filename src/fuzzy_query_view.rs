@@ -38,6 +38,8 @@ type BoxedCallback<'a> = Box<for<'b> FnMut(&'b mut Any) + 'a>;
 
 use std::rc::Rc;
 
+use either::*;
+
 use cursive::event;
 use cursive::event::*;
 use cursive::traits::*;
@@ -60,6 +62,7 @@ use std::marker::Sized;
 use std::sync::Arc;
 use std::cell::RefCell;
 use std::cell::Cell;
+use std::cmp;
 
 const WIDTH : usize = 100;
 
@@ -92,12 +95,10 @@ impl View for FuzzyQueryView {
             &format!("Context : {:?} \tquery: {:?}", &self.context, &self.query),
         );
 
-        let mut y = 1;
-        let items = self.get_current_items();
-        //debug!("items : {:?}", items);
-        for (idx, ref item) in items.iter().enumerate() {
-            y += self.draw_item(item.as_ref(),idx == self.selected, (0, y), printer);
-        }
+        self.scrollbase.draw(printer, |printer, line| {
+            let items = self.get_current_items();
+            printer.print((0,0), &get_string_for_line(items.iter(), line).unwrap());
+        });
     }
 
     fn needs_relayout(&self) -> bool {
@@ -111,7 +112,8 @@ impl View for FuzzyQueryView {
             None => 0
         };
 
-        Vec2::new(WIDTH, height)
+        Vec2::new(cmp::min(WIDTH, constraint.x),
+                  cmp::min(height, constraint.y))
     }
 
     fn on_event(&mut self, event: Event) -> EventResult {
@@ -163,12 +165,47 @@ impl View for FuzzyQueryView {
     }
 }
 
+//TODO tests
 fn count_items_lines<I, T>(items : I) -> usize
 where
     T: AsRef<ViewItem>,
     I: Iterator<Item = T>
 {
     items.fold(0, |acc, x| acc + x.as_ref().get_height_in_lines())
+}
+
+//TODO tests
+/// Returns Option<(Item, number of lines preceeding items consumed)>
+fn get_string_for_line<I, T>(mut items : I, line: usize) -> Option<String>
+where
+    T: AsRef<ViewItem>,
+    I: Iterator<Item = T>
+{
+    let res : Either<usize, String> = items.fold(Left(0), |acc, item| {
+        match acc {
+            Right(s) => Right(s),
+            Left(l) => {
+                let item = item.as_ref();
+                if l <= line && line <= l + item.get_height_in_lines() {
+                    const_assert!(MAX_VIEWITEM_HEIGHT == 2); //if it fails, update the code below
+                    let line_idx = line - l;
+                    let s : String = if line_idx == 0 {
+                        item.get_header().clone()
+                    } else {
+                        item.get_description().clone().unwrap()
+                    };
+                    Right(s)
+                } else {
+                    Left(l + item.get_height_in_lines())
+                }
+            }
+        }
+    });
+
+    match res {
+        Left(_) => None,
+        Right(s) => Some(s)
+    }
 }
 
 impl FuzzyQueryView {
@@ -274,9 +311,16 @@ impl FuzzyQueryView {
     }
 
     fn update_view(&mut self) {
-        let items = self.get_current_items(); //just call to update cache, start search if necessary
         self.selected = 0; //TODO add following currently highlighted item (if not removed).
-        self.scrollbase.set_heights(50, count_items_lines(items.iter()));
+        self.try_update_scrollbase();
+    }
+
+    fn try_update_scrollbase(&mut self) {
+        let items = self.get_current_items(); //just call to update cache, start search if necessary //TODO this is blocking now
+        match self.size {
+            Some(xy) => self.scrollbase.set_heights(xy.y - 1, count_items_lines(items.iter())),
+            None => {}
+        };
     }
 
     fn add_letter(&mut self, letter: char) {

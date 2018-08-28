@@ -35,6 +35,8 @@ use std::marker::Sized;
 
 use std::path::Path;
 
+pub const MAX_VIEWITEM_HEIGHT : usize = 2;
+
 #[derive(Clone, Debug)]
 pub struct ViewItem {
     header: String,
