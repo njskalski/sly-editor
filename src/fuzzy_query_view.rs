@@ -88,8 +88,6 @@ impl View for FuzzyQueryView {
     }
 
     fn draw(&self, printer: &Printer) {
-        self.clear_cache();
-
         //draw context
         printer.print(
             (2, 0),
@@ -97,13 +95,13 @@ impl View for FuzzyQueryView {
         );
 
         debug!("size: {:?}", self.size);
-        debug!("items: {:?}", self.get_current_items());
+        // debug!("items: {:?}", self.get_current_items());
 
         self.scrollbase.draw(&printer.offset((0,1), printer.focused), |printer, line| {
             let items = self.get_current_items();
-            let s = get_string_for_line(items.iter(), line).unwrap();
-            debug!("i : {} s : {}", line, s);
-            printer.print((0,0), &s);
+            let (i, item) = get_item_for_line(items.iter(), line).unwrap();
+            // debug!("i : {:?} s : {:?}", line, (i, item));
+            self.draw_item(item, false, line-i, printer);
         });
     }
 
@@ -181,36 +179,28 @@ where
 }
 
 //TODO tests
-/// Returns Option<(Item, number of lines preceeding items consumed)>
-fn get_string_for_line<I, T>(mut items : I, line: usize) -> Option<String>
+/// Returns Option<(number of lines preceeding items consumed, Item)>
+fn get_item_for_line<I, T>(mut items : I, line: usize) -> Option<(usize, T)>
 where
     T: AsRef<ViewItem>,
     I: Iterator<Item = T>
 {
-    let res : Either<usize, String> = items.fold(Left(0), |acc, item| {
+    let res : (usize, Option<T>) = items.fold((0, None), |acc, item| {
         match acc {
-            Right(s) => Right(s),
-            Left(l) => {
-                let item = item.as_ref();
-                if l <= line && line < l + item.get_height_in_lines() {
-                    const_assert!(MAX_VIEWITEM_HEIGHT == 2); //if it fails, update the code below
-                    let line_idx = line - l;
-                    let s : String = if line_idx == 0 {
-                        item.get_header().clone()
-                    } else {
-                        item.get_description().clone().unwrap()
-                    };
-                    Right(s)
+            (l, None) => {
+                if l <= line && line < l + item.as_ref().get_height_in_lines() {
+                    (l, Some(item))
                 } else {
-                    Left(l + item.get_height_in_lines())
+                    (l + item.as_ref().get_height_in_lines(), None)
                 }
-            }
+            },
+            (l, Some(old_item)) => (l, Some(old_item))
         }
     });
 
     match res {
-        Left(_) => None,
-        Right(s) => Some(s)
+        (line, None) => None,
+        (line, Some(item)) => Some((line, item))
     }
 }
 
@@ -240,62 +230,69 @@ impl FuzzyQueryView {
         )
     }
 
-    fn draw_item(&self, item: &ViewItem, selected: bool, pos: (usize, usize), printer: &Printer) -> usize {
-        //drawing header
-
+    fn draw_item(&self, item: &ViewItem, selected: bool, line_no: usize, printer: &Printer) {
+        let pos = (0, 0);
+        assert!(line_no < MAX_VIEWITEM_HEIGHT);
         let row_width = self.size.unwrap().x;
 
-        let header = us::graphemes(item.get_header().as_str(), true).collect::<Vec<&str>>();
-        let query = us::graphemes(self.query.as_str(), true).collect::<Vec<&str>>();
-        // debug!("header : {:?}\nquery : {:?}", header, query);
-        let mut query_pos = 0;
-        for header_pos in 0..header.len() {
-            let highlighted = {
-                if query_pos >= query.len() {
-                    // debug!("query pos {:?}, query len {:?}", query_pos, query.len());
-                    false
-                } else {
-                    if *header[header_pos] == *query[query_pos] {
-                        // debug!("matched {:?} with {:?}", (*header[header_pos]).to_string(), (*query[query_pos]).to_string());
-                        query_pos += 1;
-                        true
-                    } else {
-                        // debug!("not matched {:?} with {:?}", (*header[header_pos]).to_string(), (*query[query_pos]).to_string());
+        debug!("item: {:?}, selected: {:?}, line_no: {:?}", item, selected, line_no);
+
+        if line_no == 0 {//drawing header
+            let header = us::graphemes(item.get_header().as_str(), true).collect::<Vec<&str>>();
+            let query = us::graphemes(self.query.as_str(), true).collect::<Vec<&str>>();
+            // debug!("header : {:?}\nquery : {:?}", header, query);
+            let mut query_pos = 0;
+            for header_pos in 0..header.len() {
+                let highlighted = {
+                    if query_pos >= query.len() {
+                        // debug!("query pos {:?}, query len {:?}", query_pos, query.len());
                         false
-                    }
-                }
-            };
-
-            let colorstyle = self.get_item_colorstyle(selected, highlighted);
-            printer.with_color(colorstyle, |printer| {
-                printer.print((pos.0 + header_pos, pos.1), header[header_pos]);
-            });
-        }
-        //empty suffix:
-        let colorstyle = self.get_item_colorstyle(selected, false);
-        for i in header.len()..row_width {
-            printer.with_color(colorstyle, |printer| {
-                printer.print((pos.0 + i, pos.1), " ");
-            });
-        };
-        //end of drawing header
-
-        //drawing description
-        let desc_len = match item.get_description() {
-            &Some(ref desc) => {
-                for (i, line) in desc.lines().enumerate() {
-                    printer.with_color(colorstyle, |printer| {
-                        printer.print((pos.0, pos.1 + 1 + i), line);
-                        for x in line.len()..row_width {
-                            printer.print((pos.0 + x, pos.1 + 1 + i), " ");
+                    } else {
+                        if *header[header_pos] == *query[query_pos] {
+                            // debug!("matched {:?} with {:?}", (*header[header_pos]).to_string(), (*query[query_pos]).to_string());
+                            query_pos += 1;
+                            true
+                        } else {
+                            // debug!("not matched {:?} with {:?}", (*header[header_pos]).to_string(), (*query[query_pos]).to_string());
+                            false
                         }
-                    });
-                }
-                desc.lines().count()
+                    }
+                };
+
+                let colorstyle = self.get_item_colorstyle(selected, highlighted);
+                printer.with_color(colorstyle, |printer| {
+                    printer.print((pos.0 + header_pos, pos.1), header[header_pos]);
+                });
             }
-            &None => 0,
-        };
-        desc_len + 1
+            //empty suffix:
+            let colorstyle = self.get_item_colorstyle(selected, false);
+            for i in header.len()..row_width {
+                printer.with_color(colorstyle, |printer| {
+                    printer.print((pos.0 + i, pos.1), " ");
+                });
+            };
+            //end of drawing header
+        } else { //drawing description
+            //TODO lines below ignores the fact that now I temporarily imposed description lines limit of 1.
+
+            let line_no = line_no-1;
+            let colorstyle = self.get_item_colorstyle(selected, false);
+
+            let desc_len = match item.get_description() {
+                &Some(ref desc) => match desc.lines().skip(line_no).next() {
+                        Some(line) => {
+                            printer.with_color(colorstyle, |printer| {
+                                printer.print((pos.0, pos.1 + line_no), line);
+                                for x in line.len()..row_width {
+                                    printer.print((pos.0 + x, pos.1 + line_no), " ");
+                                }
+                            });
+                        },
+                        None => error!("requested line {} of description of viewitem {:?}", line_no-1, item)
+                },
+                &None => error!("requested line {} of empty description of viewitem {:?}", line_no-1, item)
+            };
+        }
     }
 
     pub fn new(index: Arc<RefCell<FuzzyIndexTrait>>, marker: String, channel: IChannel, settings : Rc<Settings>) -> Self {
@@ -331,11 +328,13 @@ impl FuzzyQueryView {
 
     fn add_letter(&mut self, letter: char) {
         self.query.push(letter);
+        self.clear_cache();
         self.update_view();
     }
 
     fn backspace(&mut self) {
         self.query.pop();
+        self.clear_cache();
         self.update_view();
     }
 }
