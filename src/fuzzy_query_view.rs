@@ -265,7 +265,7 @@ impl FuzzyQueryView {
                         // debug!("query pos {:?}, query len {:?}", query_pos, query.len());
                         false
                     } else {
-                        if *header[header_pos] == *query[query_pos] {
+                        if header[header_pos].to_lowercase() == query[query_pos].to_lowercase() {
                             // debug!("matched {:?} with {:?}", (*header[header_pos]).to_string(), (*query[query_pos]).to_string());
                             query_pos += 1;
                             true
