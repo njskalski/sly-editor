@@ -178,7 +178,7 @@ where
     items.fold(0, |acc, x| acc + x.as_ref().get_height_in_lines())
 }
 
-//TODO tests
+//TODO tests, early exit
 /// Returns Option<(number of lines preceeding items consumed, item_idx)>
 fn get_item_for_line<I, T>(mut items : I, line: usize) -> Option<(usize, usize)>
 where
