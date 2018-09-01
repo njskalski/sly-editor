@@ -17,11 +17,57 @@ limitations under the License.
 use fuzzy_view_item::*;
 use fuzzy_index_trait::FuzzyIndexTrait;
 use std::rc::Rc;
+use regex;
+use std::iter::FromIterator;
 
-// pub trait FuzzyIndexTrait {
-//     fn get_results_for(&mut self, query : &String, limit : usize) -> Vec<Rc<ViewItem>>;
-// }
+pub struct SimpleIndex {
+    items : Vec<Rc<ViewItem>>
+}
 
-pub struct SimpleIndexTrait {
-    
+impl SimpleIndex {
+    pub fn new(items : Vec<Rc<ViewItem>>) -> Self {
+        SimpleIndex { items : items }
+    }
+}
+
+impl FuzzyIndexTrait for SimpleIndex {
+    fn get_results_for(&mut self, query : &String, limit : usize) -> Vec<Rc<ViewItem>> {
+        let re : regex::Regex = query_to_regex(query);
+        let mut res : Vec<Rc<ViewItem>> = Vec::new();
+
+        for ref item in &self.items {
+            if re.is_match(&item.get_header()) {
+                res.push((*item).clone());
+            }
+        }
+
+        res
+    }
+}
+
+fn query_to_regex(query : &String) -> regex::Regex {
+    let mut regex_vec : Vec<char> = Vec::new();
+
+    regex_vec.append(&mut vec![ '.', '*']);
+
+    for letter in query.chars() {
+        regex_vec.push('[');
+        for subletter in letter.to_lowercase() {
+            regex_vec.push(subletter);
+        }
+
+        for subletter in letter.to_uppercase() {
+            regex_vec.push(subletter);
+        }
+        regex_vec.push(']');
+        regex_vec.append(&mut vec!['.', '*']);
+    }
+
+    let regex_str : String = String::from_iter(regex_vec);
+
+    debug!("regex str {:?}", regex_str);
+
+    let regex : regex::Regex = regex::Regex::new(&regex_str).unwrap();
+
+    regex
 }
