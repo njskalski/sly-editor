@@ -52,6 +52,7 @@ pub struct Interface {
     done : bool,
     file_bar_visible : bool,
     filedialog_visible : bool,
+    bufferlist_visible : bool,
     buffer_to_screen : HashMap<String, ScreenId>
 }
 
@@ -90,6 +91,7 @@ impl Interface {
             done : false,
             file_bar_visible : false,
             filedialog_visible : false,
+            bufferlist_visible : false,
             buffer_to_screen : HashMap::new()
         };
 
@@ -182,6 +184,7 @@ impl Interface {
     pub fn close_floating_windows(&mut self) {
         self.close_file_bar();
         self.close_filedialog();
+        self.close_bufer_list();
     }
 
     pub fn get_event_channel(&self) -> IChannel {
@@ -255,6 +258,27 @@ impl Interface {
     }
 
     fn show_buffer_list(&mut self) {
-        //TODO implement
+        if !self.bufferlist_visible {
+            let buffer_list = self.state.get_buffers();
+
+            self.bufferlist_visible = true;
+        }
     }
+
+    fn close_bufer_list(&mut self) {
+        if self.siv.focus_id("bufferlist").is_ok() {
+            self.siv.pop_layer();
+            self.bufferlist_visible = false;
+        }
+    }
+}
+
+fn bso_to_viewitem(bso : BufferStateObserver) -> ViewItem {
+
+    let name : String = match bso.get_filename() {
+        Some(name) => name.to_string_lossy().to_string(),
+        None => "*** unnamed ***".to_string()
+    };
+
+    // ViewItem::new(bso.get_filename().
 }

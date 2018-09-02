@@ -17,6 +17,16 @@ limitations under the License.
 use fuzzy_view_item::*;
 use std::rc::Rc;
 
+/*
+Index became a trait, because a default (fst-based) implementation cannot be modified after initial
+construction. That doesn't play well with idea of index being filled with suggestions with delay.
+An example of that use case is a fuzzy search in context of symbol. Some editing options will
+be available by default, while code navigation options will become available only after successful
+code analysis done by remote language server or after a succesful query to on-line service.
+I want to display available options immediately, and then expand on them as soon as I get more
+information.
+*/
+
 pub trait FuzzyIndexTrait {
     //TODO(njskalski) remove mut or write why it's impossible.
     fn get_results_for(&mut self, query : &String, limit : usize) -> Vec<Rc<ViewItem>>;
