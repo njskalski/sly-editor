@@ -38,8 +38,6 @@ type BoxedCallback<'a> = Box<for<'b> FnMut(&'b mut Any) + 'a>;
 
 use std::rc::Rc;
 
-use either::*;
-
 use cursive::event;
 use cursive::event::*;
 use cursive::traits::*;
@@ -98,7 +96,7 @@ impl View for FuzzyQueryView {
         // debug!("size: {:?}", self.size);
         // debug!("items: {:?}", self.get_current_items());
 
-        self.scrollbase.draw(&printer.offset((0,1), printer.focused), |printer, line| {
+        self.scrollbase.draw(&printer.offset((0,1)), |printer, line| {
             let items = self.get_current_items();
             let (i, item_idx) = get_item_for_line(items.iter(), line).unwrap();
             // debug!("i : {:?} s : {:?}", line, (i, item));

@@ -107,7 +107,7 @@ impl Settings {
 
     // TODO(njskalski) I decided not to use Cursive's palette mechanism, because most views will be using more than the default number of colors. So this method is obsolete.
     pub fn get_palette(&self) -> theme::Palette {
-        let mut palette : theme::Palette = theme::default_palette();
+        let mut palette : theme::Palette = theme::Palette::default();
 
         palette[theme::PaletteColor::Background] = self.get_color("theme/text_view/background_color");
         palette[theme::PaletteColor::View] = palette[theme::PaletteColor::Background];

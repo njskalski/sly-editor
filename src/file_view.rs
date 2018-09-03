@@ -271,7 +271,7 @@ impl FileView {
         // TODO(njskalski) put it into some kind of theme cache (settings? interface?)
         let printer_to_theme : PrinterModifierType = Rc::new(Box::new(move |p : &Printer| {
 
-            let mut palette = theme::default_palette();
+            let mut palette = theme::Palette::default();
 
             // if p.focused {
             //     palette[PaletteColor::View] = selected_bg_color;

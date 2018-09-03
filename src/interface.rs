@@ -272,13 +272,3 @@ impl Interface {
         }
     }
 }
-
-fn bso_to_viewitem(bso : BufferStateObserver) -> ViewItem {
-
-    let name : String = match bso.get_filename() {
-        Some(name) => name.to_string_lossy().to_string(),
-        None => "*** unnamed ***".to_string()
-    };
-
-    // ViewItem::new(bso.get_filename().
-}
