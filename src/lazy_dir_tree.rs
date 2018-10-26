@@ -21,10 +21,9 @@ use std::rc::Rc;
 use std::path::*;
 use std::cmp::{Ord, PartialOrd, PartialEq, Ordering};
 
-#[derive(Debug)]
+#[derive(Debug, PartialOrd, Ord, PartialEq, Eq)]
 pub enum LazyTreeNode {
     RootNode(Vec<Rc<String>>), // TODO(njskalski) start here!
-    // RootNode(Vec<Rc<String>>, Vec<Rc<String>>), // root contains list of directories, and list of files.
     DirNode(Rc<String>), //full path TODO(njskalski) add RefCell<Vec<LazyTreeNode>> cache, refresh "on file change"
     FileNode(Rc<String>),
 }
@@ -38,42 +37,9 @@ impl fmt::Display for LazyTreeNode {
             // LazyTreeNode::ExpansionPlaceholder => {write!(f,"...")}
         }
     }
-}
 
-impl Ord for LazyTreeNode {
-    fn cmp(&self, other: &LazyTreeNode) -> Ordering {
-        match (self, other) {
-            (&LazyTreeNode::RootNode(ref a), &LazyTreeNode::RootNode(ref b)) => a.cmp(&b),
-            (&LazyTreeNode::RootNode(ref a), &LazyTreeNode::DirNode(ref b)) => Ordering::Less,
-            (&LazyTreeNode::DirNode(ref a), &LazyTreeNode::RootNode(ref b)) => Ordering::Greater,
-            (&LazyTreeNode::DirNode(ref a), &LazyTreeNode::DirNode(ref b)) => a.cmp(&b),
-            (&LazyTreeNode::DirNode(ref a), &LazyTreeNode::FileNode(ref b)) => Ordering::Less,
-            (&LazyTreeNode::FileNode(ref a), &LazyTreeNode::DirNode(ref b)) => Ordering::Greater,
-            (&LazyTreeNode::FileNode(ref a), &LazyTreeNode::FileNode(ref b)) => a.cmp(&b),
-            (&LazyTreeNode::FileNode(ref a), &LazyTreeNode::RootNode(ref b)) => Ordering::Greater,
-            (&LazyTreeNode::RootNode(ref a), &LazyTreeNode::FileNode(ref b)) => Ordering::Less,
-        }
-    }
-}
 
-impl PartialOrd for LazyTreeNode {
-    fn partial_cmp(&self, other: &LazyTreeNode) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
 }
-
-impl PartialEq for LazyTreeNode {
-    fn eq(&self, other: &LazyTreeNode) -> bool {
-        match (self, other) {
-            (&LazyTreeNode::RootNode(ref a), &LazyTreeNode::RootNode(ref b)) => a == b,
-            (&LazyTreeNode::DirNode(ref a), &LazyTreeNode::DirNode(ref b)) => a == b,
-            (&LazyTreeNode::FileNode(ref a), &LazyTreeNode::FileNode(ref b)) => a == b,
-            _ => false
-        }
-    }
-}
-
-impl Eq for LazyTreeNode {}
 
 // TODO(njskalski) now I just build a RootNode even if there is a single directory open
 // because I want to support hot-loading additional directories.
