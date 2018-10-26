@@ -77,6 +77,13 @@ impl FileViewVariant {
             _ => false
         }
     }
+
+    fn get_title(&self) -> &'static str {
+        match self {
+            FileViewVariant::SaveAsFile(_, _) => "Save file",
+            FileViewVariant::OpenFile(_) => "Open file"
+        }
+    }
 }
 
 pub struct FileView {
@@ -172,7 +179,7 @@ fn dir_tree_on_select_callback(siv: &mut Cursive, row: usize) {
     let mut dir_vec : Vec<Rc<LazyTreeNode>> = Vec::new();
     let mut file_vec : Vec<Rc<LazyTreeNode>> = Vec::new();
 
-    match (*item) {
+    match *item {
         // TODO(njskalski) add the argument files as children of RootNode?
         // LazyTreeNode::RootNode(ref dirs) => {
         //     for d in dirs {
@@ -302,13 +309,9 @@ impl FileView {
         let mut vl = LinearLayout::new(Orientation::Vertical);
         let mut hl = LinearLayout::new(Orientation::Horizontal);
 
-        // TODO(njskalski) title should reflect use case
         // TODO(njskalski) add a separate theme to disable color inversion effect on edit.
 
-        let title : &'static str = match variant {
-            FileViewVariant::SaveAsFile(_, _) =>  "Save file",
-            FileViewVariant::OpenFile(_) => "Open file"
-        };
+        let title : &'static str = variant.get_title();
 
         vl.add_child(ColorViewWrapper::new(Layer::new(TextView::new(title)), printer_to_theme.clone()));
 
