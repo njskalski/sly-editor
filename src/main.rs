@@ -76,6 +76,7 @@ use app_state::AppState;
 use interface::Interface;
 use cpuprofiler::PROFILER;
 use std::path;
+use std::path::PathBuf;
 
 // Reason for it being string is that I want to be able to load filelists from remote locations
 fn get_file_list_from_dir(path: &Path) -> Vec<String> {
@@ -130,31 +131,29 @@ fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
     let mut commandline_args : Vec<String> = vec![];
 
-    let mut directories : Vec<String> = Vec::new();
-    let mut files : Vec<String> = Vec::new();
+    let mut directories : Vec<PathBuf> = Vec::new();
+    let mut files : Vec<PathBuf> = Vec::new();
 
     for mut arg in args {
         if arg.starts_with("--") {
             commandline_args.push(arg);
         } else {
-            let (exists, is_directory, is_file) = {
-                let path = Path::new(&arg);
-                (path.exists(), path.is_dir(), path.is_file())
-            };
+            let path = Path::new(&arg).to_path_buf();
 
             //removing tailing slashes (for some reasons rust's path allow them)
-            while arg.len() > 1 && arg.chars().last().unwrap() == '/' {
-                arg = arg.as_str()[0..arg.len()-1].to_string()
+            while arg.chars().last() == Some('/') {
+                arg.pop();
             };
 
-            if !exists {
-                info!("{:?} does not exist.", arg);
+            if !path.exists() {
+                info!("{:?} does not exist, now ignoring.", arg);
+                continue; // TODO(njskalski) stop ignoring new files.
             }
 
-            if is_directory {
-                directories.push(arg);
-            } else if is_file {
-                files.push(arg);
+            if path.is_dir() {
+                directories.push(path);
+            } else if path.is_file() {
+                files.push(path);
             } else {
                 info!("{:?} is neither a file nor directory. Ignoring.", arg);
             }

@@ -35,6 +35,7 @@ use std::marker::Sized;
 
 use std::path::Path;
 use std::cmp::{Eq, PartialEq};
+use std::path::PathBuf;
 
 #[derive(Clone, Debug)]
 pub struct ViewItem {
@@ -97,24 +98,12 @@ pub fn get_dummy_items() -> Vec<ViewItem> {
     ]
 }
 
-pub fn file_list_to_items(file_list : &Vec<String>) -> Vec<ViewItem> {
-    file_list.iter().map(|f| {
-        // TODO support windows?
-        match f.rfind("/") {
-            None => {
-                ViewItem {
-                    header : f.clone(),
-                    desc : None,
-                    marker: f.clone()
-                }
-            },
-            Some(sep_pos) => {
-                ViewItem {
-                    header : f[sep_pos+1..].to_string(),
-                    desc : Some(f[0..sep_pos].to_string()),
-                    marker: f.clone()
-                }
-            }
-        }
-    }).collect()
+pub fn file_list_to_items(file_list : &Vec<PathBuf>) -> Vec<ViewItem> {
+    // TODO(njskalski) add support to new (non-existent) files.
+    file_list.iter().map(|f|
+        ViewItem {
+            header : f.file_name().unwrap().to_string_lossy().to_string(),
+            desc : None,
+            marker: f.to_string_lossy().to_string()
+        }).collect()
 }

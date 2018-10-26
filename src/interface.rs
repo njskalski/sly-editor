@@ -43,6 +43,7 @@ use std::cell::RefCell;
 use std::fmt;
 use std::sync::mpsc;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 pub struct Interface {
     state : AppState,
@@ -153,15 +154,15 @@ impl Interface {
                 IEvent::OpenFileDialog => {
                     self.show_open_file_dialog();
                 },
-                IEvent::OpenFile(folder, file) => {
-                    self.state.schedule_file_for_load(&(folder + &file));
+                IEvent::OpenFile(file_path) => {
+                    self.state.schedule_file_for_load(file_path);
                     self.close_filedialog();
                 },
-                IEvent::SaveBufferAs(folder, file) => {
+                IEvent::SaveBufferAs(file_path) => {
                     let screen_id = self.siv.active_screen();
-                    let path = folder + "/" + file.as_str();
+                    // TODO(njskalski) Create a separate buffer on this?
                     let buffer_state : Rc<RefCell<BufferState>> = self.state.get_buffer_for_screen(&screen_id).unwrap();
-                    buffer_state.borrow_mut().save(Some(path));
+                    buffer_state.borrow_mut().save(Some(file_path));
                     self.close_filedialog();
                 },
                 IEvent::ShowBufferList => {
@@ -251,7 +252,6 @@ impl Interface {
     fn show_file_bar(&mut self) {
         if !self.file_bar_visible {
             let ebar = FuzzyQueryView::new(self.state.get_file_index(), "filebar".to_string(), self.get_event_channel(), self.settings.clone());
-
             self.siv.add_layer(IdView::new("filebar",ebar));
             self.file_bar_visible = true;
         }
@@ -271,4 +271,11 @@ impl Interface {
             self.bufferlist_visible = false;
         }
     }
+}
+
+fn pair_string_to_pathbuf(folder : String, file : String) -> PathBuf {
+    let mut file_path : PathBuf = PathBuf::new();
+    file_path.push(folder);
+    file_path.push(file);
+    file_path
 }

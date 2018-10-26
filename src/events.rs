@@ -17,7 +17,7 @@ limitations under the License.
 use serde_json as sj;
 use cursive;
 use content_provider;
-
+use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Debug)] // ready for json-rpc!
 pub enum IEvent { //Interface event
@@ -27,8 +27,8 @@ pub enum IEvent { //Interface event
     ShowSaveAs, // TODO add buffer, default filename etc.
     OpenFileDialog,
     SaveBuffer, // TODO add buffer
-    SaveBufferAs(String, String), // folder, file, TODO add buffer
-    OpenFile(String, String), // folder, file
+    SaveBufferAs(PathBuf), // path, TODO add buffer
+    OpenFile(PathBuf), // path
     FuzzyQueryBarSelected(String, String), // marker (the word that search ran agains), selection (value)
     CloseWindow,
 

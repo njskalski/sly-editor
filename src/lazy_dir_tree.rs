@@ -16,35 +16,66 @@ limitations under the License.
 
 // I am not entirely sure this is enum is needed.
 
+// TODO(njskalski) add RefCell<Vec<LazyTreeNode>> cache, refresh "on file change"
+
 use std::fmt;
 use std::rc::Rc;
 use std::path::*;
 use std::cmp::{Ord, PartialOrd, PartialEq, Ordering};
 
+/*
+    This enum contains entire paths to filesystem nodes (directories or files), except the root
+    node that contains a list.
+*/
+
+//TODO(njskalski) add hotloading directories.
+//TODO(njskalski) create fourth category for out-of-folders files (second argument of constructor).
+
 #[derive(Debug, PartialOrd, Ord, PartialEq, Eq)]
 pub enum LazyTreeNode {
-    RootNode(Vec<Rc<String>>), // TODO(njskalski) start here!
-    DirNode(Rc<String>), //full path TODO(njskalski) add RefCell<Vec<LazyTreeNode>> cache, refresh "on file change"
-    FileNode(Rc<String>),
+    RootNode(Vec<Rc<LazyTreeNode>>),
+    DirNode(Rc<PathBuf>),
+    FileNode(Rc<PathBuf>),
 }
 
 impl fmt::Display for LazyTreeNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             &LazyTreeNode::RootNode(_) => {write!(f,"<root>") },
-            &LazyTreeNode::DirNode(ref path) => {write!(f, "{}", path.split('/').last().unwrap())},
-            &LazyTreeNode::FileNode(ref path) => {write!(f, "{}", path.split('/').last().unwrap())}
-            // LazyTreeNode::ExpansionPlaceholder => {write!(f,"...")}
+            &LazyTreeNode::DirNode(ref path) => {write!(f, "{}", path.file_name().unwrap().to_string_lossy())},
+            &LazyTreeNode::FileNode(ref path) => {write!(f, "{}", path.file_name().unwrap().to_string_lossy())}
+        }
+    }
+}
+
+impl LazyTreeNode {
+    pub fn new(directories : Vec<PathBuf>, files : Vec<PathBuf>) -> Self {
+        let mut nodes : Vec<Rc<LazyTreeNode>> = directories.into_iter().map(
+            |x| Rc::new(LazyTreeNode::DirNode(Rc::new(x)))).chain(
+            files.into_iter().map(
+                |x| Rc::new(LazyTreeNode::FileNode(Rc::new(x))))).collect();
+        nodes.sort();
+        LazyTreeNode::RootNode(nodes)
+    }
+
+    pub fn is_file(&self) -> bool {
+        match self {
+            &LazyTreeNode::FileNode(_) => true,
+            _ => false
         }
     }
 
+    pub fn is_dir(&self) -> bool {
+        match self {
+            &LazyTreeNode::DirNode(_) => true,
+            _ => false
+        }
+    }
 
-}
-
-// TODO(njskalski) now I just build a RootNode even if there is a single directory open
-// because I want to support hot-loading additional directories.
-impl LazyTreeNode {
-    pub fn new(directories : &Vec<String>) -> Self {
-        LazyTreeNode::RootNode(directories.iter().map(|x| Rc::new(x.clone())).collect())
+    pub fn is_root(&self) -> bool {
+        match self {
+            &LazyTreeNode::RootNode(_) => true,
+            _ => false
+        }
     }
 }

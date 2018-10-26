@@ -51,6 +51,7 @@ use std::error;
 use std::io::Write;
 
 use lazy_dir_tree::LazyTreeNode;
+use std::path::PathBuf;
 
 pub struct AppState {
     // Map of buffers that has been loaded into memory AND assigned a ScreenID.
@@ -60,7 +61,7 @@ pub struct AppState {
     buffers_to_load : Vec<Rc<RefCell<BufferState>>>,
 
     index : Arc<RefCell<FuzzyIndex>>, //because searches are mutating the cache TODO this can be solved with "interior mutability", as other caches in this app
-    dir_tree: Rc<LazyTreeNode>,
+    dir_and_files_tree: Rc<LazyTreeNode>,
 }
 
 impl AppState{
@@ -82,7 +83,7 @@ impl AppState{
     }
 
     pub fn get_dir_tree(&self) -> Rc<LazyTreeNode> {
-        self.dir_tree.clone()
+        self.dir_and_files_tree.clone()
     }
 
     // TODO(njskalski) this interface is temporary. We should submit events to buffer, not screen.
@@ -99,8 +100,8 @@ impl AppState{
         self.loaded_buffers.get(screen_id).map(|x| BufferStateObserver::new(x.clone()))
     }
 
-    pub fn schedule_file_for_load(&mut self, file : &String) -> Result<(), io::Error> {
-        let buffer_state = BufferState::open(file)?;
+    pub fn schedule_file_for_load(&mut self, file_path : PathBuf) -> Result<(), io::Error> {
+        let buffer_state = BufferState::open(file_path)?;
         self.buffers_to_load.push(buffer_state);
         Ok(())
     }
@@ -114,37 +115,18 @@ impl AppState{
         self.get_buffer_observer(&screen_id).unwrap()
     }
 
-    pub fn new(directories : Vec<String>, files : Vec<String>) -> Self {
-
-        let mut file_index : Vec<String> = Vec::new();
-        let mut canonized_directories : Vec<String> = Vec::new();
-
-        for directory in directories {
-
-            let path = Path::new(&directory);
-            match path.canonicalize() {
-                Ok(canon_path) => {
-                    debug!("reading directory: {:?}", canon_path.to_string_lossy());
-                    canonized_directories.push(canon_path.to_string_lossy().to_string());
-                    build_file_index(&mut file_index, &canon_path, true, None);
-                },
-                _ => error!("unable to read directory {:?}", directory)
-            }
-        }
-
-        let dir_tree = LazyTreeNode::new(&canonized_directories);
-
+    pub fn new(directories : Vec<PathBuf>, files : Vec<PathBuf>) -> Self {
         let buffers : Vec<_> = files.iter().map(|file| {
-            BufferState::open(file).unwrap()
+            BufferState::open(file.clone()).unwrap()
         }).collect();
 
-        let file_index_items = file_list_to_items(&file_index);
+        let file_index_items = file_list_to_items(&files);
 
         AppState {
             buffers_to_load : buffers,
             loaded_buffers : HashMap::new(),
             index : Arc::new(RefCell::new(FuzzyIndex::new(file_index_items))),
-            dir_tree : Rc::new(dir_tree)
+            dir_and_files_tree: Rc::new(LazyTreeNode::new(directories, files))
         }
     }
 

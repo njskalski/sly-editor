@@ -49,23 +49,22 @@ pub struct BufferState {
 }
 
 impl BufferState {
-    pub fn open(file: &String) -> Result<Rc<RefCell<BufferState>>, io::Error> {
-        let path = Path::new(file);
-        // this also checks for file existence:
-        // https://doc.rust-lang.org/std/fs/fn.canonicalize.html
-        let canon_path = path.canonicalize()?;
+    pub fn open(file_path: PathBuf) -> Result<Rc<RefCell<BufferState>>, io::Error> {
+        debug!("reading file {:?}", file_path);
 
-        debug!("reading file {:?}", file);
-
-        if !canon_path.is_file() {
-            Err(io::Error::new(io::ErrorKind::InvalidInput, format!("\"{}\" (canonized: \"{:?}\") is not file.", file, canon_path)))
+        // TODO(njskalski) add support to new files here?
+        if !file_path.exists() {
+            Err(io::Error::new(io::ErrorKind::InvalidInput, format!("\"{:?}\" not found.", &file_path)))
+        } else if !file_path.is_file() {
+            Err(io::Error::new(io::ErrorKind::InvalidInput, format!("\"{:?}\" is not file.", &file_path)))
         } else {
+            let mut reader : fs::File = path_to_reader(&file_path);
             Ok(Rc::new(RefCell::new(BufferState {
-                ss : BufferStateS { path : Some(canon_path) },
+                ss : BufferStateS { path : Some(file_path) },
                 modified : false,
                 exists : true,
                 screen_id : None,
-                content : RopeBasedContentProvider::new(Some(&mut path_to_reader(file))),
+                content : RopeBasedContentProvider::new(Some(&mut reader)),
                 mode : BufferReadMode::ReadWrite
             })))
         }
@@ -104,33 +103,25 @@ impl BufferState {
         self.content.save(file)
     }
 
-    pub fn save(&mut self, path : Option<String>) -> Result<(), io::Error> {
+    pub fn save(&mut self, path : Option<PathBuf>) -> Result<(), io::Error> {
         if path.is_none() && self.ss.path.is_none() {
             return Err(io::Error::new(io::ErrorKind::NotFound, "No path provided."));
         }
 
-        // TODO decide where OsString, where String
-        if path == self.ss.path.clone().map(|path| path.to_string_lossy().to_string()) && self.exists && !self.modified {
+        if path == self.ss.path && self.exists && !self.modified {
             info!("Early exit from BufferState.save - file not modified.");
             return Ok(());
         }
 
-        // let final_path = match path {
-        //     Some(p) => p.clone(),
-        //     None => self.ss.path.unwrap();
-        // }
-
-        let final_path : PathBuf = match path {
-            Some(ref p) => Path::new(p).to_path_buf(),
-            None => self.ss.path.clone().unwrap()
+        let final_path: PathBuf = match path {
+            Some(p) => p,
+            None => self.get_path().unwrap()
         };
 
-        let mut file = fs::File::create(final_path)?;
+        let mut file = fs::File::create(&final_path)?;
         self.proceed_with_save(file)?;
 
-        if path != None {
-            self.ss.path = Some(Path::new(&path.unwrap()).to_path_buf())
-        }
+        self.ss.path = Some(final_path);
 
         self.modified = false;
         self.exists = true;
@@ -139,8 +130,6 @@ impl BufferState {
     }
 }
 
-
-
-fn path_to_reader(path : &String) -> fs::File {
-    fs::File::open(path.as_str()).expect(&format!("file {:?} did not exist!", path))
+fn path_to_reader(path : &Path) -> fs::File {
+    fs::File::open(path).expect(&format!("file {:?} did not exist!", path))
 }

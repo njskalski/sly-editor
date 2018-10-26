@@ -41,6 +41,7 @@ use color_view_wrapper::{ColorViewWrapper, PrinterModifierType};
 
 use interface::IChannel;
 use events::IEvent;
+use std::path::PathBuf;
 
 // TODO(njskalski) this view took longer than anticipated to implement, so I rushed to the end
 // sacrificing quality a refactor is required.
@@ -99,74 +100,83 @@ const EDIT_VIEW_ID : &'static str = "fv_edit_view";
 
 type TreeViewType = TreeView<Rc<LazyTreeNode>>;
 
-fn dir_tree_on_collapse_callback(siv : &mut Cursive, row:usize, is_collapsed: bool, children: usize) {
-    // debug!("dir tree on collapse callback at {:}, ic = {:}. children = {:}", row, is_collapsed, children);
-    let mut view : ViewRef<TreeViewType> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
-    //the line below looks complicated, but it boils down to copying Rc<LazyTreeNode>, so view borrow can end immediately.
-    let item = (*view).borrow_item(row).unwrap().clone();
+fn get_dir_tree_on_collapse_switch_callback(files_visible : bool) -> impl Fn(&mut Cursive, usize, bool, usize) -> () {
+    move |siv : &mut Cursive, row:usize, is_collapsed: bool, children: usize| {
+        // debug!("dir tree on collapse callback at {:}, ic = {:}. children = {:}", row, is_collapsed, children);
+        let mut view : ViewRef<TreeViewType> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
+        //the line below looks complicated, but it boils down to copying Rc<LazyTreeNode>, so view borrow can end immediately.
+        let item = (*view).borrow_item(row).unwrap().clone();
 
-    if is_collapsed == false {
+        if is_collapsed == false {
 
-        let mut dir_vec : Vec<Rc<LazyTreeNode>> = Vec::new();
-        let mut file_vec : Vec<Rc<LazyTreeNode>> = Vec::new();
+            let mut dir_vec : Vec<Rc<LazyTreeNode>> = Vec::new();
+            let mut file_vec : Vec<Rc<LazyTreeNode>> = Vec::new();
 
-        match (*item) {
-            LazyTreeNode::RootNode(ref dirs) => {
-                for d in dirs {
-                    let res = Rc::new(LazyTreeNode::DirNode(d.clone()));
-                    dir_vec.push(res);
-                };
-            },
-            LazyTreeNode::DirNode(ref p) => {
-                let path = Path::new(&**p);
-                for dir_entry in path.read_dir().expect("read_dir call failed") {
-                    if let Ok(entry) = dir_entry {
-                        if let Ok(meta) = entry.metadata() {
-                            if meta.is_file() {
-                                // let res = Rc::new(LazyTreeNode::FileNode(Rc::new(entry.path().to_str().unwrap().to_string())));
-                                // file_vec.push(res);
-                            } else if meta.is_dir() {
-                                let res = Rc::new(LazyTreeNode::DirNode(Rc::new(entry.path().to_str().unwrap().to_string())));
-                                dir_vec.push(res);
+            match *item {
+                LazyTreeNode::RootNode(ref children) => {
+                    for c in children {
+                        match c.as_ref() {
+                            &LazyTreeNode::DirNode(_) => dir_vec.push(c.clone()),
+                            &LazyTreeNode::FileNode(_) if files_visible => file_vec.push(c.clone()),
+                            &LazyTreeNode::FileNode(_) => panic!("FileNode chosen in files_visible == false."),
+                            &LazyTreeNode::RootNode(_) => panic!("RootNode cannot be embedded.")
+                        };
+                    };
+                },
+                LazyTreeNode::DirNode(ref p) => {
+                    let path = Path::new(&**p);
+                    for dir_entry in path.read_dir().expect("read_dir call failed.") {
+                        if let Ok(entry) = dir_entry {
+                            if let Ok(meta) = entry.metadata() {
+                                if files_visible && meta.is_file() {
+                                    let res = Rc::new(LazyTreeNode::FileNode(Rc::new(entry.path())));
+                                    file_vec.push(res);
+                                } else if meta.is_dir() {
+                                    let res = Rc::new(LazyTreeNode::DirNode(Rc::new(entry.path())));
+                                    dir_vec.push(res);
+                                }
                             }
                         }
                     }
-                }
-            },
-            _ => {}
-        };
+                },
+                _ => {}
+            };
 
-        dir_vec.sort();
-        file_vec.sort();
+            dir_vec.sort();
+            if files_visible {
+                file_vec.sort();
+            }
 
-        for dir in dir_vec.iter() {
-            view.insert_container_item(dir.clone(), Placement::LastChild, row);
-        }
+            for dir in dir_vec.iter() {
+                view.insert_container_item(dir.clone(), Placement::LastChild, row);
+            }
 
-        for file in file_vec.iter() {
-            view.insert_item(file.clone(), Placement::LastChild, row);
-        }
+            for file in file_vec.iter() {
+                view.insert_item(file.clone(), Placement::LastChild, row);
+            }
 
-    } else {
-        // TODO(njskalski) - possible bug in cursive_tree_view: removal of these set_collapsed calls
-        // leads to cursive_tree_view::draw crash. It seems like there is an override of "index" variable there.
-        // Also, the repository seems outdated, so I guess I should either fork it or abandon use of this view.
-        match (*item) {
-            LazyTreeNode::RootNode(_) => {
-                view.set_collapsed(row, false);
-                view.remove_children(row);
-                view.set_collapsed(row, true);
-            },
-            LazyTreeNode::DirNode(_) => {
-                view.set_collapsed(row, false);
-                view.remove_children(row);
-                view.set_collapsed(row, true);
-            },
-            _ => {}
+        } else {
+            // TODO(njskalski) - possible bug in cursive_tree_view: removal of these set_collapsed calls
+            // leads to cursive_tree_view::draw crash. It seems like there is an override of "index" variable there.
+            // Also, the repository seems outdated, so I guess I should either fork it or abandon use of this view.
+            match *item {
+                LazyTreeNode::RootNode(_) => {
+                    view.set_collapsed(row, false);
+                    view.remove_children(row);
+                    view.set_collapsed(row, true);
+                },
+                LazyTreeNode::DirNode(_) => {
+                    view.set_collapsed(row, false);
+                    view.remove_children(row);
+                    view.set_collapsed(row, true);
+                },
+                _ => panic!("Only RootNode or DirNode can be expanded.")
+            }
         }
     }
 }
 
+//TODO(njskalski) add files support to work with out-of-fileview project-treeview
 fn dir_tree_on_select_callback(siv: &mut Cursive, row: usize) {
     // debug!("dir tree on select callback at {:}", row);
     let mut view : ViewRef<TreeViewType> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
@@ -192,7 +202,7 @@ fn dir_tree_on_select_callback(siv: &mut Cursive, row: usize) {
                 if let Ok(entry) = dir_entry {
                     if let Ok(meta) = entry.metadata() {
                         if meta.is_file() {
-                            let res = Rc::new(LazyTreeNode::FileNode(Rc::new(entry.path().to_str().unwrap().to_string())));
+                            let res = Rc::new(LazyTreeNode::FileNode(Rc::new(entry.path())));
                             file_vec.push(res);
                         } else if meta.is_dir() {
                             // let res = Rc::new(LazyTreeNode::DirNode(Rc::new(entry.path().to_str().unwrap().to_string())));
@@ -217,35 +227,35 @@ fn dir_tree_on_select_callback(siv: &mut Cursive, row: usize) {
     }
 }
 
-fn file_list_on_submit(siv: &mut Cursive, item : &Rc<LazyTreeNode>, is_open_file : bool) {
-    // TODO(njskalski): for some reason if the line below is uncommented (and shadowing ones
-    // are disabled) the unwrap inside get_path_op fails. Investigate why.
-    //let mut file_view : ViewRef<FileView> = siv.find_id::<FileView>(FILE_VIEW_ID).unwrap();
-    if is_open_file {
-        if let Some(prefix) = get_path_op(siv) {
-            let mut file_view : ViewRef<FileView> = siv.find_id::<FileView>(FILE_VIEW_ID).unwrap();
-            file_view.channel.send(IEvent::OpenFile(prefix, (**item).to_string()));
-            debug!("x");
+fn get_file_list_on_submit(is_file_open : bool) -> impl Fn(&mut Cursive, &Rc<LazyTreeNode>) -> () {
+    move |siv: &mut Cursive, item : &Rc<LazyTreeNode>| {
+        // TODO(njskalski): for some reason if the line below is uncommented (and shadowing ones
+        // are disabled) the unwrap inside get_path_op fails. Investigate why.
+        // let mut file_view : ViewRef<FileView> = siv.find_id::<FileView>(FILE_VIEW_ID).unwrap();
+        if is_file_open {
+            let mut file_view: ViewRef<FileView> = siv.find_id::<FileView>(FILE_VIEW_ID).unwrap();
+            match item.as_ref() {
+                &LazyTreeNode::FileNode(ref path) => file_view.channel.send(IEvent::OpenFile(path.as_ref().clone())),
+                _ => panic!("Expected only FileNodes on file_list.")
+            };
         } else {
-            return // no prefix, no action. TODO(njskalski) add a warning? Focus back on tree?
+            siv.focus_id(EDIT_VIEW_ID);
+            let mut edit_view: ViewRef<EditView> = siv.find_id::<EditView>(EDIT_VIEW_ID).unwrap();
+            edit_view.borrow_mut().set_content(item.to_string());
         }
-    } else {
-        siv.focus_id(EDIT_VIEW_ID);
-        let mut edit_view : ViewRef<EditView> = siv.find_id::<EditView>(EDIT_VIEW_ID).unwrap();
-        edit_view.borrow_mut().set_content(item.to_string());
     }
 }
 
-fn get_path_op(siv : &mut Cursive) -> Option<String> {
+fn get_path_op(siv : &mut Cursive) -> Option<Rc<PathBuf>> {
     // TODO(njskalski) refactor these uwraps.
     let mut tree_view : ViewRef<TreeViewType> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
 
     let row = tree_view.row().unwrap();
     let item = tree_view.borrow_item(row).unwrap().clone();
 
-    let prefix : String = match *item {
+    let prefix = match *item {
         LazyTreeNode::RootNode(_) => return None, // root selected, no prefix
-        LazyTreeNode::DirNode(ref path) => (**path).clone(),
+        LazyTreeNode::DirNode(ref path) => path.clone(),
         _ => panic!() //no support for FileNodes in this tree.
     };
 
@@ -259,9 +269,9 @@ fn on_file_edit_submit(siv: &mut Cursive, s : &str) {
 
     if let Some(path) = get_path_op(siv) {
         let mut file_view : ViewRef<FileView> = siv.find_id(FILE_VIEW_ID).unwrap();
-        file_view.channel.send(IEvent::SaveBufferAs(path, s.to_string()));
+        file_view.channel.send(IEvent::SaveBufferAs(path.as_ref().clone()));
     } else {
-        return // no prefix, no action. TODO(njskalski) add a warning? Focus back on tree?
+        return // no folder selected, no prefix. TODO(njskalski) add panic?
     };
 }
 
@@ -275,7 +285,6 @@ impl FileView {
         let selected_bg_color = settings.get_color("theme/file_view/selected_background");
         let non_selected_bg_color = settings.get_color("theme/file_view/non_selected_background");
 
-        // TODO(njskalski) put it into some kind of theme cache (settings? interface?)
         let printer_to_theme : PrinterModifierType = Rc::new(Box::new(move |p : &Printer| {
 
             let mut palette = theme::Palette::default();
@@ -322,7 +331,7 @@ impl FileView {
         // dir_tree.insert_item(Rc::new(LazyTreeNode::ExpansionPlaceholder), Placement::LastChild, 0);
         dir_tree.set_collapsed(0, true);
 
-        dir_tree.set_on_collapse(dir_tree_on_collapse_callback);
+        dir_tree.set_on_collapse(get_dir_tree_on_collapse_switch_callback(false));
         dir_tree.set_on_select(dir_tree_on_select_callback);
 
         hl.add_child(
@@ -333,8 +342,7 @@ impl FileView {
 
         let mut file_select : SelectView<Rc<LazyTreeNode>> = SelectView::new().v_align(VAlign::Top);
         // file_select.set_on_select(file_list_on_select);
-        let is_open = variant.is_open();
-        file_select.set_on_submit(move |siv, item| file_list_on_submit(siv, item, is_open));
+        file_select.set_on_submit(get_file_list_on_submit(variant.is_open()));
         hl.add_child(
             ColorViewWrapper::new(
                 BoxView::with_fixed_size((50, 15), file_select.with_id(FILE_LIST_VIEW_ID)),
