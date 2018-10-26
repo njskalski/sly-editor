@@ -1,6 +1,6 @@
 [package]
 name = "sly"
-version = "0.0.5"
+version = "0.0.6"
 authors = ["Google LLC <njskalski@google.com>"]
 
 [dependencies]

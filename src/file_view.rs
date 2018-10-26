@@ -245,7 +245,7 @@ fn get_file_list_on_submit(is_file_open : bool) -> impl Fn(&mut Cursive, &Rc<Laz
     }
 }
 
-fn get_path_op(siv : &mut Cursive) -> Option<Rc<PathBuf>> {
+fn get_path_op(siv : &mut Cursive) -> Option<PathBuf> {
     // TODO(njskalski) refactor these uwraps.
     let mut tree_view : ViewRef<TreeViewType> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
 
@@ -254,7 +254,7 @@ fn get_path_op(siv : &mut Cursive) -> Option<Rc<PathBuf>> {
 
     let prefix = match *item {
         LazyTreeNode::RootNode(_) => return None, // root selected, no prefix
-        LazyTreeNode::DirNode(ref path) => path.clone(),
+        LazyTreeNode::DirNode(ref path) => path.as_ref().clone(),
         _ => panic!() //no support for FileNodes in this tree.
     };
 
@@ -266,9 +266,11 @@ fn on_file_edit_submit(siv: &mut Cursive, s : &str) {
         return;
     }
 
-    if let Some(path) = get_path_op(siv) {
+    if let Some(mut path) = get_path_op(siv) {
         let mut file_view : ViewRef<FileView> = siv.find_id(FILE_VIEW_ID).unwrap();
-        file_view.channel.send(IEvent::SaveBufferAs(path.as_ref().clone()));
+        path.push(s);
+
+        file_view.channel.send(IEvent::SaveBufferAs(path));
     } else {
         return // no folder selected, no prefix. TODO(njskalski) add panic?
     };
