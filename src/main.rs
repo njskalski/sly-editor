@@ -138,7 +138,14 @@ fn main() {
         if arg.starts_with("--") {
             commandline_args.push(arg);
         } else {
-            let path = Path::new(&arg).to_path_buf();
+            let path_arg = Path::new(&arg).to_path_buf();
+            let path = match fs::canonicalize(&path_arg) {
+                Ok(path) => path,
+                _ => {
+                    info!("unable to canonicalize \"{:?}\", ignoring.", path_arg);
+                    continue;
+                }
+            };
 
             //removing tailing slashes (for some reasons rust's path allow them)
             while arg.chars().last() == Some('/') {

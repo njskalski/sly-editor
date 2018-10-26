@@ -117,8 +117,7 @@ fn get_dir_tree_on_collapse_switch_callback(files_visible : bool) -> impl Fn(&mu
                     for c in children {
                         match c.as_ref() {
                             &LazyTreeNode::DirNode(_) => dir_vec.push(c.clone()),
-                            &LazyTreeNode::FileNode(_) if files_visible => file_vec.push(c.clone()),
-                            &LazyTreeNode::FileNode(_) => panic!("FileNode chosen in files_visible == false."),
+                            &LazyTreeNode::FileNode(_) => if files_visible { file_vec.push(c.clone()); },
                             &LazyTreeNode::RootNode(_) => panic!("RootNode cannot be embedded.")
                         };
                     };
