@@ -44,6 +44,7 @@ use std::fmt;
 use std::sync::mpsc;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::path::Path;
 
 pub struct Interface {
     state : AppState,
@@ -229,6 +230,7 @@ impl Interface {
     fn show_file_dialog(&mut self, variant : FileViewVariant) {
         if !self.filedialog_visible {
             self.assert_no_file_view();
+            let is_save = variant.is_save();
             let file_view = FileView::new(self.get_event_channel(), variant, self.state.get_dir_tree(), &self.settings);
             self.siv.add_layer(IdView::new("filedialog", file_view));
             self.filedialog_visible = true;

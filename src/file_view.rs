@@ -58,28 +58,35 @@ pub enum FileViewVariant {
 }
 
 impl FileViewVariant {
-    fn get_folder_op(&self) -> &Option<String> {
+    pub fn get_folder_op(&self) -> &Option<String> {
         match self {
             FileViewVariant::SaveAsFile(folder_op, file_op) => folder_op,
             FileViewVariant::OpenFile(folder_op) => folder_op
         }
     }
 
-    fn get_file_op(&self) -> &Option<String> {
+    pub fn get_file_op(&self) -> &Option<String> {
         match self {
             FileViewVariant::SaveAsFile(folder_op, file_op) => file_op,
             FileViewVariant::OpenFile(folder_op) => &None
         }
     }
 
-    fn is_open(&self) -> bool {
+    pub fn is_open(&self) -> bool {
         match self {
             FileViewVariant::OpenFile(_) => true,
             _ => false
         }
     }
 
-    fn get_title(&self) -> &'static str {
+    pub fn is_save(&self) -> bool {
+        match self {
+            FileViewVariant::SaveAsFile(_, _) => true,
+            _ => false
+        }
+    }
+
+    pub fn get_title(&self) -> &'static str {
         match self {
             FileViewVariant::SaveAsFile(_, _) => "Save file",
             FileViewVariant::OpenFile(_) => "Open file"
@@ -248,7 +255,6 @@ fn get_file_list_on_submit(is_file_open : bool) -> impl Fn(&mut Cursive, &Rc<Laz
 fn get_path_op(siv : &mut Cursive) -> Option<PathBuf> {
     // TODO(njskalski) refactor these uwraps.
     let mut tree_view : ViewRef<TreeViewType> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
-
     let row = tree_view.row().unwrap();
     let item = tree_view.borrow_item(row).unwrap().clone();
 
@@ -274,6 +280,50 @@ fn on_file_edit_submit(siv: &mut Cursive, s : &str) {
     } else {
         return // no folder selected, no prefix. TODO(njskalski) add panic?
     };
+}
+
+// TODO(njskalski) this method doesn't work.
+pub fn expand_tree(siv: &mut Cursive, path : &Path) {
+    let mut tree_view : ViewRef<TreeViewType> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
+
+    let mut row_begin = 0;
+    let mut row_end = tree_view.len();
+
+    let mut done = false;
+
+    let mut last_expansion : Option<usize> = None;
+
+    while !done {
+        let mut expanded = false;
+        for i in row_begin..row_end {
+            let item = tree_view.borrow_item(i).unwrap().clone();
+
+            match *item {
+                LazyTreeNode::DirNode(ref dir) => {
+                    if path.starts_with(dir.as_ref()) {
+                        let items_in_total = tree_view.len();
+                        tree_view.expand_item(i);
+                        last_expansion = Some(i);
+                        expanded = true;
+                        let num_children = tree_view.len() - items_in_total;
+                        row_begin = i+1;
+                        row_end = row_begin + num_children;
+                        break;
+                    }
+                },
+                _ => {}
+            }
+        }
+
+        if !expanded && last_expansion.is_some() {
+            let last_i = last_expansion.unwrap();
+
+            tree_view.collapse_item(last_i);
+            tree_view.set_selected_row(last_i);
+
+            done = true;
+        }
+    }
 }
 
 impl FileView {
@@ -365,11 +415,13 @@ impl FileView {
             }
         };
 
-        IdView::<FileView>::new(FILE_VIEW_ID, FileView {
+        let file_view = FileView {
             variant : variant,
             channel : ch,
             mv : vl
-        })
+        };
+
+        IdView::<FileView>::new(FILE_VIEW_ID, file_view)
     }
 }
 
