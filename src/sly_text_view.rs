@@ -45,7 +45,7 @@ use std::cmp::min;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 use ropey::Rope;
-use content_type::{Color, RichContent};
+use content_type::{RichLine, RichContent};
 use std::collections::HashMap;
 use clipboard;
 use clipboard::ClipboardProvider;
@@ -59,6 +59,7 @@ use buffer_state_observer::BufferStateObserver;
 use interface::IChannel;
 use content_provider::{EditEvent, RopeBasedContentProvider};
 use events::IEvent;
+use cursive::theme::{Color, ColorType};
 
 const INDEX_MARGIN: usize = 1;
 const PAGE_WIDTH: usize = 80;
@@ -182,12 +183,12 @@ impl View for SlyTextView {
             //this allow a cursor *after* the last character. It's actually needed.
             let add = if line_no == lines.len_lines() - 1 { 1 } else { 0 };
 
-            for x in 0..(line.len_chars() + add) {
-                let char_offset = line_offset + x;
+            for char_idx in 0..(line.len_chars() + add) {
+                let char_offset = line_offset + char_idx;
 
                 let mut special_char = false;
-                let symbol: char = if line.len_chars() > x {
-                    let c = line.char(x);
+                let symbol: char = if line.len_chars() > char_idx {
+                    let c = line.char(char_idx);
                     if !self.special_char_mappings.contains_key(&c) { c } else {
                         special_char = true;
                         self.special_char_mappings[&c]
@@ -199,8 +200,18 @@ impl View for SlyTextView {
                 let color_style: ColorStyle = if self.had_cursor_at(&char_offset) {
                     ColorStyle::highlight()
                 } else {
-                    if x <= 80 && !special_char {
-                        ColorStyle::primary()
+                    if char_idx <= 80 && !special_char {
+                        //TODO(njskalski): condition on availability of color desc.
+                        let mut someColor = ColorStyle::primary();
+
+                        self.rich_content.get_line(line_no).map(|line : &RichLine| {
+                             line.get_color_at(char_idx).map(|color : Color| {
+                                someColor.front = ColorType::Color(color);
+                             });
+                        });
+
+
+                        someColor
                     } else {
                         ColorStyle::secondary()
                     }
@@ -215,7 +226,7 @@ impl View for SlyTextView {
 
                 printer.with_color(color_style, |printer| {
                     printer.with_effect(effect, |printer| {
-                        printer.print((x + index_length + INDEX_MARGIN, y), &symbol.to_string());
+                        printer.print((char_idx + index_length + INDEX_MARGIN, y), &symbol.to_string());
                     });
                 });
             }

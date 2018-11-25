@@ -28,16 +28,42 @@ use std::iter::{Iterator, ExactSizeIterator};
 use content_provider::RopeBasedContentProvider;
 use std::cell::Ref;
 
-#[derive(Debug)]
-pub struct Color {
-    pub r : u8,
-    pub g : u8,
-    pub b : u8
-}
+use cursive::theme::Color;
+
 
 #[derive(Debug)]
 pub struct RichLine {
-    pub body : Vec<(Color, String)>
+    length : usize,
+    body : Vec<(Color, String)>
+}
+
+//TODO(njskalski): optimise, rethink api. maybe even drop the content.
+impl RichLine {
+    pub fn new(body : Vec<(Color, String)>) -> Self {
+        let mut len : usize = 0;
+        for piece in &body {
+            len += piece.1.len()
+        }
+
+        RichLine { length : len , body }
+    }
+
+    pub fn len(&self) -> usize {
+        self.length
+    }
+
+    pub fn get_color_at(&self, idx : usize) -> Option<Color> {
+        let mut cur_idx : usize = 0;
+
+        for chunk in &self.body {
+            if cur_idx + chunk.1.len() > idx {
+                return Some(chunk.0)
+            }
+            cur_idx += chunk.1.len();
+        }
+
+        None
+    }
 }
 
 //TODO(njskalski): obviously optimise
@@ -47,12 +73,14 @@ pub struct RichContent {
     lines : Vec<RichLine>
 }
 
-
-
 impl RichContent {
     pub fn new(rope : &Rope) -> Self {
         let lines = syntax::rope_to_colors(rope, None);
         return RichContent { lines }
+    }
+
+    pub fn get_line(&self, line_no : usize) -> Option<&RichLine> {
+        self.lines.get(line_no)
     }
 }
 

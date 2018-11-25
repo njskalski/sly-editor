@@ -13,7 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-use content_type::{Color, RichContent, RichLine};
+use cursive::theme::Color;
+use content_type::{RichContent, RichLine};
 use std::io::BufRead;
 use syntect::easy::HighlightLines;
 use syntect::highlighting::{Style, ThemeSet};
@@ -52,11 +53,11 @@ pub fn break_into_lines(reader: &mut BufRead) -> Vec<String> {
 
 // TODO(njskalski) test it further. There is one broken test below
 fn simplify_style(style: &Style) -> Color {
-    Color {
-        r: style.foreground.r,
-        g: style.foreground.g,
-        b: style.foreground.b,
-    }
+    Color::Rgb(
+        style.foreground.r,
+        style.foreground.g,
+        style.foreground.b,
+    )
 }
 
 //TODO(njskalski): optimise
@@ -82,9 +83,7 @@ pub fn rope_to_colors(rope: &Rope, line_limit : Option<usize>) -> Vec<RichLine> 
             .into_iter()
             .map(|(style, words)| (simplify_style(&style), words.to_string()))
             .collect();
-        result.push(RichLine {
-            body: new_line,
-        });
+        result.push(RichLine::new(new_line));
     }
 
     result
