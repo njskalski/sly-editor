@@ -21,6 +21,8 @@ use unicode_segmentation::UnicodeSegmentation;
 use ropey::Rope;
 use serde_json as sj;
 
+use syntax;
+
 const DEFAULT_BLANK : char = ' ';
 
 //TODO(njskalski) secure against overlapping cursors!

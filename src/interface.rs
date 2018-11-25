@@ -186,7 +186,7 @@ impl Interface {
     pub fn close_floating_windows(&mut self) {
         self.close_file_bar();
         self.close_filedialog();
-        self.close_bufer_list();
+        self.close_buffer_list();
     }
 
     pub fn get_event_channel(&self) -> IChannel {
@@ -262,12 +262,12 @@ impl Interface {
     fn show_buffer_list(&mut self) {
         if !self.bufferlist_visible {
             let buffer_list = self.state.get_buffers();
-
+            warn!("buffer list not imlemented yet.");
             self.bufferlist_visible = true;
         }
     }
 
-    fn close_bufer_list(&mut self) {
+    fn close_buffer_list(&mut self) {
         if self.siv.focus_id("bufferlist").is_ok() {
             self.siv.pop_layer();
             self.bufferlist_visible = false;

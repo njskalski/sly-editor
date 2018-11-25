@@ -120,7 +120,15 @@ impl AppState{
             BufferState::open(file.clone()).unwrap()
         }).collect();
 
-        let file_index_items = file_list_to_items(&files);
+        //TODO(njskalski): I think I wanted files copied somewhere for interface.
+
+        let mut files2 : Vec<PathBuf> = files.to_owned();
+
+        for dir in &directories {
+            build_file_index(&mut files2, dir, false, None);
+        }
+
+        let file_index_items = file_list_to_items(&files2);
 
         AppState {
             buffers_to_load : buffers,
@@ -136,7 +144,7 @@ impl AppState{
 }
 
 /// this method takes into account .git and other directives set in .gitignore. However it only takes into account most recent .gitignore
-fn build_file_index(mut index : &mut Vec<String>, dir : &Path, enable_gitignore : bool, gi_op : Option<&gitignore::Gitignore>) {
+fn build_file_index(mut index : &mut Vec<PathBuf>, dir : &Path, enable_gitignore : bool, gi_op : Option<&gitignore::Gitignore>) {
     match fs::read_dir(dir) {
         Ok(read_dir) => {
             let gitignore_op : Option<gitignore::Gitignore> = if enable_gitignore {
@@ -167,10 +175,7 @@ fn build_file_index(mut index : &mut Vec<String>, dir : &Path, enable_gitignore 
                             if let Some(ref gitignore) = &gitignore_op {
                                 if gitignore.matched(path, false).is_ignore() { continue };
                             };
-                            match path.to_str() {
-                                Some(s) => index.push(s.to_string()),
-                                None => error!("unable to parse non-unicode file path: \"{:?}\". Skipping.", path)
-                            };
+                            index.push(path.to_path_buf()); //TODO(njskalski): move instead of copy.
                         } else {
                             if let Some(ref gitignore) = &gitignore_op {
                                 if gitignore.matched(path, true).is_ignore() { continue };

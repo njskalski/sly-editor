@@ -167,6 +167,8 @@ fn main() {
         }
     }
 
+//    warn!("files {:?}", files);
+
     let app_state = AppState::new(directories, files);
 
     {

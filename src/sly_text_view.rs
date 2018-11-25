@@ -45,7 +45,7 @@ use std::cmp::min;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 use ropey::Rope;
-use content_type::{Color, RichContentType};
+use content_type::{Color, RichContent};
 use std::collections::HashMap;
 use clipboard;
 use clipboard::ClipboardProvider;
@@ -76,7 +76,7 @@ type Cursor = (usize, Option<usize>);
 const NEWLINE_DRAWING : char = '\u{2424}';
 
 pub struct SlyTextView {
-    rich_content: RichContentType,
+    rich_content: RichContent,
     channel : IChannel, // interface feedback channel
     buffer : BufferStateObserver,
     syntax_highlighting: bool, // TODO(njskalski) to be supported for small files
@@ -90,8 +90,11 @@ pub struct SlyTextView {
 
 impl SlyTextView {
     pub fn new(settings : Rc<Settings>, buffer : BufferStateObserver, channel : IChannel) -> Self {
+
+        let rich_content = RichContent::new(buffer.content().get_lines());
+
         SlyTextView {
-            rich_content: RichContentType::new(),
+            rich_content: rich_content,
             channel : channel,
             buffer : buffer,
             syntax_highlighting: true,
@@ -109,7 +112,7 @@ impl SlyTextView {
     }
 
     /// Retrieves the content of the view.
-    pub fn get_rich_content(&self) -> &RichContentType {
+    pub fn get_rich_content(&self) -> &RichContent {
         &self.rich_content
     }
 
@@ -294,7 +297,7 @@ impl View for SlyTextView {
                 EventResult::Consumed(None)
             },
             _ => {
-                debug!("unhandled event {:?}", event);
+                debug!("unhandled event (in sly_text_view) {:?}", event);
                 EventResult::Ignored
             }
         }
