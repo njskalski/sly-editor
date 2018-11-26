@@ -67,6 +67,7 @@ extern crate stderrlog;
 extern crate syntect;
 extern crate core;
 extern crate enumset;
+extern crate rpds;
 
 use std::env;
 use std::fs;

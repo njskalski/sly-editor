@@ -27,6 +27,7 @@ use std::ops::{Index, IndexMut};
 use std::iter::{Iterator, ExactSizeIterator};
 use content_provider::RopeBasedContentProvider;
 use std::cell::Ref;
+use rpds::Vector;
 
 use cursive::theme::Color;
 
@@ -66,10 +67,9 @@ impl RichLine {
     }
 }
 
-//TODO(njskalski): obviously optimise
+//TODO(njskalski): obviously optimise. Use RPDS to share prefix (history).
 #[derive(Debug)]
 pub struct RichContent {
-//    co : Ref<'a, RopeBasedContentProvider>,
     lines : Vec<RichLine>
 }
 
@@ -82,32 +82,32 @@ impl RichContent {
     pub fn get_line(&self, line_no : usize) -> Option<&RichLine> {
         self.lines.get(line_no)
     }
+
+
 }
 
-struct RichLinesIterator<'a> {
-    content : &'a RichContent,
-    line_no : usize
-}
-//
-//impl ExactSizeIterator for RichLinesIterator {
-//
+//not sure if I even need the iterator api. It's cool, but KISS.
+
+//struct RichLinesIterator<'a> {
+//    content : &'a RichContent,
+//    line_no : usize
 //}
-
-impl <'a> Iterator for RichLinesIterator<'a> {
-    type Item = &'a RichLine;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let len = self.content.lines.len();
-
-        if len < self.line_no {
-            let old_line_no = self.line_no;
-            self.line_no += 1;
-            let line : Self::Item = &self.content.lines[old_line_no];
-            Some(line)
-        } else { None }
-    }
-}
-
-//impl std::iter::ExactSizeIterator for RichContent {
+//
+//impl <'a> Iterator for RichLinesIterator<'a> {
+//    type Item = &'a RichLine;
+//
+//    fn next(&mut self) -> Option<Self::Item> {
+//        let len = self.content.lines.len();
+//
+//        if len < self.line_no {
+//            let old_line_no = self.line_no;
+//            self.line_no += 1;
+//            let line : Self::Item = &self.content.lines[old_line_no];
+//            Some(line)
+//        } else { None }
+//    }
+//}
+//
+//impl <'a>  ExactSizeIterator for RichLinesIterator<'a> {
 //
 //}

@@ -22,6 +22,82 @@ use syntect::parsing::SyntaxSet;
 use unicode_segmentation::UnicodeSegmentation;
 use syntect::util::LinesWithEndings;
 use ropey::Rope;
+use std::ops::Index;
+use std::rc::Rc;
+
+// Intentionally does not contain reference to text.
+struct ParseState<'a> {
+    parse_state : syntect::parsing::ParseState,
+//    theme : Rc<syntect::highlighting::Theme>,
+    highlighter : syntect::highlighting::Highlighter<'a>,
+    highlight_state : syntect::highlighting::HighlightState,
+    syntax_set : Rc<syntect::parsing::SyntaxSet>,
+    lines_parsed: usize
+}
+
+/*
+    TODO(njskalski):
+    1) extension should be changed with grammar?
+    2) Option maybe should be changed to Result? Haven't decided on error handling.
+*/
+impl <'a> ParseState<'a> {
+    pub fn new(extension : String, theme : String) -> Option<ParseState<'a>>
+    {
+        let syntax_set = SyntaxSet::load_defaults_nonewlines();
+
+        let syntax = match syntax_set.find_syntax_by_extension(&extension) {
+            Some(syntax) => syntax,
+            None => {
+                warn!("unable to find syntax for extension \"{:}\"", &extension);
+                return None
+            }
+        };
+
+        let mut parse_state = syntect::parsing::ParseState::new(syntax);
+
+        let ts = ThemeSet::load_defaults();
+        let theme : syntect::highlighting::Theme = ts.themes["base16-ocean.dark"].clone();
+
+        let highlighter = syntect::highlighting::Highlighter::new(&'a theme);
+        let highlight_state = syntect::highlighting::HighlightState::new(&highlighter,
+            syntect::parsing::ScopeStack::new());
+
+        Some(ParseState{
+            parse_state,
+            syntax_set : Rc::new(syntax_set),
+//            theme : Rc::new(theme),
+            highlighter,
+            highlight_state,
+            lines_parsed : 0
+        })
+    }
+
+    pub fn advance<T : ExactSizeIterator<Item = String> + Index<String>>(&mut self, lines : &T, new_lines_limit : Option<usize>) -> Vec<RichLine> {
+        let mut result : Vec<RichLine> = Vec::new();
+
+        for line in lines.skip(self.lines_parsed).enumerate() {
+            if new_lines_limit.is_some() && new_lines_limit.unwrap() >= line.0 {
+                break;
+            }
+
+            let ops = self.parse_state.parse_line(&line.1, &self.syntax_set);
+            let iter = syntect::highlighting::HighlightIterator::new(&mut self.highlight_state, &ops[..], &line.1, &self.highlighter);
+
+            let mut rich_line : Vec<(Color, String)> = Vec::new();
+
+            for pair in iter {
+                let color = simplify_style(&pair.0);
+                let string = pair.1.to_owned();
+
+                rich_line.push((color, string))
+            }
+
+            result.push(RichLine::new(rich_line))
+        }
+
+        result
+    }
+}
 
 //TODO(njskalski): rewrite into iterator.
 // breaks into lines without swallowing trailing whitespaces (which split did)

@@ -104,7 +104,7 @@ impl SlyTextView {
             last_view_size: None,
             settings : settings,
             clipboard_context : clipboard::ClipboardProvider::new().unwrap(),
-            special_char_mappings : hashmap!['\n' => '\u{2424}', ' ' => '.'],
+            special_char_mappings : hashmap!['\n' => '\u{2424}'],
         }
     }
 
@@ -201,7 +201,6 @@ impl View for SlyTextView {
                     ColorStyle::highlight()
                 } else {
                     if char_idx <= 80 && !special_char {
-                        //TODO(njskalski): condition on availability of color desc.
                         let mut someColor = ColorStyle::primary();
 
                         self.rich_content.get_line(line_no).map(|line : &RichLine| {
@@ -209,7 +208,6 @@ impl View for SlyTextView {
                                 someColor.front = ColorType::Color(color);
                              });
                         });
-
 
                         someColor
                     } else {
