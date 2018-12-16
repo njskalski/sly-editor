@@ -26,6 +26,9 @@ use std::ffi::OsString;
 use std::env;
 use std::rc::Rc;
 use std::cell::RefCell;
+use rich_content_provider::RichContentProvider;
+
+use std::borrow::Borrow;
 
 pub enum BufferReadMode {
     ReadOnly,
@@ -43,9 +46,10 @@ pub struct BufferState {
     exists : bool,
     mode : BufferReadMode,
     content : RopeBasedContentProvider,
-    screen_id : Option<cursive::ScreenId> //no screen no buffer, but can be None after load. TODO fix it later
+    screen_id : Option<cursive::ScreenId>, //no screen no buffer, but can be None after load. TODO fix it later
     // also above will be changed. Multiple buffers will be able to share same screen (so identifier
     // will get longer. I might also implement transferring buffers between instances (for working on multiple screens)
+//    rich_content : Option<RichContentProvider>,
 }
 
 impl BufferState {
@@ -65,7 +69,8 @@ impl BufferState {
                 exists : true,
                 screen_id : None,
                 content : RopeBasedContentProvider::new(Some(&mut reader)),
-                mode : BufferReadMode::ReadWrite
+                mode : BufferReadMode::ReadWrite,
+//                rich_content : None
             })))
         }
     }
@@ -77,6 +82,10 @@ impl BufferState {
     pub fn get_content(&self) -> &RopeBasedContentProvider {
         &self.content
     }
+
+//    pub fn get_rich_content(&self) -> Option<&RichContentProvider> {
+//        self.rich_content.map(|c| c.borrow())
+//    }
 
     pub fn get_screen_id(&self) -> &Option<cursive::ScreenId> {
         &self.screen_id

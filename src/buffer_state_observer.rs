@@ -25,6 +25,7 @@ use content_provider::RopeBasedContentProvider;
 use buffer_state::BufferState;
 
 use cursive;
+use content_type::RichContent;
 
 #[derive(Clone)]
 pub struct BufferStateObserver {
@@ -40,6 +41,10 @@ impl BufferStateObserver {
     pub fn content(&self) -> Ref<RopeBasedContentProvider> {
         Ref::map(self.buffer_state.borrow(), |x| x.get_content())
     }
+
+//    pub fn rich_content(&self) -> Ref<Option<RichContent>> {
+//        Ref::map(self.buffer_state.borrow(), |x| x.get_rich_content())
+//    }
 
     pub fn is_loaded(&self) -> bool {
         self.buffer_state.borrow().get_screen_id().is_some()

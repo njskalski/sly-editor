@@ -30,7 +30,6 @@ use std::cell::Ref;
 
 use cursive::theme::Color;
 
-
 #[derive(Debug)]
 pub struct RichLine {
     length : usize,
@@ -68,46 +67,54 @@ impl RichLine {
 
 //TODO(njskalski): obviously optimise
 #[derive(Debug)]
-pub struct RichContent {
-//    co : Ref<'a, RopeBasedContentProvider>,
-    lines : Vec<RichLine>
+pub struct RichContent<'a> {
+    co : &'a RopeBasedContentProvider,
+//    lines : Vec<RichLine>
 }
 
-impl RichContent {
-    pub fn new(rope : &Rope) -> Self {
-        let lines = syntax::rope_to_colors(rope, None);
-        return RichContent { lines }
+impl <'a> RichContent<'a> {
+    pub fn new(content_provider : &'a RopeBasedContentProvider) -> Self {
+        let co = content_provider;
+        RichContent { co }
+    }
+
+    pub fn len_lines(&self) -> usize {
+        self.co.len_lines()
     }
 
     pub fn get_line(&self, line_no : usize) -> Option<&RichLine> {
-        self.lines.get(line_no)
+        None //TODO
     }
 }
 
-struct RichLinesIterator<'a> {
-    content : &'a RichContent,
+struct RichLinesIterator<'b, 'a : 'b> {
+    content : &'b RichContent<'a>,
     line_no : usize
 }
-//
-//impl ExactSizeIterator for RichLinesIterator {
-//
-//}
 
-impl <'a> Iterator for RichLinesIterator<'a> {
-    type Item = &'a RichLine;
+impl <'b, 'a : 'b> Iterator for RichLinesIterator<'b, 'a> {
+    type Item = &'b RichLine;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let len = self.content.lines.len();
-
-        if len < self.line_no {
-            let old_line_no = self.line_no;
-            self.line_no += 1;
-            let line : Self::Item = &self.content.lines[old_line_no];
-            Some(line)
-        } else { None }
+        let old_line_no = self.line_no;
+        self.line_no += 1;
+        let line  = self.content.get_line(old_line_no);
+        line
     }
 }
 
-//impl std::iter::ExactSizeIterator for RichContent {
-//
-//}
+impl <'b, 'a : 'b> ExactSizeIterator for RichLinesIterator<'b, 'a> {
+    fn len(&self) -> usize {
+        self.content.len_lines()
+    }
+}
+
+impl <'b, 'a: 'b> Index<usize> for RichLinesIterator<'b, 'a> {
+    type Output = RichLine;
+
+    //panics //TODO format docs.
+    fn index<'c>(&'c self, idx : usize) -> &'c RichLine {
+        self.content.get_line(idx).unwrap()
+    }
+
+}

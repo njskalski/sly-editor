@@ -77,7 +77,6 @@ type Cursor = (usize, Option<usize>);
 const NEWLINE_DRAWING : char = '\u{2424}';
 
 pub struct SlyTextView {
-    rich_content: RichContent,
     channel : IChannel, // interface feedback channel
     buffer : BufferStateObserver,
     syntax_highlighting: bool, // TODO(njskalski) to be supported for small files
@@ -91,11 +90,7 @@ pub struct SlyTextView {
 
 impl SlyTextView {
     pub fn new(settings : Rc<Settings>, buffer : BufferStateObserver, channel : IChannel) -> Self {
-
-        let rich_content = RichContent::new(buffer.content().get_lines());
-
         SlyTextView {
-            rich_content: rich_content,
             channel : channel,
             buffer : buffer,
             syntax_highlighting: true,
@@ -113,9 +108,9 @@ impl SlyTextView {
     }
 
     /// Retrieves the content of the view.
-    pub fn get_rich_content(&self) -> &RichContent {
-        &self.rich_content
-    }
+//    pub fn get_rich_content(&self) -> &RichContent {
+//        &self.rich_content
+//    }
 
     /// Returns the position of the cursor in the content string.
     pub fn cursors(&self) -> &Vec<Cursor> {
@@ -201,15 +196,15 @@ impl View for SlyTextView {
                     ColorStyle::highlight()
                 } else {
                     if char_idx <= 80 && !special_char {
-                        //TODO(njskalski): condition on availability of color desc.
+
                         let mut someColor = ColorStyle::primary();
 
-                        self.rich_content.get_line(line_no).map(|line : &RichLine| {
-                             line.get_color_at(char_idx).map(|color : Color| {
-                                someColor.front = ColorType::Color(color);
-                             });
-                        });
-
+                        //TODO uncomment to enable syntax highlighting
+//                        self.rich_content.get_line(line_no).map(|line : &RichLine| {
+//                             line.get_color_at(char_idx).map(|color : Color| {
+//                                someColor.front = ColorType::Color(color);
+//                             });
+//                        });
 
                         someColor
                     } else {

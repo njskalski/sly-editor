@@ -22,6 +22,7 @@ use ropey::Rope;
 use serde_json as sj;
 
 use syntax;
+use ropey::RopeSlice;
 
 const DEFAULT_BLANK : char = ' ';
 
@@ -64,6 +65,7 @@ impl RopeBasedContent {
     }
 }
 
+#[derive(Debug)]
 pub struct RopeBasedContentProvider {
     history: Vec<RopeBasedContent>,
     current: usize,
@@ -111,6 +113,10 @@ impl RopeBasedContentProvider {
     pub fn get_lines(&self) -> &Rope {
         &self.history[self.current].lines
     }
+
+    pub fn get_line(&self, line_no : usize) -> RopeSlice { self.history[self.current].lines.line(line_no) }
+
+    pub fn len_lines(&self) -> usize { self.history[self.current].lines.len_lines() }
 
     pub fn can_undo(&self) -> bool {
         self.current > 0
