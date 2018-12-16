@@ -76,12 +76,12 @@ pub struct RichContent<'a> {
 }
 
 impl <'a> RichContent<'a> {
-    pub fn new(content_provider : &RopeBasedContentProvider) -> Self {
+    pub fn new(content_provider : &'a RopeBasedContentProvider) -> Self {
         RichContent { raw_content : content_provider, prefix : None }
     }
 
     pub fn len_lines(&self) -> usize {
-        self.rope.len_lines()
+        self.raw_content.len_lines()
     }
 
     pub fn get_line(&self, line_no : usize) -> Option<&RichLine> {
