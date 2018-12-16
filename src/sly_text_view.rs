@@ -174,6 +174,7 @@ impl View for SlyTextView {
             let y = line_no - self.position.y;
             let line_offset = &content.get_lines().line_to_char(line_no);
             let line = &content.get_lines().line(line_no);
+            let rich_line_op = self.buffer.content().get_rich_line(line_no);
 
             //this allow a cursor *after* the last character. It's actually needed.
             let add = if line_no == lines.len_lines() - 1 { 1 } else { 0 };
@@ -200,11 +201,14 @@ impl View for SlyTextView {
                         let mut someColor = ColorStyle::primary();
 
                         //TODO uncomment to enable syntax highlighting
-//                        self.rich_content.get_line(line_no).map(|line : &RichLine| {
-//                             line.get_color_at(char_idx).map(|color : Color| {
-//                                someColor.front = ColorType::Color(color);
-//                             });
-//                        });
+                        match &rich_line_op {
+                            None => {},
+                            Some(rich_line) => {
+                                rich_line.get_color_at(char_idx).map(|color : Color| {
+                                    someColor.front = ColorType::Color(color);
+                                });
+                            }
+                        };
 
                         someColor
                     } else {
