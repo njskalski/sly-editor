@@ -68,7 +68,7 @@ impl RichLine {
 //TODO(njskalski): obviously optimise
 #[derive(Debug)]
 pub struct RichContent<'a> {
-    co : &'a RopeBasedContentProvider,
+    co : &'a Rope,
 //    lines : Vec<RichLine>
 }
 
