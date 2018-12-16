@@ -68,16 +68,16 @@ impl RichLine {
 //TODO(njskalski): obviously optimise
 #[derive(Debug)]
 pub struct RichContent<'a> {
+    raw_content: &'a RopeBasedContentProvider,
     // If prefix is None, we need to parse rope from beginning. If it's Some(r, l) then
-    // the previous r : &RichContent has l lines in common.
-    prefix : Option<(&'a RopeBasedContentProvider, usize)>,
-    rope : Rope,
+    // the previous RichContent (#r in ContentProvider history) has l lines in common.
+    prefix : Option<(usize, usize)>,
 //    lines : Vec<RichLine>
 }
 
 impl <'a> RichContent<'a> {
-    pub fn new(rope : Rope) -> Self {
-        RichContent { prefix: None, rope }
+    pub fn new(content_provider : &RopeBasedContentProvider) -> Self {
+        RichContent { raw_content : content_provider, prefix : None }
     }
 
     pub fn len_lines(&self) -> usize {
