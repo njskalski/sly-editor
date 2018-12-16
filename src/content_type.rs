@@ -67,19 +67,18 @@ impl RichLine {
 
 //TODO(njskalski): obviously optimise
 #[derive(Debug)]
-pub struct RichContent<'a> {
-    co : &'a Rope,
+pub struct RichContent {
+    rope : Rope,
 //    lines : Vec<RichLine>
 }
 
-impl <'a> RichContent<'a> {
-    pub fn new(content_provider : &'a RopeBasedContentProvider) -> Self {
-        let co = content_provider;
-        RichContent { co }
+impl RichContent {
+    pub fn new(rope : Rope) -> Self {
+        RichContent { rope }
     }
 
     pub fn len_lines(&self) -> usize {
-        self.co.len_lines()
+        self.rope.len_lines()
     }
 
     pub fn get_line(&self, line_no : usize) -> Option<&RichLine> {
@@ -87,13 +86,13 @@ impl <'a> RichContent<'a> {
     }
 }
 
-struct RichLinesIterator<'b, 'a : 'b> {
-    content : &'b RichContent<'a>,
+struct RichLinesIterator<'a> {
+    content : &'a RichContent,
     line_no : usize
 }
 
-impl <'b, 'a : 'b> Iterator for RichLinesIterator<'b, 'a> {
-    type Item = &'b RichLine;
+impl <'a> Iterator for RichLinesIterator<'a> {
+    type Item = &'a RichLine;
 
     fn next(&mut self) -> Option<Self::Item> {
         let old_line_no = self.line_no;
@@ -103,13 +102,13 @@ impl <'b, 'a : 'b> Iterator for RichLinesIterator<'b, 'a> {
     }
 }
 
-impl <'b, 'a : 'b> ExactSizeIterator for RichLinesIterator<'b, 'a> {
+impl <'a : 'b, 'b> ExactSizeIterator for RichLinesIterator<'a> {
     fn len(&self) -> usize {
         self.content.len_lines()
     }
 }
 
-impl <'b, 'a: 'b> Index<usize> for RichLinesIterator<'b, 'a> {
+impl <'a : 'b, 'b> Index<usize> for RichLinesIterator<'a> {
     type Output = RichLine;
 
     //panics //TODO format docs.
