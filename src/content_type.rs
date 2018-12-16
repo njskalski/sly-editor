@@ -70,7 +70,7 @@ impl RichLine {
 pub struct RichContent<'a> {
     // If prefix is None, we need to parse rope from beginning. If it's Some(r, l) then
     // the previous r : &RichContent has l lines in common.
-    prefix : Option<&'a RichContent, usize>,
+    prefix : Option<(&'a RopeBasedContentProvider, usize)>,
     rope : Rope,
 //    lines : Vec<RichLine>
 }
@@ -89,12 +89,12 @@ impl <'a> RichContent<'a> {
     }
 }
 
-struct <'a, 'b : 'a> RichLinesIterator<'a> {
+struct RichLinesIterator<'a, 'b :'a> {
     content : &'a RichContent<'b>,
     line_no : usize
 }
 
-impl <'a> Iterator for RichLinesIterator<'a> {
+impl <'a, 'b :'a> Iterator for RichLinesIterator<'a, 'b> {
     type Item = &'a RichLine;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -105,13 +105,13 @@ impl <'a> Iterator for RichLinesIterator<'a> {
     }
 }
 
-impl <'a : 'b, 'b> ExactSizeIterator for RichLinesIterator<'a> {
+impl <'a, 'b :'a> ExactSizeIterator for RichLinesIterator<'a, 'b> {
     fn len(&self) -> usize {
         self.content.len_lines()
     }
 }
 
-impl <'a : 'b, 'b> Index<usize> for RichLinesIterator<'a> {
+impl <'a, 'b :'a> Index<usize> for RichLinesIterator<'a, 'b> {
     type Output = RichLine;
 
     //panics //TODO format docs.
