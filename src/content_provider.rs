@@ -67,7 +67,6 @@ impl RopeBasedContent {
     }
 }
 
-#[derive(Debug)]
 pub struct RopeBasedContentProvider {
     history: Vec<(RopeBasedContent, Option<RichContent>)>,
     current: usize,

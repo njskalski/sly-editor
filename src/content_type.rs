@@ -31,6 +31,11 @@ use std::cell::Ref;
 use cursive::theme::Color;
 use std::rc::Rc;
 
+use syntect::highlighting::{Style, ThemeSet, Theme};
+use syntect::parsing::{ParseState, SyntaxReference, SyntaxSet};
+use std::cell::Cell;
+use std::collections::HashMap;
+
 #[derive(Debug)]
 pub struct RichLine {
     length : usize,
@@ -66,10 +71,30 @@ impl RichLine {
     }
 }
 
-//TODO(njskalski): obviously optimise
 #[derive(Debug)]
+pub struct HighlightSettings {
+    theme : Theme,
+    syntax : SyntaxReference,
+}
+
+//TODO move const strings to settings parameters.
+impl HighlightSettings {
+    pub fn new() -> Self {
+        let ss = &SyntaxSet::load_defaults_newlines();
+        let ts = &ThemeSet::load_defaults();
+
+        let theme = ts.themes["base16-ocean.dark"].clone();
+        let syntax = ss.find_syntax_by_extension("rb").unwrap().clone();
+
+        HighlightSettings { theme, syntax }
+    }
+}
+
 pub struct RichContent {
+    highlight_settings : Rc<HighlightSettings>,
     raw_content: Rope,
+    parse_cache: Cell<HashMap<usize, ParseState>>,
+
     // If prefix is None, we need to parse rope from beginning. If it's Some(r, l) then
     // the previous RichContent (#r in ContentProvider history) has l lines in common.
     prefix : Option<(usize, usize)>,
@@ -77,8 +102,13 @@ pub struct RichContent {
 }
 
 impl RichContent {
-    pub fn new(rope : Rope) -> Self {
-        RichContent { raw_content : rope, prefix : None }
+    pub fn new(settings : Rc<HighlightSettings>, rope : Rope) -> Self {
+        RichContent {
+            highlight_settings : settings,
+            raw_content : rope,
+            prefix : None,
+            parse_cache : Cell::new(HashMap::<usize, ParseState>::new())
+        }
     }
 
     pub fn len_lines(&self) -> usize {
