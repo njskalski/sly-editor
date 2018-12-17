@@ -78,21 +78,23 @@ impl RichLine {
 
 #[derive(Debug)]
 pub struct HighlightSettings {
-    theme : Theme,
+//    theme : Theme,
     syntax : SyntaxReference,
     syntax_set : SyntaxSet,
+    highlighter : Highlighter,
 }
 
 //TODO move const strings to settings parameters.
 impl HighlightSettings {
     pub fn new() -> Self {
-        let ss = SyntaxSet::load_defaults_newlines().clone();
+        let syntax_set = SyntaxSet::load_defaults_newlines().clone();
         let ts = &ThemeSet::load_defaults();
 
         let theme = ts.themes["base16-ocean.dark"].clone();
-        let syntax = ss.find_syntax_by_extension("rb").unwrap().clone();
+        let syntax = syntax_set.find_syntax_by_extension("rb").unwrap().clone();
+        let highlighter = Highlighter::new(theme);
 
-        HighlightSettings { theme, syntax, syntax_set : ss }
+        HighlightSettings { syntax, syntax_set, highlighter }
     }
 }
 
@@ -163,6 +165,9 @@ impl RichContent {
                 &self.raw_content.line(line).to_string(),
                 &self.highlight_settings.syntax_set
             );
+
+            let iter = HighlightIterator::new(&mut highlight_state, &ops[..], line, &self.highlighter);
+
         }
 
         None //TODO
