@@ -123,7 +123,7 @@ pub struct RichContent {
     // If prefix is None, we need to parse rope from beginning. If it's Some(r, l) then
     // the previous RichContent (#r in ContentProvider history) has l lines in common.
     prefix : Option<(usize, usize)>,
-    lines : Vec<Rc<RichLine>>,
+    lines : RefCell<Vec<Rc<RichLine>>>,
 }
 
 impl RichContent {
@@ -135,7 +135,7 @@ impl RichContent {
             //contract: sorted.
             parse_cache : RefCell::new(Vec::new()),
             //contract: max key of parse_cache < len(lines)
-            lines : Vec::new()
+            lines : RefCell::new(Vec::new())
         }
     }
 
@@ -164,9 +164,9 @@ impl RichContent {
         cache.map(|x| x.clone())
     }
 
-    pub fn get_line(&self, line_no : usize) -> Option<&Rc<RichLine>> {
-        if self.lines.len() > line_no {
-            return Some(&self.lines[line_no]);
+    pub fn get_line(&self, line_no : usize) -> Option<Rc<RichLine>> {
+        if self.lines.borrow().len() > line_no {
+            return self.lines.borrow().get(line_no).map(|x| x.clone());
         }
 
         // It could be cached, but escalating <'a> everywhere is just a nightmare.
@@ -180,7 +180,7 @@ impl RichContent {
         };
 
         let line_limit = std::cmp::min(line_no + PARSING_MILESTONE, self.raw_content.len_lines());
-        let first_line = std::cmp::min(self.lines.len(), parse_cache.line_to_parse);
+        let first_line = std::cmp::min(self.lines.borrow().len(), parse_cache.line_to_parse);
 
         for current_line in (first_line)..(line_limit) {
             let line_str = self.raw_content.line(current_line).to_string();
@@ -203,6 +203,8 @@ impl RichContent {
 
             let rc_rich_line = Rc::new(RichLine::new(new_line));
 
+            self.lines.borrow_mut().push(rc_rich_line);
+
             // cache
             if current_line % PARSING_MILESTONE == 0 {
                 let mut copy_to_cache = parse_cache.clone();
@@ -222,7 +224,7 @@ impl RichContent {
             }
         }
 
-        None //TODO
+        self.lines.borrow().get(line_no).map(|x| x.clone())
     }
 }
 
@@ -232,7 +234,7 @@ struct RichLinesIterator<'a> {
 }
 
 impl <'a> Iterator for RichLinesIterator<'a> {
-    type Item = &'a Rc<RichLine>;
+    type Item = Rc<RichLine>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let old_line_no = self.line_no;
@@ -248,15 +250,14 @@ impl <'a> ExactSizeIterator for RichLinesIterator<'a> {
     }
 }
 
-impl <'a> Index<usize> for RichLinesIterator<'a> {
-    type Output = Rc<RichLine>;
-
-    //panics //TODO format docs.
-    fn index(&self, idx : usize) -> &Rc<RichLine> {
-        self.content.get_line(idx).unwrap()
-    }
-
-}
+//impl <'a> Index<usize> for RichLinesIterator<'a> {
+//    type Output = Rc<RichLine>;
+//
+//    //panics //TODO format docs.
+//    fn index(&self, idx : usize) -> &Rc<RichLine> {
+//        self.content.get_line(idx).unwrap()
+//    }
+//}
 
 fn simplify_style(style: &Style) -> Color {
     Color::Rgb(
