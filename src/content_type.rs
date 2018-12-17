@@ -33,8 +33,8 @@ use std::cell::Ref;
 use cursive::theme::Color;
 use std::rc::Rc;
 
-use syntect::highlighting::{Style, ThemeSet, Theme};
-use syntect::parsing::{ParseState, SyntaxReference, SyntaxSet};
+use syntect::highlighting::{HighlightIterator, HighlightState, Highlighter, Style, ThemeSet, Theme};
+use syntect::parsing::{ParseState, ScopeStack, SyntaxReference, SyntaxSet};
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::cell::RefCell;
@@ -78,10 +78,9 @@ impl RichLine {
 
 #[derive(Debug)]
 pub struct HighlightSettings {
-//    theme : Theme,
+    theme : Theme,
     syntax : SyntaxReference,
     syntax_set : SyntaxSet,
-    highlighter : Highlighter,
 }
 
 //TODO move const strings to settings parameters.
@@ -90,11 +89,28 @@ impl HighlightSettings {
         let syntax_set = SyntaxSet::load_defaults_newlines().clone();
         let ts = &ThemeSet::load_defaults();
 
-        let theme = ts.themes["base16-ocean.dark"].clone();
         let syntax = syntax_set.find_syntax_by_extension("rb").unwrap().clone();
-        let highlighter = Highlighter::new(theme);
+        let theme = ts.themes["base16-ocean.dark"].clone();
 
-        HighlightSettings { syntax, syntax_set, highlighter }
+        HighlightSettings { theme, syntax, syntax_set }
+    }
+}
+
+#[derive(Clone)]
+struct ParseCacheRecord {
+    line_to_parse : usize,
+    parse_state : ParseState,
+    highlight_state : HighlightState,
+//    scope_stack : ScopeStack,
+}
+
+impl ParseCacheRecord {
+    pub fn new(parse_state : ParseState, highlighter : &Highlighter) -> Self {
+
+        let scope_stack = ScopeStack::new();
+        let highlight_state = HighlightState::new(highlighter, scope_stack);
+
+        ParseCacheRecord { line_to_parse : 0 , parse_state, highlight_state}
     }
 }
 
@@ -102,7 +118,7 @@ pub struct RichContent {
     highlight_settings : Rc<HighlightSettings>,
     raw_content: Rope,
     // the key corresponds to number of next line to parse by ParseState. NOT DONE, bc I don't want negative numbers.
-    parse_cache: RefCell<Vec<(usize, ParseState)>>, //TODO is it possible to remove RefCell?
+    parse_cache: RefCell<Vec<ParseCacheRecord>>, //TODO is it possible to remove RefCell?
 
     // If prefix is None, we need to parse rope from beginning. If it's Some(r, l) then
     // the previous RichContent (#r in ContentProvider history) has l lines in common.
@@ -128,23 +144,24 @@ impl RichContent {
     }
 
     // result.0 > line_no
-    pub fn get_cache(&self, line_no : usize) -> Option<(usize, ParseState)> {
-        let parse_cache : Ref<Vec<(usize, ParseState)>> = self.parse_cache.borrow();
+    pub fn get_cache(&self, line_no : usize) -> Option<ParseCacheRecord> {
+        let parse_cache : Ref<Vec<ParseCacheRecord>> = self.parse_cache.borrow();
 
         if parse_cache.is_empty() {
             return None;
         }
 
-        let cache : Option<(usize, ParseState)> = match parse_cache.binary_search_by(|pair| pair.0.cmp(&line_no)) {
-            Ok(idx) => parse_cache.get(idx).map(|x| (x.0, x.1.clone())),
+        //TODO do edge cases
+        let cache : Option<&ParseCacheRecord> = match parse_cache.binary_search_by(|rec| rec.line_to_parse.cmp(&line_no)) {
+            Ok(idx) => parse_cache.get(idx),
             Err(higher_index) => {
                 if higher_index == 0 { None } else {
-                    parse_cache.get(higher_index - 1).map(|x| (x.0, x.1.clone()))
+                    parse_cache.get(higher_index - 1)
                 }
             }
         };
 
-        cache
+        cache.map(|x| x.clone())
     }
 
     pub fn get_line(&self, line_no : usize) -> Option<&Rc<RichLine>> {
@@ -152,22 +169,57 @@ impl RichContent {
             return Some(&self.lines[line_no]);
         }
 
+        // It could be cached, but escalating <'a> everywhere is just a nightmare.
+        let highlighter = Highlighter::new(&self.highlight_settings.theme);
+
         // see contracts
-        let (line, mut parse_state) = match self.get_cache(line_no) {
-            None => (0 as usize, ParseState::new(&self.highlight_settings.syntax)),
+        let mut parse_cache : ParseCacheRecord = match self.get_cache(line_no) {
+            None => ParseCacheRecord::new(
+                ParseState::new(&self.highlight_settings.syntax), &highlighter),
             Some(x) => x
         };
 
         let line_limit = std::cmp::min(line_no + PARSING_MILESTONE, self.raw_content.len_lines());
+        let first_line = std::cmp::min(self.lines.len(), parse_cache.line_to_parse);
 
-        for i in line..line_limit {
-            let sth = parse_state.parse_line(
-                &self.raw_content.line(line).to_string(),
+        for current_line in (first_line)..(line_limit) {
+            let line_str = self.raw_content.line(current_line).to_string();
+
+            let ops = parse_cache.parse_state.parse_line(
+                &line_str,
                 &self.highlight_settings.syntax_set
             );
 
-            let iter = HighlightIterator::new(&mut highlight_state, &ops[..], line, &self.highlighter);
+            let ranges: Vec<(Style, &str)> = {
+                HighlightIterator::new(&mut parse_cache.highlight_state,
+                                       &ops[..],
+                                       &line_str,
+                                       &highlighter).collect() };
 
+            let new_line: Vec<(Color, String)> = ranges
+                .into_iter()
+                .map(|(style, words)| (simplify_style(&style), words.to_string()))
+                .collect();
+
+            let rc_rich_line = Rc::new(RichLine::new(new_line));
+
+            // cache
+            if current_line % PARSING_MILESTONE == 0 {
+                let mut copy_to_cache = parse_cache.clone();
+                copy_to_cache.line_to_parse = current_line;
+
+                // just checking.
+
+                if !self.parse_cache.borrow().is_empty() {
+                    let prev_line = self.parse_cache.borrow().last().unwrap().line_to_parse;
+                    let new_line = current_line;
+                    if prev_line >= current_line {
+                        error!("expeced prev_line {:} < new_line {:}", prev_line, new_line);
+                    }
+                }
+
+                self.parse_cache.borrow_mut().push(copy_to_cache);
+            }
         }
 
         None //TODO
@@ -204,4 +256,12 @@ impl <'a> Index<usize> for RichLinesIterator<'a> {
         self.content.get_line(idx).unwrap()
     }
 
+}
+
+fn simplify_style(style: &Style) -> Color {
+    Color::Rgb(
+        style.foreground.r,
+        style.foreground.g,
+        style.foreground.b,
+    )
 }
