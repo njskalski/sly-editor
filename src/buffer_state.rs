@@ -26,7 +26,6 @@ use std::ffi::OsString;
 use std::env;
 use std::rc::Rc;
 use std::cell::RefCell;
-use rich_content_provider::RichContentProvider;
 
 use std::borrow::Borrow;
 
