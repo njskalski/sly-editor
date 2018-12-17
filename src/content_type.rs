@@ -23,6 +23,8 @@ limitations under the License.
 use syntax;
 
 use ropey::Rope;
+use std::marker::Copy;
+use std::borrow::Borrow;
 use std::ops::{Index, IndexMut};
 use std::iter::{Iterator, ExactSizeIterator};
 use content_provider::RopeBasedContentProvider;
@@ -35,6 +37,9 @@ use syntect::highlighting::{Style, ThemeSet, Theme};
 use syntect::parsing::{ParseState, SyntaxReference, SyntaxSet};
 use std::cell::Cell;
 use std::collections::HashMap;
+use std::cell::RefCell;
+
+const PARSING_MILESTONE : usize = 20;
 
 #[derive(Debug)]
 pub struct RichLine {
@@ -75,25 +80,27 @@ impl RichLine {
 pub struct HighlightSettings {
     theme : Theme,
     syntax : SyntaxReference,
+    syntax_set : SyntaxSet,
 }
 
 //TODO move const strings to settings parameters.
 impl HighlightSettings {
     pub fn new() -> Self {
-        let ss = &SyntaxSet::load_defaults_newlines();
+        let ss = SyntaxSet::load_defaults_newlines().clone();
         let ts = &ThemeSet::load_defaults();
 
         let theme = ts.themes["base16-ocean.dark"].clone();
         let syntax = ss.find_syntax_by_extension("rb").unwrap().clone();
 
-        HighlightSettings { theme, syntax }
+        HighlightSettings { theme, syntax, syntax_set : ss }
     }
 }
 
 pub struct RichContent {
     highlight_settings : Rc<HighlightSettings>,
     raw_content: Rope,
-    parse_cache: Cell<HashMap<usize, ParseState>>,
+    // the key corresponds to number of next line to parse by ParseState. NOT DONE, bc I don't want negative numbers.
+    parse_cache: RefCell<Vec<(usize, ParseState)>>, //TODO is it possible to remove RefCell?
 
     // If prefix is None, we need to parse rope from beginning. If it's Some(r, l) then
     // the previous RichContent (#r in ContentProvider history) has l lines in common.
@@ -107,7 +114,9 @@ impl RichContent {
             highlight_settings : settings,
             raw_content : rope,
             prefix : None,
-            parse_cache : Cell::new(HashMap::<usize, ParseState>::new()),
+            //contract: sorted.
+            parse_cache : RefCell::new(Vec::new()),
+            //contract: max key of parse_cache < len(lines)
             lines : Vec::new()
         }
     }
@@ -116,11 +125,45 @@ impl RichContent {
         self.raw_content.len_lines()
     }
 
+    // result.0 > line_no
+    pub fn get_cache(&self, line_no : usize) -> Option<(usize, ParseState)> {
+        let parse_cache : Ref<Vec<(usize, ParseState)>> = self.parse_cache.borrow();
+
+        if parse_cache.is_empty() {
+            return None;
+        }
+
+        let cache : Option<(usize, ParseState)> = match parse_cache.binary_search_by(|pair| pair.0.cmp(&line_no)) {
+            Ok(idx) => parse_cache.get(idx).map(|x| (x.0, x.1.clone())),
+            Err(higher_index) => {
+                if higher_index == 0 { None } else {
+                    parse_cache.get(higher_index - 1).map(|x| (x.0, x.1.clone()))
+                }
+            }
+        };
+
+        cache
+    }
+
     pub fn get_line(&self, line_no : usize) -> Option<&Rc<RichLine>> {
         if self.lines.len() > line_no {
             return Some(&self.lines[line_no]);
         }
 
+        // see contracts
+        let (line, mut parse_state) = match self.get_cache(line_no) {
+            None => (0 as usize, ParseState::new(&self.highlight_settings.syntax)),
+            Some(x) => x
+        };
+
+        let line_limit = std::cmp::min(line_no + PARSING_MILESTONE, self.raw_content.len_lines());
+
+        for i in line..line_limit {
+            let sth = parse_state.parse_line(
+                &self.raw_content.line(line).to_string(),
+                &self.highlight_settings.syntax_set
+            );
+        }
 
         None //TODO
     }
