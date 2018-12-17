@@ -98,7 +98,7 @@ pub struct RichContent {
     // If prefix is None, we need to parse rope from beginning. If it's Some(r, l) then
     // the previous RichContent (#r in ContentProvider history) has l lines in common.
     prefix : Option<(usize, usize)>,
-//    lines : Vec<RichLine>
+    lines : Vec<Rc<RichLine>>,
 }
 
 impl RichContent {
@@ -107,7 +107,8 @@ impl RichContent {
             highlight_settings : settings,
             raw_content : rope,
             prefix : None,
-            parse_cache : Cell::new(HashMap::<usize, ParseState>::new())
+            parse_cache : Cell::new(HashMap::<usize, ParseState>::new()),
+            lines : Vec::new()
         }
     }
 
@@ -116,6 +117,11 @@ impl RichContent {
     }
 
     pub fn get_line(&self, line_no : usize) -> Option<&Rc<RichLine>> {
+        if self.lines.len() > line_no {
+            return Some(&self.lines[line_no]);
+        }
+
+
         None //TODO
     }
 }
