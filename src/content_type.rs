@@ -20,7 +20,9 @@ limitations under the License.
 
 // TODO(njskalski) secure with accessors after fixing the format.
 
-use syntax;
+//TODO(njskalski) NEXT STEPS:
+// 1) replace Vec in cache with rpds Vector, this way implementing versioning of colors
+// 2) then you can remove Rc from Rich Line (probably) and give indexing again (not sure what for)
 
 use ropey::Rope;
 use std::marker::Copy;
@@ -39,7 +41,7 @@ use std::cell::Cell;
 use std::collections::HashMap;
 use std::cell::RefCell;
 
-const PARSING_MILESTONE : usize = 20;
+const PARSING_MILESTONE : usize = 80;
 
 #[derive(Debug)]
 pub struct RichLine {
@@ -119,10 +121,6 @@ pub struct RichContent {
     raw_content: Rope,
     // the key corresponds to number of next line to parse by ParseState. NOT DONE, bc I don't want negative numbers.
     parse_cache: RefCell<Vec<ParseCacheRecord>>, //TODO is it possible to remove RefCell?
-
-    // If prefix is None, we need to parse rope from beginning. If it's Some(r, l) then
-    // the previous RichContent (#r in ContentProvider history) has l lines in common.
-    prefix : Option<(usize, usize)>,
     lines : RefCell<Vec<Rc<RichLine>>>,
 }
 
@@ -131,7 +129,6 @@ impl RichContent {
         RichContent {
             highlight_settings : settings,
             raw_content : rope,
-            prefix : None,
             //contract: sorted.
             parse_cache : RefCell::new(Vec::new()),
             //contract: max key of parse_cache < len(lines)

@@ -21,7 +21,6 @@ use unicode_segmentation::UnicodeSegmentation;
 use ropey::Rope;
 use serde_json as sj;
 
-use syntax;
 use ropey::RopeSlice;
 use content_type::RichContent;
 use content_type::RichLine;
@@ -68,8 +67,10 @@ impl RopeBasedContent {
 }
 
 pub struct RopeBasedContentProvider {
-    history: Vec<(RopeBasedContent, Option<RichContent>)>,
+    history: Vec<RopeBasedContent>,
     current: usize,
+    // contract: rich content is caclulated *only* for most recent history record.
+    rich_content: Option<RichContent>,
 }
 
 //now events are applied one after another.
@@ -106,21 +107,22 @@ fn apply_events(c: &RopeBasedContent, events: &Vec<EditEvent>) -> RopeBasedConte
 impl RopeBasedContentProvider {
     pub fn new(reader_op : Option<&mut Read>) -> Self {
         RopeBasedContentProvider {
-            history: vec![(RopeBasedContent::new(reader_op), None)],
+            history: vec![RopeBasedContent::new(reader_op)],
             current: 0,
+            rich_content: None,
         }
     }
 
     pub fn get_lines(&self) -> &Rope {
-        &self.history[self.current].0.lines
+        &self.history[self.current].lines
     }
 
-    pub fn get_line(&self, line_no : usize) -> RopeSlice { self.history[self.current].0.lines.line(line_no) }
+    pub fn get_line(&self, line_no : usize) -> RopeSlice { self.history[self.current].lines.line(line_no) }
 
-    pub fn len_lines(&self) -> usize { self.history[self.current].0.lines.len_lines() }
+    pub fn len_lines(&self) -> usize { self.history[self.current].lines.len_lines() }
 
     pub fn get_rich_line(&self, line_no : usize) -> Option<Rc<RichLine>> {
-        let rich_content_op = &self.history[self.current].1;
+        let rich_content_op = &self.rich_content;
 
         match rich_content_op {
             None => None,
@@ -140,13 +142,16 @@ impl RopeBasedContentProvider {
 
     pub fn submit_events(&mut self, events: Vec<EditEvent>) {
         debug!("got events {:?}", events);
-        let new_content = apply_events(&self.history[self.current].0, &events);
+        let new_content = apply_events(&self.history[self.current], &events);
         self.history.truncate(self.current + 1); //droping redo's
-        self.history.push((new_content, None));
+        self.history.push(new_content);
         self.current += 1;
+
+        //TODO instead of none, just shorten the to
+        self.rich_content = None;
     }
 
     pub fn save<T : io::Write>(&self, writer : T) -> io::Result<()> {
-        self.history.last().unwrap().0.lines.write_to(writer)
+        self.history.last().unwrap().lines.write_to(writer)
     }
 }
