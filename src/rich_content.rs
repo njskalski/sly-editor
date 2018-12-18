@@ -45,19 +45,20 @@ const PARSING_MILESTONE : usize = 80;
 
 #[derive(Debug)]
 pub struct RichLine {
+    line_no: usize,
     length : usize,
     body : Vec<(Color, String)>
 }
 
 //TODO(njskalski): optimise, rethink api. maybe even drop the content.
 impl RichLine {
-    pub fn new(body : Vec<(Color, String)>) -> Self {
+    pub fn new(line_no: usize, body : Vec<(Color, String)>) -> Self {
         let mut len : usize = 0;
         for piece in &body {
             len += piece.1.len()
         }
 
-        RichLine { length : len , body }
+        RichLine { line_no, length : len , body }
     }
 
     pub fn len(&self) -> usize {
@@ -76,6 +77,8 @@ impl RichLine {
 
         None
     }
+
+    pub fn get_line_no(&self) -> usize { self.line_no }
 }
 
 #[derive(Debug)]
@@ -91,14 +94,14 @@ impl HighlightSettings {
         let syntax_set = SyntaxSet::load_defaults_newlines().clone();
         let ts = &ThemeSet::load_defaults();
 
-        let syntax = syntax_set.find_syntax_by_extension("rb").unwrap().clone();
+        let syntax = syntax_set.find_syntax_by_extension("rs").unwrap().clone();
         let theme = ts.themes["base16-ocean.dark"].clone();
 
         HighlightSettings { theme, syntax, syntax_set }
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct ParseCacheRecord {
     line_to_parse : usize,
     parse_state : ParseState,
@@ -136,25 +139,53 @@ impl RichContent {
         }
     }
 
-    pub fn drop_lines_after(&mut self, lines_to_save_inclusive : usize) {
-        // this is index of ParseCacheRecord in cache vector, not in lines.
-        let idx_op = self.get_cache_idx(lines_to_save_inclusive);
-        // split_off is exclusive, our ParseCacheRecord index is inclusive.
-        idx_op.map(|idx| {
-            let parse_cache = self.parse_cache.borrow_mut();
-            if parse_cache.len() >= idx+1 {
-                self.parse_cache.borrow_mut().split_off(idx + 1);
+    //TODO(njskalski): it should have some kind of observer, but reference to ContentProvider
+    // creates a nightmare of lifetimes escalation. Maybe it can be merged with "drop lines"?
+    pub fn update_raw_content(&mut self, rope : Rope) {
+        self.raw_content = rope;
+    }
+
+    // Drop lines removes cache after lines_to_save. Since it operates on cache, it's non mutable.
+    // lines_to_save is *exclusive*. It corresponds to number of lines to save. So 0 means
+    // "no lines to save", therefore line #0 is subject to drop as well.
+    pub fn drop_lines(&self, lines_to_save : usize) {
+        debug!("dropping all lines from (inclusive) {:}", lines_to_save);
+        //dropping cache.
+        {
+            if lines_to_save > 0 {
+                // this is index of ParseCacheRecord in cache vector, not in lines.
+                let idx_op = self.get_cache_idx(lines_to_save - 1);
+                let mut parse_cache = self.parse_cache.borrow_mut();
+                match idx_op {
+                    Some(idx) => {
+                        // split_off is exclusive, our ParseCacheRecord index is inclusive.
+                        if parse_cache.len() >= idx + 1 {
+                            parse_cache.split_off(idx + 1);
+                        }
+                    },
+                    None => parse_cache.clear()
+                }
+            } else {
+                let mut parse_cache = self.parse_cache.borrow_mut();
+                parse_cache.clear();
             }
-        });
+        }
+        //dropping lines.
+        {
+            let mut lines = self.lines.borrow_mut();
+//            if lines.len() >= lines_to_save {
+                lines.split_off(lines_to_save);
+//            }
+        }
     }
 
     pub fn len_lines(&self) -> usize {
         self.raw_content.len_lines()
     }
 
-    // Returns index of last valid ParseCacheRecord given the last non-modified line index.
-    // Every ParseCacheRecord with index higher than the one returned is going to be invalid after
-    // line (#line_no + 1) gets modified.
+    /// Returns index of last valid ParseCacheRecord given the last non-modified line index.
+    /// Every ParseCacheRecord with index higher than the one returned is going to be invalid after
+    /// line (#line_no + 1) gets modified.
     // TODO unit tests.
     fn get_cache_idx(&self, line_no: usize) -> Option<usize> {
         let parse_cache : Ref<Vec<ParseCacheRecord>> = self.parse_cache.borrow();
@@ -174,14 +205,16 @@ impl RichContent {
         }
     }
 
-    // Returns last valid ParseCacheRecord given the last non-modified line index.
-    // ParseCacheRecord.line_to_parse > line_no (*strictly higher* guaranteed).
+    /// Returns last valid ParseCacheRecord given the last non-modified line index.
+    /// ParseCacheRecord.line_to_parse > line_no (*strictly higher* guaranteed).
     pub fn get_cache(&self, line_no : usize) -> Option<ParseCacheRecord> {
         let idx_op = self.get_cache_idx(line_no);
         idx_op.and_then(|x| self.parse_cache.borrow().get(x).map(|cache| cache.clone()))
     }
 
     pub fn get_line(&self, line_no : usize) -> Option<Rc<RichLine>> {
+        debug!("ask for rich line {:}", line_no);
+
         if self.lines.borrow().len() > line_no {
             return self.lines.borrow().get(line_no).map(|x| x.clone());
         }
@@ -191,17 +224,26 @@ impl RichContent {
 
         // see contracts
         let mut parse_cache : ParseCacheRecord = match self.get_cache(line_no) {
-            None => ParseCacheRecord::new(
-                ParseState::new(&self.highlight_settings.syntax), &highlighter),
-            Some(x) => x
+            None => {
+                debug!("cache miss for line_no {:}", line_no);
+                ParseCacheRecord::new(
+                    ParseState::new(&self.highlight_settings.syntax), &highlighter)
+            },
+            Some(x) => {
+                debug!("cache HIT for line_no {:} ({:})", line_no, x.line_to_parse);
+                x
+            }
         };
 
-        let line_limit = std::cmp::min(line_no + PARSING_MILESTONE, self.raw_content.len_lines());
+        let line_limit = std::cmp::min((line_no/PARSING_MILESTONE + 1) * PARSING_MILESTONE,
+                                       self.raw_content.len_lines());
         let first_line = std::cmp::min(self.lines.borrow().len(), parse_cache.line_to_parse);
 
-        for current_line in (first_line)..(line_limit) {
-            let line_str = self.raw_content.line(current_line).to_string();
+        self.drop_lines(if first_line > 0 { first_line - 1} else {0});
 
+        debug!("generating lines from [{:}, {:})", first_line, line_limit);
+        for current_line_no in (first_line)..(line_limit) {
+            let line_str = self.raw_content.line(current_line_no).to_string();
             let ops = parse_cache.parse_state.parse_line(
                 &line_str,
                 &self.highlight_settings.syntax_set
@@ -217,30 +259,33 @@ impl RichContent {
                 .into_iter()
                 .map(|(style, words)| (simplify_style(&style), words.to_string()))
                 .collect();
+            let rc_rich_line = Rc::new(RichLine::new(current_line_no, new_line));
 
-            let rc_rich_line = Rc::new(RichLine::new(new_line));
-
+//            debug!("generated line {:?}", rc_rich_line);
             self.lines.borrow_mut().push(rc_rich_line);
-
-            // cache
-            if current_line % PARSING_MILESTONE == 0 {
-                let mut copy_to_cache = parse_cache.clone();
-                copy_to_cache.line_to_parse = current_line;
-
-                // just checking.
-
-                if !self.parse_cache.borrow().is_empty() {
-                    let prev_line = self.parse_cache.borrow().last().unwrap().line_to_parse;
-                    let new_line = current_line;
-                    if prev_line >= current_line {
-                        error!("expeced prev_line {:} < new_line {:}", prev_line, new_line);
-                    }
-                }
-
-                self.parse_cache.borrow_mut().push(copy_to_cache);
-            }
         }
 
+        // cache, unless it was a last line.
+        if line_limit < self.raw_content.len_lines() {
+            let mut copy_to_cache = parse_cache.clone();
+            copy_to_cache.line_to_parse = line_limit;
+
+            // just checking.
+
+            if !self.parse_cache.borrow().is_empty() {
+                let prev_line = self.parse_cache.borrow().last().unwrap().line_to_parse;
+                let new_line = line_limit;
+//                debug!("prev_line {:}, new_line {:}", prev_line, new_line);
+                if prev_line >= line_limit {
+                    error!("expeced prev_line {:} < new_line {:}", prev_line, new_line);
+                }
+            }
+
+            debug!("caching {:?}", &copy_to_cache);
+            self.parse_cache.borrow_mut().push(copy_to_cache);
+        }
+
+        debug!("returning line {:}", line_no);
         self.lines.borrow().get(line_no).map(|x| x.clone())
     }
 }

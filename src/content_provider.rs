@@ -28,7 +28,8 @@ use rich_content::HighlightSettings;
 
 const DEFAULT_BLANK : char = ' ';
 
-// Represents a order to edit a content. Offsets are calculated in CHARS, not bytes.
+/// Represents a order to edit a content. Offsets are calculated in CHARS, not bytes.
+/// offset is the first character of selection, inclusive.
 //TODO(njskalski) secure against overlapping cursors!
 #[derive(Debug, Serialize, Deserialize)]
 pub enum EditEvent {
@@ -86,7 +87,7 @@ fn apply_events(c: &RopeBasedContent, events: &Vec<EditEvent>) -> (RopeBasedCont
     let mut new_lines : Rope = c.lines.clone();
 
     // Offset is in CHARS, and since it's common, it's valid in both new and old contents.
-    let mut lowest_common_offset = new_lines.len_chars();
+    let mut first_change_pos = new_lines.len_chars();
 
     for event in events {
         match event {
@@ -94,7 +95,7 @@ fn apply_events(c: &RopeBasedContent, events: &Vec<EditEvent>) -> (RopeBasedCont
                 ref offset,
                 ref content,
             } => {
-                lowest_common_offset = std::cmp::min(lowest_common_offset, *offset);
+                first_change_pos = std::cmp::min(first_change_pos, *offset);
                 new_lines.insert(*offset, content);
             },
             &EditEvent::Change {
@@ -102,7 +103,7 @@ fn apply_events(c: &RopeBasedContent, events: &Vec<EditEvent>) -> (RopeBasedCont
                 ref length,
                 ref content
             } => {
-                lowest_common_offset = std::cmp::min(lowest_common_offset, *offset);
+                first_change_pos = std::cmp::min(first_change_pos, *offset);
                 new_lines.remove(*offset..(*offset+*length));
                 new_lines.insert(*offset, content);
             },
@@ -110,12 +111,21 @@ fn apply_events(c: &RopeBasedContent, events: &Vec<EditEvent>) -> (RopeBasedCont
         }
     }
 
+    // If first_change_pos is 0 (literally first character of file), obviously there are no
+    // common lines betwen old and new version.
+    // In other case (first_change_pos > 0), we ask of line_of_first_change. If it's not the first
+    // one, we can save all lines before it.
+    let num_common_lines = if first_change_pos == 0 { 0 } else {
+        let line_of_first_change = c.lines.char_to_line(first_change_pos);
+        if line_of_first_change > 0 { line_of_first_change - 1 } else { 0 }
+    };
+
     (
         RopeBasedContent {
             lines: new_lines,
             timestamp: time::now(),
         },
-        lowest_common_offset
+        num_common_lines
     )
 }
 
@@ -156,7 +166,6 @@ impl RopeBasedContentProvider {
     pub fn len_lines(&self) -> usize { self.history[self.current].lines.len_lines() }
 
     pub fn get_rich_line(&self, line_no : usize) -> Option<Rc<RichLine>> {
-        debug!("self rich_content.is_some: {:?}", self.rich_content.is_some());
         self.rich_content.as_ref().and_then(|rich_content| rich_content.get_line(line_no))
     }
 
@@ -170,14 +179,17 @@ impl RopeBasedContentProvider {
 
     pub fn submit_events(&mut self, events: Vec<EditEvent>) {
         debug!("got events {:?}", events);
-        let (new_content, longest_common_prefix) = apply_events(&self.history[self.current], &events);
+        let (new_content, num_common_lines) = apply_events(&self.history[self.current], &events);
+        let rope = new_content.lines.clone(); // O(1)
+
         self.history.truncate(self.current + 1); //droping redo's
         self.history.push(new_content);
         self.current += 1;
 
         // Dropping outdated lines of RichContent. They will be regenerated on-demand.
         self.rich_content.as_mut().map(|rich_content|{
-            rich_content.drop_lines_after(longest_common_prefix);
+            rich_content.drop_lines(num_common_lines);
+            rich_content.update_raw_content(rope);
         });
     }
 

@@ -99,18 +99,13 @@ impl SlyTextView {
             last_view_size: None,
             settings : settings,
             clipboard_context : clipboard::ClipboardProvider::new().unwrap(),
-            special_char_mappings : hashmap!['\n' => '\u{2424}', ' ' => '.'],
+            special_char_mappings : hashmap!['\n' => '\u{2424}'],
         }
     }
 
     fn submit_events(&mut self, events: Vec<EditEvent>) {
         self.channel.send(IEvent::BufferEditEvent(self.buffer.get_screen_id(), events)).unwrap()
     }
-
-    /// Retrieves the rich content of the view.
-//    pub fn get_rich_content(&self) -> &RichContent {
-//        &self.rich_content
-//    }
 
     /// Returns the position of the cursor in the content string.
     pub fn cursors(&self) -> &Vec<Cursor> {
@@ -120,9 +115,7 @@ impl SlyTextView {
     fn toggle_syntax_highlight(&mut self) {
         let mut content = self.buffer.borrow_mut_content();
         let rich_content_enabled = content.is_rich_content_enabled();
-        debug!("old content enabled {:?}", rich_content_enabled);
         content.set_rich_content_enabled(!rich_content_enabled);
-        debug!("new content enabled {:?}", content.is_rich_content_enabled());
     }
 }
 
@@ -183,7 +176,9 @@ impl View for SlyTextView {
             let line = &content.get_lines().line(line_no);
             let rich_line_op = self.buffer.borrow_content().get_rich_line(line_no);
 
-            debug!("rich line: {:?}", rich_line_op);
+            if rich_line_op.is_some() && rich_line_op.as_ref().map(|r| r.get_line_no()).unwrap() != line_no {
+                error!("rich line {:?}: {:?}", line_no, rich_line_op);
+            }
 
             //this allow a cursor *after* the last character. It's actually needed.
             let add = if line_no == lines.len_lines() - 1 { 1 } else { 0 };
