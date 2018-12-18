@@ -129,7 +129,7 @@ impl RopeBasedContentProvider {
     }
 
     pub fn set_rich_content_enabled(&mut self, enabled : bool) {
-        if enabled {
+        if !enabled {
             self.rich_content = None
         } else {
             self.rich_content = Some(
@@ -156,6 +156,7 @@ impl RopeBasedContentProvider {
     pub fn len_lines(&self) -> usize { self.history[self.current].lines.len_lines() }
 
     pub fn get_rich_line(&self, line_no : usize) -> Option<Rc<RichLine>> {
+        debug!("self rich_content.is_some: {:?}", self.rich_content.is_some());
         self.rich_content.as_ref().and_then(|rich_content| rich_content.get_line(line_no))
     }
 

@@ -117,6 +117,13 @@ impl SlyTextView {
         &self.cursors
     }
 
+    fn toggle_syntax_highlight(&mut self) {
+        let mut content = self.buffer.borrow_mut_content();
+        let rich_content_enabled = content.is_rich_content_enabled();
+        debug!("old content enabled {:?}", rich_content_enabled);
+        content.set_rich_content_enabled(!rich_content_enabled);
+        debug!("new content enabled {:?}", content.is_rich_content_enabled());
+    }
 }
 
 //TODO(njskalski) remove
@@ -274,11 +281,7 @@ impl View for SlyTextView {
             match action.as_str() {
                 "toggle_syntax_highlighting" => {
                     debug!("toggle syntax highlight");
-                    {
-                        let mut content = self.buffer.borrow_mut_content();
-                        let rich_content_enabled = content.is_rich_content_enabled();
-                        content.set_rich_content_enabled(!rich_content_enabled);
-                    }
+                    self.toggle_syntax_highlight();
                     return EventResult::Consumed(None);
                 }
                 _ => {}
