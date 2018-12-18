@@ -39,7 +39,7 @@ mod fuzzy_view_item;
 mod buffer_index;
 mod buffer_state;
 mod buffer_state_observer;
-mod content_type;
+mod rich_content;
 mod sly_text_view;
 mod content_provider;
 mod default_settings;

@@ -46,9 +46,6 @@ pub struct BufferState {
     mode : BufferReadMode,
     content : RopeBasedContentProvider,
     screen_id : Option<cursive::ScreenId>, //no screen no buffer, but can be None after load. TODO fix it later
-    // also above will be changed. Multiple buffers will be able to share same screen (so identifier
-    // will get longer. I might also implement transferring buffers between instances (for working on multiple screens)
-//    rich_content : Option<RichContentProvider>,
 }
 
 impl BufferState {
@@ -69,7 +66,6 @@ impl BufferState {
                 screen_id : None,
                 content : RopeBasedContentProvider::new(Some(&mut reader)),
                 mode : BufferReadMode::ReadWrite,
-//                rich_content : None
             })))
         }
     }
@@ -81,10 +77,6 @@ impl BufferState {
     pub fn get_content(&self) -> &RopeBasedContentProvider {
         &self.content
     }
-
-//    pub fn get_rich_content(&self) -> Option<&RichContentProvider> {
-//        self.rich_content.map(|c| c.borrow())
-//    }
 
     pub fn get_screen_id(&self) -> &Option<cursive::ScreenId> {
         &self.screen_id

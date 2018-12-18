@@ -45,7 +45,7 @@ use std::cmp::min;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 use ropey::Rope;
-use content_type::{RichLine, RichContent};
+use rich_content::{RichLine, RichContent};
 use std::collections::HashMap;
 use clipboard;
 use clipboard::ClipboardProvider;
@@ -107,7 +107,7 @@ impl SlyTextView {
         self.channel.send(IEvent::BufferEditEvent(self.buffer.get_screen_id(), events)).unwrap()
     }
 
-    /// Retrieves the content of the view.
+    /// Retrieves the rich content of the view.
 //    pub fn get_rich_content(&self) -> &RichContent {
 //        &self.rich_content
 //    }

@@ -22,8 +22,8 @@ use ropey::Rope;
 use serde_json as sj;
 
 use ropey::RopeSlice;
-use content_type::RichContent;
-use content_type::RichLine;
+use rich_content::RichContent;
+use rich_content::RichLine;
 
 const DEFAULT_BLANK : char = ' ';
 
@@ -69,7 +69,8 @@ impl RopeBasedContent {
 pub struct RopeBasedContentProvider {
     history: Vec<RopeBasedContent>,
     current: usize,
-    // contract: rich content is caclulated *only* for most recent history record.
+    // Contract: we do not version rich content. It doesn't make sense: redrawing screen
+    // has a similar complexity to syntax highlighting, provided it's implemented properly.
     rich_content: Option<RichContent>,
 }
 
@@ -147,8 +148,7 @@ impl RopeBasedContentProvider {
         self.history.push(new_content);
         self.current += 1;
 
-        //TODO instead of none, just shorten the to
-        self.rich_content = None;
+        self.rich_content = None
     }
 
     pub fn save<T : io::Write>(&self, writer : T) -> io::Result<()> {

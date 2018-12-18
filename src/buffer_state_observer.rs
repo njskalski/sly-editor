@@ -25,7 +25,7 @@ use content_provider::RopeBasedContentProvider;
 use buffer_state::BufferState;
 
 use cursive;
-use content_type::RichContent;
+use rich_content::RichContent;
 
 #[derive(Clone)]
 pub struct BufferStateObserver {

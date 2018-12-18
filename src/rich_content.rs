@@ -103,7 +103,6 @@ struct ParseCacheRecord {
     line_to_parse : usize,
     parse_state : ParseState,
     highlight_state : HighlightState,
-//    scope_stack : ScopeStack,
 }
 
 impl ParseCacheRecord {
