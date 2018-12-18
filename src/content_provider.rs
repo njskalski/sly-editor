@@ -156,14 +156,7 @@ impl RopeBasedContentProvider {
     pub fn len_lines(&self) -> usize { self.history[self.current].lines.len_lines() }
 
     pub fn get_rich_line(&self, line_no : usize) -> Option<Rc<RichLine>> {
-        let rich_content_op = &self.rich_content;
-
-        match rich_content_op {
-            None => None,
-            Some(rich_content) => {
-                rich_content.get_line(line_no).map(|rc_line| rc_line.clone())
-            }
-        }
+        self.rich_content.as_ref().and_then(|rich_content| rich_content.get_line(line_no))
     }
 
     pub fn can_undo(&self) -> bool {
