@@ -115,6 +115,7 @@ impl ParseCacheRecord {
     }
 }
 
+#[derive(Clone)]
 pub struct RichContent {
     highlight_settings : Rc<HighlightSettings>,
     raw_content: Rope,
@@ -135,29 +136,49 @@ impl RichContent {
         }
     }
 
+    pub fn drop_lines_after(&mut self, lines_to_save_inclusive : usize) {
+        // this is index of ParseCacheRecord in cache vector, not in lines.
+        let idx_op = self.get_cache_idx(lines_to_save_inclusive);
+        // split_off is exclusive, our ParseCacheRecord index is inclusive.
+        idx_op.map(|idx| {
+            let parse_cache = self.parse_cache.borrow_mut();
+            if parse_cache.len() >= idx+1 {
+                self.parse_cache.borrow_mut().split_off(idx + 1);
+            }
+        });
+    }
+
     pub fn len_lines(&self) -> usize {
         self.raw_content.len_lines()
     }
 
-    // result.0 > line_no
-    pub fn get_cache(&self, line_no : usize) -> Option<ParseCacheRecord> {
+    // Returns index of last valid ParseCacheRecord given the last non-modified line index.
+    // Every ParseCacheRecord with index higher than the one returned is going to be invalid after
+    // line (#line_no + 1) gets modified.
+    // TODO unit tests.
+    fn get_cache_idx(&self, line_no: usize) -> Option<usize> {
         let parse_cache : Ref<Vec<ParseCacheRecord>> = self.parse_cache.borrow();
 
-        if parse_cache.is_empty() {
-            return None;
-        }
-
-        //TODO do edge cases
-        let cache : Option<&ParseCacheRecord> = match parse_cache.binary_search_by(|rec| rec.line_to_parse.cmp(&line_no)) {
-            Ok(idx) => parse_cache.get(idx),
-            Err(higher_index) => {
-                if higher_index == 0 { None } else {
-                    parse_cache.get(higher_index - 1)
+        if !parse_cache.is_empty() {
+            let cache : Option<usize> = match parse_cache.binary_search_by(|rec| rec.line_to_parse.cmp(&line_no)) {
+                Ok(idx) => Some(idx),
+                Err(higher_index) => {
+                    if higher_index == 0 { None } else {
+                        Some(higher_index-1)
+                    }
                 }
-            }
-        };
+            };
+            cache
+        } else {
+            None
+        }
+    }
 
-        cache.map(|x| x.clone())
+    // Returns last valid ParseCacheRecord given the last non-modified line index.
+    // ParseCacheRecord.line_to_parse > line_no (*strictly higher* guaranteed).
+    pub fn get_cache(&self, line_no : usize) -> Option<ParseCacheRecord> {
+        let idx_op = self.get_cache_idx(line_no);
+        idx_op.and_then(|x| self.parse_cache.borrow().get(x).map(|cache| cache.clone()))
     }
 
     pub fn get_line(&self, line_no : usize) -> Option<Rc<RichLine>> {

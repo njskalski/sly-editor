@@ -26,6 +26,7 @@ use buffer_state::BufferState;
 
 use cursive;
 use rich_content::RichContent;
+use std::cell::RefMut;
 
 #[derive(Clone)]
 pub struct BufferStateObserver {
@@ -38,13 +39,14 @@ impl BufferStateObserver {
     }
 
     /// borrows unmutably content
-    pub fn content(&self) -> Ref<RopeBasedContentProvider> {
+    pub fn borrow_content(&self) -> Ref<RopeBasedContentProvider> {
         Ref::map(self.buffer_state.borrow(), |x| x.get_content())
     }
 
-//    pub fn rich_content(&self) -> Ref<Option<RichContent>> {
-//        Ref::map(self.buffer_state.borrow(), |x| x.get_rich_content())
-//    }
+    /// borrows mutably content
+    pub fn borrow_mut_content(&mut self) -> RefMut<RopeBasedContentProvider> {
+        RefMut::map(self.buffer_state.borrow_mut(), |x| x.get_content_mut())
+    }
 
     pub fn is_loaded(&self) -> bool {
         self.buffer_state.borrow().get_screen_id().is_some()

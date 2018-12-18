@@ -27,6 +27,9 @@ const default_settings_string : &'static str = r####"
       "undo" : ["ctrl","z"],
       "redo" : ["ctrl","Z"]
     },
+    "text_view" : {
+      "toggle_syntax_highlighting" : ["ctrl","h"]
+    },
     "global" : {
       "show_file_bar" : ["ctrl", "p"],
       "show_buffer_list" : ["ctrl", "o"],

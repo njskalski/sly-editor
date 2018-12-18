@@ -78,6 +78,10 @@ impl BufferState {
         &self.content
     }
 
+    pub fn get_content_mut(&mut self) -> &mut RopeBasedContentProvider {
+        &mut self.content
+    }
+
     pub fn get_screen_id(&self) -> &Option<cursive::ScreenId> {
         &self.screen_id
     }

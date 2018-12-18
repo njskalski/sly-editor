@@ -24,9 +24,11 @@ use serde_json as sj;
 use ropey::RopeSlice;
 use rich_content::RichContent;
 use rich_content::RichLine;
+use rich_content::HighlightSettings;
 
 const DEFAULT_BLANK : char = ' ';
 
+// Represents a order to edit a content. Offsets are calculated in CHARS, not bytes.
 //TODO(njskalski) secure against overlapping cursors!
 #[derive(Debug, Serialize, Deserialize)]
 pub enum EditEvent {
@@ -74,17 +76,25 @@ pub struct RopeBasedContentProvider {
     rich_content: Option<RichContent>,
 }
 
-//now events are applied one after another.
+
+
+// Applies events to RopeBasedContent producing new one, and returning *number of lines common* to
+// both new and original contents.
+// Now events are applied one after another in order they were issued.
 //TODO in some combinations offsets should be recomputed. But I expect no such combinations appear. I should however check it just in case.
-fn apply_events(c: &RopeBasedContent, events: &Vec<EditEvent>) -> RopeBasedContent {
+fn apply_events(c: &RopeBasedContent, events: &Vec<EditEvent>) -> (RopeBasedContent, usize) {
     let mut new_lines : Rope = c.lines.clone();
-    // let mut offsets = c.offsets.clone();
+
+    // Offset is in CHARS, and since it's common, it's valid in both new and old contents.
+    let mut lowest_common_offset = new_lines.len_chars();
+
     for event in events {
         match event {
             &EditEvent::Insert {
                 ref offset,
                 ref content,
             } => {
+                lowest_common_offset = std::cmp::min(lowest_common_offset, *offset);
                 new_lines.insert(*offset, content);
             },
             &EditEvent::Change {
@@ -92,6 +102,7 @@ fn apply_events(c: &RopeBasedContent, events: &Vec<EditEvent>) -> RopeBasedConte
                 ref length,
                 ref content
             } => {
+                lowest_common_offset = std::cmp::min(lowest_common_offset, *offset);
                 new_lines.remove(*offset..(*offset+*length));
                 new_lines.insert(*offset, content);
             },
@@ -99,10 +110,13 @@ fn apply_events(c: &RopeBasedContent, events: &Vec<EditEvent>) -> RopeBasedConte
         }
     }
 
-    RopeBasedContent {
-        lines: new_lines,
-        timestamp: time::now(),
-    }
+    (
+        RopeBasedContent {
+            lines: new_lines,
+            timestamp: time::now(),
+        },
+        lowest_common_offset
+    )
 }
 
 impl RopeBasedContentProvider {
@@ -112,6 +126,25 @@ impl RopeBasedContentProvider {
             current: 0,
             rich_content: None,
         }
+    }
+
+    pub fn set_rich_content_enabled(&mut self, enabled : bool) {
+        if enabled {
+            self.rich_content = None
+        } else {
+            self.rich_content = Some(
+                RichContent::new(
+                    // TODO(njskalski): this needs decoupling (obviously) from here.
+                    Rc::new(HighlightSettings::new()),
+                    // This costs O(1), but if content provider changes, it needs update.
+                    self.get_lines().clone()
+                )
+            )
+        }
+    }
+
+    pub fn is_rich_content_enabled(&self) -> bool {
+        self.rich_content.is_some()
     }
 
     pub fn get_lines(&self) -> &Rope {
@@ -143,12 +176,15 @@ impl RopeBasedContentProvider {
 
     pub fn submit_events(&mut self, events: Vec<EditEvent>) {
         debug!("got events {:?}", events);
-        let new_content = apply_events(&self.history[self.current], &events);
+        let (new_content, longest_common_prefix) = apply_events(&self.history[self.current], &events);
         self.history.truncate(self.current + 1); //droping redo's
         self.history.push(new_content);
         self.current += 1;
 
-        self.rich_content = None
+        // Dropping outdated lines of RichContent. They will be regenerated on-demand.
+        self.rich_content.as_mut().map(|rich_content|{
+            rich_content.drop_lines_after(longest_common_prefix);
+        });
     }
 
     pub fn save<T : io::Write>(&self, writer : T) -> io::Result<()> {

@@ -54,6 +54,7 @@ use unicode_segmentation;
 use std::cmp;
 use std::usize::MAX;
 use std::rc::Rc;
+use std::borrow::BorrowMut;
 use settings::Settings;
 use buffer_state_observer::BufferStateObserver;
 use interface::IChannel;
@@ -72,6 +73,7 @@ macro_rules! hashmap {
     }}
 }
 
+//Cursor: offset in CHARS and "preferred column" (probably cached y coordinate, don't remember).
 type Cursor = (usize, Option<usize>);
 
 const NEWLINE_DRAWING : char = '\u{2424}';
@@ -79,7 +81,6 @@ const NEWLINE_DRAWING : char = '\u{2424}';
 pub struct SlyTextView {
     channel : IChannel, // interface feedback channel
     buffer : BufferStateObserver,
-    syntax_highlighting: bool, // TODO(njskalski) to be supported for small files
     cursors: Vec<Cursor>, // offset in CHARS, preferred column
     position: Vec2, // position of upper left corner of view in file
     last_view_size: Option<Vec2>, //not sure if using properly
@@ -93,7 +94,6 @@ impl SlyTextView {
         SlyTextView {
             channel : channel,
             buffer : buffer,
-            syntax_highlighting: true,
             cursors: vec![(0, None)],
             position: Vec2::new(0, 0),
             last_view_size: None,
@@ -132,7 +132,7 @@ fn helper_split_lines(s: &String) -> Vec<String> {
 impl View for SlyTextView {
     fn draw(&self, printer: &Printer) {
 
-        let content = self.buffer.content();
+        let content = self.buffer.borrow_content();
 
         let line_count : usize = content.get_lines().len_lines();
         let index_length = line_count.to_string().len();
@@ -174,7 +174,9 @@ impl View for SlyTextView {
             let y = line_no - self.position.y;
             let line_offset = &content.get_lines().line_to_char(line_no);
             let line = &content.get_lines().line(line_no);
-            let rich_line_op = self.buffer.content().get_rich_line(line_no);
+            let rich_line_op = self.buffer.borrow_content().get_rich_line(line_no);
+
+            debug!("rich line: {:?}", rich_line_op);
 
             //this allow a cursor *after* the last character. It's actually needed.
             let add = if line_no == lines.len_lines() - 1 { 1 } else { 0 };
@@ -200,7 +202,6 @@ impl View for SlyTextView {
 
                         let mut someColor = ColorStyle::primary();
 
-                        //TODO uncomment to enable syntax highlighting
                         match &rich_line_op {
                             None => {},
                             Some(rich_line) => {
@@ -241,10 +242,9 @@ impl View for SlyTextView {
 
     fn on_event(&mut self, event: Event) -> EventResult {
 
-        let keybindings = &self.settings.get_keybindings("text");
-
-        if keybindings.contains_key(&event) {
-            let action : String = keybindings[&event].clone();
+        let text_keybindings = &self.settings.get_keybindings("text");
+        if text_keybindings.contains_key(&event) {
+            let action : &String = &text_keybindings[&event];
 
             match action.as_str() {
                 "paste" => {
@@ -259,7 +259,26 @@ impl View for SlyTextView {
                     return EventResult::Consumed(None);
                 },
                 "copy" => {
-                    debug!("copy!");
+                    debug!("copy! (NOT IMPLEMENTED)");
+                    // TODO(njskalski): implement copy.
+                    return EventResult::Consumed(None);
+                }
+                _ => {}
+            }
+        }
+
+        let text_view_keybindings = &self.settings.get_keybindings("text_view");
+        if text_view_keybindings.contains_key(&event) {
+            let action : &String = &text_view_keybindings[&event];
+
+            match action.as_str() {
+                "toggle_syntax_highlighting" => {
+                    debug!("toggle syntax highlight");
+                    {
+                        let mut content = self.buffer.borrow_mut_content();
+                        let rich_content_enabled = content.is_rich_content_enabled();
+                        content.set_rich_content_enabled(!rich_content_enabled);
+                    }
                     return EventResult::Consumed(None);
                 }
                 _ => {}
@@ -317,7 +336,7 @@ impl View for SlyTextView {
 impl SlyTextView {
     //TODO test
     fn has_cursors_outside_view(&self) -> bool {
-        let content = self.buffer.content();
+        let content = self.buffer.borrow_content();
         let rope = content.get_lines();
         let first_offset : usize = rope.line_to_char(self.position.y);
         let last_offset : usize = rope.line_to_char(self.position.y + self.last_view_size.unwrap().y) - 1;
@@ -333,7 +352,7 @@ impl SlyTextView {
     fn make_sure_first_cursor_visible(&mut self) {
         let y = self.last_view_size.unwrap().y;
         let offset = self.cursors[0].0;
-        let line = self.buffer.content().get_lines().char_to_line(offset);
+        let line = self.buffer.borrow_content().get_lines().char_to_line(offset);
         if line + 1 > self.position.y + y {
             self.position.y = line - y + 1;
         }
@@ -385,7 +404,7 @@ impl SlyTextView {
     fn move_all_cursors_up(&mut self, len : usize) {
         assert!(len > 0);
         {
-            let content = self.buffer.content();
+            let content = self.buffer.borrow_content();
             let rope : &Rope = content.get_lines();
             for mut c in &mut self.cursors {
                 let line = rope.char_to_line(c.0);
@@ -404,7 +423,7 @@ impl SlyTextView {
     fn move_all_cursors_down(&mut self, len : usize) {
         assert!(len > 0);
         {
-            let content = self.buffer.content();
+            let content = self.buffer.borrow_content();
             let rope : &Rope = content.get_lines();
             for mut c in &mut self.cursors {
                 let line = rope.char_to_line(c.0);
@@ -422,7 +441,7 @@ impl SlyTextView {
 
 
     fn move_all_cursors_left(&mut self) {
-        let content = self.buffer.content();
+        let content = self.buffer.borrow_content();
         let rope = content.get_lines();
         for c in &mut self.cursors {
             if c.0 > 0 {
@@ -435,7 +454,7 @@ impl SlyTextView {
     }
 
     fn move_all_cursors_right(&mut self) {
-        let content = self.buffer.content();
+        let content = self.buffer.borrow_content();
         let rope = content.get_lines();
         for c in &mut self.cursors {
             if c.0 < rope.len_chars() {
