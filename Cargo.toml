@@ -24,13 +24,17 @@ enumset = "0.3"
 # static_assertions = "0.2.5"
 # either = "1.5.0"
 
+[dependencies.ncurses]
+version = "5.97.0"
+features = ["extended_colors", "wide"]
+
 [dependencies.cursive]
 version = "0.10.0"
-default-features = false
+#default-features = false
 features = ["termion-backend"]
 
 [dependencies.cursive_tree_view]
 # version = "0.2.1"
 git = "https://github.com/njskalski/cursive_tree_view"
-default-features = false
+#default-features = false
 features = ["termion-backend"]

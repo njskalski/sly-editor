@@ -76,7 +76,7 @@ macro_rules! hashmap {
 //Cursor: offset in CHARS and "preferred column" (probably cached y coordinate, don't remember).
 type Cursor = (usize, Option<usize>);
 
-const NEWLINE_DRAWING : char = '\u{2424}';
+//const NEWLINE_DRAWING : char = '\u{2424}';
 
 pub struct SlyTextView {
     channel : IChannel, // interface feedback channel
@@ -99,7 +99,7 @@ impl SlyTextView {
             last_view_size: None,
             settings : settings,
             clipboard_context : clipboard::ClipboardProvider::new().unwrap(),
-            special_char_mappings : hashmap!['\n' => '\u{2424}'],
+            special_char_mappings : hashmap!['\n' => '\u{21B5}'],
         }
     }
 
