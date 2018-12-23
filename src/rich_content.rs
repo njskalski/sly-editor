@@ -149,7 +149,7 @@ impl RichContent {
     // lines_to_save is *exclusive*. It corresponds to number of lines to save. So 0 means
     // "no lines to save", therefore line #0 is subject to drop as well.
     pub fn drop_lines(&self, lines_to_save : usize) {
-        debug!("dropping all lines from (inclusive) {:}", lines_to_save);
+        debug!("dropping all lines from (exclusive) {:}", lines_to_save);
         //dropping cache.
         {
             if lines_to_save > 0 {
@@ -239,7 +239,7 @@ impl RichContent {
                                        self.raw_content.len_lines());
         let first_line = std::cmp::min(self.lines.borrow().len(), parse_cache.line_to_parse);
 
-        self.drop_lines(if first_line > 0 { first_line - 1} else {0});
+        self.drop_lines(first_line);
 
         debug!("generating lines from [{:}, {:})", first_line, line_limit);
         for current_line_no in (first_line)..(line_limit) {
