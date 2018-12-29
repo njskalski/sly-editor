@@ -1,0 +1,30 @@
+name: sly
+about: command line editor
+
+# https://docs.rs/clap/2.32.0/clap/enum.AppSettings.html
+
+settings:
+  - ColorAuto
+  - InferSubcommands
+  - StrictUtf8 #TODO incompatible with Windows.
+
+args:
+  - profiling:
+      help: Enable profiling
+      short: p
+      long: profile
+      multiple: false
+      takes_value: false
+      required: false
+  - files_and_directories:
+      takes_value: true
+      required: false
+  - help:
+      short: h
+      long: help
+      takes_value: false
+      required: false
+
+help_message: prints help with a nonstandard description
+
+
