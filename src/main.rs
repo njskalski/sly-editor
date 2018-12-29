@@ -125,6 +125,7 @@ fn main() {
 
     if matches.is_present("help") {
         app.write_long_help(std::io::stdout().borrow_mut());
+        return;
     }
 
 
@@ -147,16 +148,13 @@ fn main() {
     };
 
     let args: Vec<String> = env::args().skip(1).collect();
-    let mut commandline_args : Vec<String> = vec![];
 
     let mut directories : Vec<PathBuf> = Vec::new();
     let mut files : Vec<PathBuf> = Vec::new();
 
-    for mut arg in args {
-        if arg.starts_with("--") {
-            commandline_args.push(arg);
-        } else {
-            let path_arg = Path::new(&arg).to_path_buf();
+    if matches.is_present("files_and_directories") {
+        for value in matches.values_of("files_and_directories").unwrap() {
+            let path_arg = Path::new(value).to_path_buf();
             let path = match fs::canonicalize(&path_arg) {
                 Ok(path) => path,
                 _ => {
@@ -166,12 +164,12 @@ fn main() {
             };
 
             //removing tailing slashes (for some reasons rust's path allow them)
-            while arg.chars().last() == Some('/') {
-                arg.pop();
-            };
+//            while value.chars().last() == Some('/') {
+////                value = value.chars().
+//            };
 
             if !path.exists() {
-                info!("{:?} does not exist, now ignoring.", arg);
+                info!("{:?} does not exist, now ignoring.", value);
                 continue; // TODO(njskalski) stop ignoring new files.
             }
 
@@ -180,7 +178,7 @@ fn main() {
             } else if path.is_file() {
                 files.push(path);
             } else {
-                info!("{:?} is neither a file nor directory. Ignoring.", arg);
+                info!("{:?} is neither a file nor directory. Ignoring.", value);
             }
         }
     }
@@ -188,12 +186,6 @@ fn main() {
 //    warn!("files {:?}", files);
 
     let app_state = AppState::new(directories, files);
-
-    {
-        for arg in &commandline_args {
-            debug!("not supported argument \"{:?}\"", arg);
-        }
-    }
 
     let mut interface = Interface::new(app_state);
     interface.run();
