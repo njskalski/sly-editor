@@ -220,7 +220,7 @@ impl Interface {
             return;
         }
 
-        let buffer_obs_op = match self.state.get_buffer_observer(&view_handle_op.unwrap());
+        let buffer_obs_op = self.state.get_buffer_observer(&view_handle_op.unwrap());
         if buffer_obs_op.is_none() {
             debug!("unable to save if there is no buffer attached to screen {:?}", view_handle_op);
             return;
