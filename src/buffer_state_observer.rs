@@ -27,6 +27,7 @@ use buffer_state::BufferState;
 use cursive;
 use rich_content::RichContent;
 use std::cell::RefMut;
+use view_handle::ViewHandle;
 
 #[derive(Clone)]
 pub struct BufferStateObserver {
@@ -49,11 +50,11 @@ impl BufferStateObserver {
     }
 
     pub fn is_loaded(&self) -> bool {
-        self.buffer_state.borrow().get_screen_id().is_some()
+        self.buffer_state.borrow().get_view_handle().is_some()
     }
 
-    pub fn get_screen_id(&self) -> cursive::ScreenId {
-        self.buffer_state.borrow().get_screen_id().unwrap()
+    pub fn get_view_handle(&self) -> ViewHandle {
+        self.buffer_state.borrow().get_view_handle().unwrap()
     }
 
     pub fn get_path(&self) -> Option<PathBuf> {

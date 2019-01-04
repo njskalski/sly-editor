@@ -52,6 +52,7 @@ mod lazy_dir_tree;
 mod color_view_wrapper;
 mod utils;
 mod simple_fuzzy_index;
+mod view_handle;
 
 extern crate ignore;
 extern crate cpuprofiler;

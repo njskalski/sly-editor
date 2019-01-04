@@ -15,9 +15,9 @@ limitations under the License.
 */
 
 use serde_json as sj;
-use cursive;
 use content_provider;
 use std::path::PathBuf;
+use view_handle::ViewHandle;
 
 #[derive(Serialize, Deserialize, Debug)] // ready for json-rpc!
 pub enum IEvent { //Interface event
@@ -34,7 +34,7 @@ pub enum IEvent { //Interface event
 
 
     // Buffer edit events are now in the same queue, not sure yet if that's final.
-    BufferEditEvent(cursive::ScreenId, Vec<content_provider::EditEvent>),
+    BufferEditEvent(ViewHandle, Vec<content_provider::EditEvent>),
 
     Proto(String), //for quick hacking.
 }

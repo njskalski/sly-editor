@@ -45,6 +45,7 @@ use std::sync::mpsc;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::path::Path;
+use view_handle::ViewHandle;
 
 pub struct Interface {
     state : AppState,
@@ -55,12 +56,17 @@ pub struct Interface {
     file_bar_visible : bool,
     filedialog_visible : bool,
     bufferlist_visible : bool,
-    buffer_to_screen : HashMap<String, ScreenId>
+    active_editor : Option<ViewHandle>
 }
 
 pub type IChannel = mpsc::Sender<IEvent>;
 
 impl Interface {
+
+    pub fn get_active_editor(&self) -> Option<ViewHandle> {
+        self.active_editor
+    }
+
     pub fn new(mut state : AppState) -> Self {
 
         let mut siv = Cursive::default();
@@ -94,7 +100,7 @@ impl Interface {
             file_bar_visible : false,
             filedialog_visible : false,
             bufferlist_visible : false,
-            buffer_to_screen : HashMap::new()
+            active_editor : None //TODO
         };
 
         // let known_actions = vec!["show_everything_bar"];
@@ -146,8 +152,8 @@ impl Interface {
                 IEvent::CloseWindow => {
                     self.close_floating_windows();
                 },
-                IEvent::BufferEditEvent(screen_id, events) => {
-                    self.state.submit_edit_events_to_buffer(screen_id, events);
+                IEvent::BufferEditEvent(view_handle, events) => {
+                    self.state.submit_edit_events_to_buffer(&view_handle, events);
                 },
                 IEvent::ShowSaveAs => {
                     self.show_save_as();
@@ -160,10 +166,14 @@ impl Interface {
                     self.close_filedialog();
                 },
                 IEvent::SaveBufferAs(file_path) => {
-                    let screen_id = self.siv.active_screen();
-                    // TODO(njskalski) Create a separate buffer on this?
-                    let buffer_state : Rc<RefCell<BufferState>> = self.state.get_buffer_for_screen(&screen_id).unwrap();
-                    buffer_state.borrow_mut().save(Some(file_path));
+                    match self.get_active_editor() {
+                        Some(view_handle) => {
+                            // TODO(njskalski) Create a separate buffer on this?
+                            let buffer_state: Rc<RefCell<BufferState>> = self.state.get_buffer_for_screen(&view_handle).unwrap();
+                            buffer_state.borrow_mut().save(Some(file_path));
+                        },
+                        None => debug!("unable to SaveBufferAs - no buffer found")
+                    }
                     self.close_filedialog();
                 },
                 IEvent::ShowBufferList => {
@@ -204,7 +214,7 @@ impl Interface {
             return;
         }
 
-        let current_screen_id = self.siv.active_screen();
+        let view_handle_op = self.get_active_editor();
         let buffer_obs = match self.state.get_buffer_observer(&current_screen_id) {
             None => {
                 debug!("unable to save if there is no buffer attached to screen {}", current_screen_id);

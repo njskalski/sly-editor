@@ -104,7 +104,7 @@ impl SlyTextView {
     }
 
     fn submit_events(&mut self, events: Vec<EditEvent>) {
-        self.channel.send(IEvent::BufferEditEvent(self.buffer.get_screen_id(), events)).unwrap()
+        self.channel.send(IEvent::BufferEditEvent(self.buffer.get_view_handle(), events)).unwrap()
     }
 
     /// Returns the position of the cursor in the content string.

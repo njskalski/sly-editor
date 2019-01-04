@@ -52,10 +52,11 @@ use std::io::Write;
 
 use lazy_dir_tree::LazyTreeNode;
 use std::path::PathBuf;
+use view_handle::ViewHandle;
 
 pub struct AppState {
     // Map of buffers that has been loaded into memory AND assigned a ScreenID.
-    loaded_buffers : HashMap<cursive::ScreenId, Rc<RefCell<BufferState>>>,
+    loaded_buffers : HashMap<ViewHandle, Rc<RefCell<BufferState>>>,
 
     /// List of buffers that have been loaded into memory, but yet have no assigned ScreenIDs
     buffers_to_load : Vec<Rc<RefCell<BufferState>>>,
@@ -67,8 +68,8 @@ pub struct AppState {
 impl AppState{
 
     //TODO this interface is temporary.
-    pub fn get_buffer_for_screen(&self, screen_id : &cursive::ScreenId) -> Option<Rc<RefCell<BufferState>>> {
-        self.loaded_buffers.get(screen_id).map(|x| x.clone())
+    pub fn get_buffer_for_screen(&self, view_handle : &ViewHandle) -> Option<Rc<RefCell<BufferState>>> {
+        self.loaded_buffers.get(view_handle).map(|x| x.clone())
     }
 
     /// Returns list of buffers. Rather stable.
@@ -87,8 +88,8 @@ impl AppState{
     }
 
     // TODO(njskalski) this interface is temporary. We should submit events to buffer, not screen.
-    pub fn submit_edit_events_to_buffer(&mut self, screen_id : cursive::ScreenId, events : Vec<content_provider::EditEvent>) {
-        self.loaded_buffers[&screen_id].borrow_mut().submit_edit_events(events);
+    pub fn submit_edit_events_to_buffer(&mut self, view_handle : &ViewHandle, events : Vec<content_provider::EditEvent>) {
+        self.loaded_buffers[view_handle].borrow_mut().submit_edit_events(events);
     }
 
     /// this loads TO SCREEN, not to memory.
@@ -96,8 +97,8 @@ impl AppState{
         self.buffers_to_load.len() > 0
     }
 
-    pub fn get_buffer_observer(&self, screen_id : &cursive::ScreenId) -> Option<BufferStateObserver> {
-        self.loaded_buffers.get(screen_id).map(|x| BufferStateObserver::new(x.clone()))
+    pub fn get_buffer_observer(&self, view_handle : &ViewHandle) -> Option<BufferStateObserver> {
+        self.loaded_buffers.get(view_handle).map(|x| BufferStateObserver::new(x.clone()))
     }
 
     pub fn schedule_file_for_load(&mut self, file_path : PathBuf) -> Result<(), io::Error> {
@@ -107,13 +108,13 @@ impl AppState{
     }
 
     // This method takes first buffer scheduled for load and assigns it a ScreenId.
-    pub fn load_buffer(&mut self, screen_id : cursive::ScreenId) -> BufferStateObserver {
-        assert!(!self.loaded_buffers.contains_key(&screen_id));
-        let mut buffer = self.buffers_to_load.pop().unwrap();
-        buffer.borrow_mut().set_screen_id(screen_id);
-        self.loaded_buffers.insert(screen_id, buffer);
-        self.get_buffer_observer(&screen_id).unwrap()
-    }
+//    pub fn load_buffer(&mut self, screen_id : cursive::ScreenId) -> BufferStateObserver {
+//        assert!(!self.loaded_buffers.contains_key(&screen_id));
+//        let mut buffer = self.buffers_to_load.pop().unwrap();
+//        buffer.borrow_mut().set_view_handle(screen_id);
+//        self.loaded_buffers.insert(screen_id, buffer);
+//        self.get_buffer_observer(&screen_id).unwrap()
+//    }
 
     pub fn new(directories : Vec<PathBuf>, files : Vec<PathBuf>) -> Self {
         let buffers : Vec<_> = files.iter().map(|file| {

@@ -16,6 +16,7 @@ limitations under the License.
 
 use content_provider::RopeBasedContentProvider;
 use content_provider::EditEvent;
+use view_handle::ViewHandle;
 
 use cursive;
 use std::fs;
@@ -45,7 +46,7 @@ pub struct BufferState {
     exists : bool,
     mode : BufferReadMode,
     content : RopeBasedContentProvider,
-    screen_id : Option<cursive::ScreenId>, //no screen no buffer, but can be None after load. TODO fix it later
+    view_handle : Option<ViewHandle>, //no screen no buffer, but can be None after load. TODO fix it later
 }
 
 impl BufferState {
@@ -63,15 +64,15 @@ impl BufferState {
                 ss : BufferStateS { path : Some(file_path) },
                 modified : false,
                 exists : true,
-                screen_id : None,
+                view_handle : None,
                 content : RopeBasedContentProvider::new(Some(&mut reader)),
                 mode : BufferReadMode::ReadWrite,
             })))
         }
     }
 
-    pub fn set_screen_id(&mut self, screen_id : cursive::ScreenId) {
-        self.screen_id = Some(screen_id);
+    pub fn set_view_handle(&mut self, view_handle : ViewHandle) {
+        self.view_handle = Some(view_handle);
     }
 
     pub fn get_content(&self) -> &RopeBasedContentProvider {
@@ -82,8 +83,8 @@ impl BufferState {
         &mut self.content
     }
 
-    pub fn get_screen_id(&self) -> &Option<cursive::ScreenId> {
-        &self.screen_id
+    pub fn get_view_handle(&self) -> &Option<ViewHandle> {
+        &self.view_handle
     }
 
     pub fn submit_edit_events(&mut self, events: Vec<EditEvent>)
