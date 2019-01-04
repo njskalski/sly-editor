@@ -215,14 +215,18 @@ impl Interface {
         }
 
         let view_handle_op = self.get_active_editor();
-        let buffer_obs = match self.state.get_buffer_observer(&current_screen_id) {
-            None => {
-                debug!("unable to save if there is no buffer attached to screen {}", current_screen_id);
-                return;
-            },
-            Some(bo) => bo
-        };
-        let (folder_op, file_op) = match buffer_obs.get_path()  {
+        if view_handle_op.is_none() {
+            debug!("interface.show_save_as: unable to determine active editor");
+            return;
+        }
+
+        let buffer_obs_op = match self.state.get_buffer_observer(&view_handle_op.unwrap());
+        if buffer_obs_op.is_none() {
+            debug!("unable to save if there is no buffer attached to screen {:?}", view_handle_op);
+            return;
+        }
+
+        let (folder_op, file_op) = match buffer_obs_op.unwrap().get_path()  {
                 None => (None, None),
                 Some(path) => utils::path_string_to_pair(path.to_string_lossy().to_string()) // TODO get rid of path_string_to_pair
         };
