@@ -118,11 +118,11 @@ impl AppState{
 
         self.get_first_buffer_guard.set(true);
 
-//        if self.buffers_to_load.is_empty() {
-//            /// if there is no buffer to load, we create an unnamed one.
-//
-//
-//        }
+        if self.buffers_to_load.is_empty() {
+            /// if there is no buffer to load, we create an unnamed one.
+
+
+        }
     }
 
     pub fn new(directories : Vec<PathBuf>, files : Vec<PathBuf>) -> Self {

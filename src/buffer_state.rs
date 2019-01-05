@@ -53,14 +53,24 @@ pub struct BufferStateS {
 pub struct BufferState {
     ss : BufferStateS,
     modified : bool,
-    exists : bool,
     mode : BufferOpenMode,
     content : RopeBasedContentProvider,
     view_handle : Option<ViewHandle>, //no screen no buffer, but can be None after load. TODO fix it later
 }
 
 impl BufferState {
-    pub fn open(file_path: PathBuf, creation_policy : CreationPolicy) -> Result<Rc<RefCell<BufferState>>, io::Error> {
+
+    pub fn new() -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(BufferState {
+            ss: BufferStateS { path : None },
+            modified : false,
+            view_handle : None,
+            content : RopeBasedContentProvider::new(None),
+            mode : BufferOpenMode::ReadWrite,
+        }))
+    }
+
+    pub fn open(file_path: PathBuf, creation_policy : CreationPolicy) -> Result<Rc<RefCell<Self>>, io::Error> {
         debug!("reading file {:?}, creation_policy = {:?}", file_path, creation_policy);
 
         if !file_path.exists() && creation_policy == CreationPolicy::Must {
@@ -76,10 +86,9 @@ impl BufferState {
         Ok(Rc::new(RefCell::new(BufferState {
             ss : BufferStateS { path : Some(file_path) },
             modified : false,
-            exists : file_path.exists(),
             view_handle : None,
             content : RopeBasedContentProvider::new(Some(&mut reader)),
-            mode : BufferOpenMode::ReadWrite, //TODO
+            mode : BufferOpenMode::ReadWrite,
         })))
     }
 
@@ -120,12 +129,17 @@ impl BufferState {
         self.content.save(file)
     }
 
+    /// Returns whether file exists. File with no path obviously does not.
+    pub fn exists(&self) -> bool {
+        self.get_path().map_or(false, |path| path.exists())
+    }
+
     pub fn save(&mut self, path : Option<PathBuf>) -> Result<(), io::Error> {
         if path.is_none() && self.ss.path.is_none() {
             return Err(io::Error::new(io::ErrorKind::NotFound, "No path provided."));
         }
 
-        if path == self.ss.path && self.exists && !self.modified {
+        if path == self.ss.path && self.exists() && !self.modified {
             info!("Early exit from BufferState.save - file not modified.");
             return Ok(());
         }
@@ -141,7 +155,6 @@ impl BufferState {
         self.ss.path = Some(final_path);
 
         self.modified = false;
-        self.exists = true;
         debug!("{:?} saved.", &self.ss.path);
         Ok(())
     }
