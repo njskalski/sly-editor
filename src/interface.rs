@@ -45,6 +45,7 @@ use std::sync::mpsc;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::path::Path;
+use view_handle::ViewHandle;
 
 pub struct Interface {
     state : AppState,
@@ -55,12 +56,19 @@ pub struct Interface {
     file_bar_visible : bool,
     filedialog_visible : bool,
     bufferlist_visible : bool,
-    buffer_to_screen : HashMap<String, ScreenId>
+    active_editor : ViewHandle,
 }
 
 pub type IChannel = mpsc::Sender<IEvent>;
 
 impl Interface {
+
+    fn get_active_editor(&mut self) -> views::ViewRef<SlyTextView> {
+        let id = format!("sly{}", self.active_editor.view_id());
+        let editor = self.siv.find_id(&id).unwrap() as views::ViewRef<SlyTextView>;
+        editor
+    }
+
     pub fn new(mut state : AppState) -> Self {
 
         let mut siv = Cursive::default();
@@ -75,15 +83,15 @@ impl Interface {
         };
 
         let channel = mpsc::channel();
-
         siv.set_theme(theme);
 
-        assert!(state.has_buffers_to_load()); //TODO it's for debug only
+//        let screen_id = siv.active_screen();
+        let buffer_observer = state.get_first_buffer();
+        let sly_text_view = SlyTextView::new(settings.clone(), buffer_observer, channel.0.clone());
 
-        let screen_id = siv.active_screen();
-        let buffer_observer = state.load_buffer(screen_id);
+        let active_editor = sly_text_view.view_handle();
 
-        siv.add_fullscreen_layer(SlyTextView::new(settings.clone(), buffer_observer, channel.0.clone()));
+        siv.add_fullscreen_layer(IdView::new(format!("sly{}", sly_text_view.uid()), sly_text_view));
 
         let mut i = Interface{
             state : state,
@@ -94,7 +102,7 @@ impl Interface {
             file_bar_visible : false,
             filedialog_visible : false,
             bufferlist_visible : false,
-            buffer_to_screen : HashMap::new()
+            active_editor : active_editor,
         };
 
         // let known_actions = vec!["show_everything_bar"];
@@ -146,8 +154,9 @@ impl Interface {
                 IEvent::CloseWindow => {
                     self.close_floating_windows();
                 },
-                IEvent::BufferEditEvent(screen_id, events) => {
-                    self.state.submit_edit_events_to_buffer(screen_id, events);
+                IEvent::BufferEditEvent(view_handle, events) => {
+                    //TODO now I just send to active editor, ignoring view_handle
+                    self.get_active_editor().buffer().submit_edit_events_to_buffer(events);
                 },
                 IEvent::ShowSaveAs => {
                     self.show_save_as();
@@ -160,10 +169,15 @@ impl Interface {
                     self.close_filedialog();
                 },
                 IEvent::SaveBufferAs(file_path) => {
-                    let screen_id = self.siv.active_screen();
-                    // TODO(njskalski) Create a separate buffer on this?
-                    let buffer_state : Rc<RefCell<BufferState>> = self.state.get_buffer_for_screen(&screen_id).unwrap();
-                    buffer_state.borrow_mut().save(Some(file_path));
+//                    match self.get_active_editor() {
+//                        Some(view_handle) => {
+//                            // TODO(njskalski) Create a separate buffer on this?
+//                            let buffer_state: Rc<RefCell<BufferState>> = self.state.get_buffer_for_screen(&view_handle).unwrap();
+//                            buffer_state.borrow_mut().save(Some(file_path));
+//                        },
+//                        None => debug!("unable to SaveBufferAs - no buffer found")
+//                    }
+                    debug!("IEvent::SaveBufferAs not implemented");
                     self.close_filedialog();
                 },
                 IEvent::ShowBufferList => {
@@ -204,15 +218,9 @@ impl Interface {
             return;
         }
 
-        let current_screen_id = self.siv.active_screen();
-        let buffer_obs = match self.state.get_buffer_observer(&current_screen_id) {
-            None => {
-                debug!("unable to save if there is no buffer attached to screen {}", current_screen_id);
-                return;
-            },
-            Some(bo) => bo
-        };
-        let (folder_op, file_op) = match buffer_obs.get_path()  {
+        let path_op= self.get_active_editor().buffer().get_path();
+
+        let (folder_op, file_op) = match path_op  {
                 None => (None, None),
                 Some(path) => utils::path_string_to_pair(path.to_string_lossy().to_string()) // TODO get rid of path_string_to_pair
         };

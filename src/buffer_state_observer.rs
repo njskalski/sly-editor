@@ -27,6 +27,8 @@ use buffer_state::BufferState;
 use cursive;
 use rich_content::RichContent;
 use std::cell::RefMut;
+use view_handle::ViewHandle;
+use content_provider;
 
 #[derive(Clone)]
 pub struct BufferStateObserver {
@@ -48,19 +50,15 @@ impl BufferStateObserver {
         RefMut::map(self.buffer_state.borrow_mut(), |x| x.get_content_mut())
     }
 
-    pub fn is_loaded(&self) -> bool {
-        self.buffer_state.borrow().get_screen_id().is_some()
-    }
-
-    pub fn get_screen_id(&self) -> cursive::ScreenId {
-        self.buffer_state.borrow().get_screen_id().unwrap()
-    }
-
     pub fn get_path(&self) -> Option<PathBuf> {
         self.buffer_state.borrow().get_path()
     }
 
     pub fn get_filename(&self) -> Option<OsString> {
         self.buffer_state.borrow().get_filename()
+    }
+
+    pub fn submit_edit_events_to_buffer(&self, events : Vec<content_provider::EditEvent>) {
+        self.buffer_state.borrow_mut().submit_edit_events(events)
     }
 }

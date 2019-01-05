@@ -61,6 +61,7 @@ use interface::IChannel;
 use content_provider::{EditEvent, RopeBasedContentProvider};
 use events::IEvent;
 use cursive::theme::{Color, ColorType};
+use view_handle::ViewHandle;
 
 const INDEX_MARGIN: usize = 1;
 const PAGE_WIDTH: usize = 80;
@@ -87,6 +88,7 @@ pub struct SlyTextView {
     settings : Rc<Settings>,
     clipboard_context : clipboard::ClipboardContext,
     special_char_mappings: HashMap<char, char>,
+    uid : uid::Id<usize>
 }
 
 impl SlyTextView {
@@ -100,11 +102,24 @@ impl SlyTextView {
             settings : settings,
             clipboard_context : clipboard::ClipboardProvider::new().unwrap(),
             special_char_mappings : hashmap!['\n' => '\u{21B5}'],
+            uid : uid::Id::<usize>::new(),
         }
     }
 
+    pub fn buffer(&self) -> &BufferStateObserver {
+        &self.buffer
+    }
+
+    pub fn uid(&self) -> &uid::Id<usize> {
+        &self.uid
+    }
+
+    pub fn view_handle(&self) -> ViewHandle {
+        ViewHandle::new(&self.uid)
+    }
+
     fn submit_events(&mut self, events: Vec<EditEvent>) {
-        self.channel.send(IEvent::BufferEditEvent(self.buffer.get_screen_id(), events)).unwrap()
+        self.channel.send(IEvent::BufferEditEvent(self.view_handle(), events)).unwrap()
     }
 
     /// Returns the position of the cursor in the content string.

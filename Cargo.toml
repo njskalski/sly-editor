@@ -24,6 +24,11 @@ enumset = "0.3"
 # static_assertions = "0.2.5"
 # either = "1.5.0"
 languageserver-types = "0.51"
+uid = "0.1.4"
+
+[dependencies.clap]
+version = "2.32"
+features = ["yaml"]
 
 [dependencies.ncurses]
 version = "5.97.0"

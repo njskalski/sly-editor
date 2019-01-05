@@ -16,6 +16,7 @@ limitations under the License.
 
 use content_provider::RopeBasedContentProvider;
 use content_provider::EditEvent;
+use view_handle::ViewHandle;
 
 use cursive;
 use std::fs;
@@ -28,51 +29,75 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 use std::borrow::Borrow;
+use buffer_state_observer::BufferStateObserver;
 
-pub enum BufferReadMode {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BufferOpenMode {
     ReadOnly,
     ReadWrite
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CreationPolicy {
+    Must,
+    Can,
+    MustNot
+}
+
+/// This struct represents serializable part of BufferState.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BufferStateS {
-    path : Option<PathBuf>, //unnamed possible, right?
+    /// Path can be None. This represents a buffer which has no file name set.
+    path : Option<PathBuf>,
 }
 
 pub struct BufferState {
     ss : BufferStateS,
     modified : bool,
-    exists : bool,
-    mode : BufferReadMode,
+    mode : BufferOpenMode,
     content : RopeBasedContentProvider,
-    screen_id : Option<cursive::ScreenId>, //no screen no buffer, but can be None after load. TODO fix it later
 }
 
+//impl Rc<RefCell<BufferState>> {
+//    pub fn get_observer(&self) -> BufferStateObserver {
+//        BufferStateObserver::new(self.clone())
+//    }
+//}
+
 impl BufferState {
-    pub fn open(file_path: PathBuf) -> Result<Rc<RefCell<BufferState>>, io::Error> {
-        debug!("reading file {:?}", file_path);
+    pub fn new() -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(BufferState {
+            ss: BufferStateS { path : None },
+            modified : false,
+            content : RopeBasedContentProvider::new(None),
+            mode : BufferOpenMode::ReadWrite,
+        }))
+    }
 
-        // TODO(njskalski) add support to new files here?
-        if !file_path.exists() {
-            Err(io::Error::new(io::ErrorKind::InvalidInput, format!("\"{:?}\" not found.", &file_path)))
-        } else if !file_path.is_file() {
-            Err(io::Error::new(io::ErrorKind::InvalidInput, format!("\"{:?}\" is not file.", &file_path)))
-        } else {
-            let mut reader : fs::File = path_to_reader(&file_path);
-            Ok(Rc::new(RefCell::new(BufferState {
-                ss : BufferStateS { path : Some(file_path) },
-                modified : false,
-                exists : true,
-                screen_id : None,
-                content : RopeBasedContentProvider::new(Some(&mut reader)),
-                mode : BufferReadMode::ReadWrite,
-            })))
+    pub fn open(file_path: PathBuf, creation_policy : CreationPolicy) -> Result<Rc<RefCell<Self>>, io::Error> {
+        debug!("reading file {:?}, creation_policy = {:?}", file_path, creation_policy);
+
+        if !file_path.exists() && creation_policy == CreationPolicy::Must {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("\"{:?}\" not found, and required", &file_path)))
         }
+
+        if file_path.exists() && creation_policy == CreationPolicy::MustNot {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("\"{:?}\" found and required not to be there.", &file_path)))
+        }
+
+        let mut reader : fs::File = path_to_reader(&file_path);
+
+        Ok(Rc::new(RefCell::new(BufferState {
+            ss : BufferStateS { path : Some(file_path) },
+            modified : false,
+            content : RopeBasedContentProvider::new(Some(&mut reader)),
+            mode : BufferOpenMode::ReadWrite,
+        })))
     }
 
-    pub fn set_screen_id(&mut self, screen_id : cursive::ScreenId) {
-        self.screen_id = Some(screen_id);
-    }
+//    pub fn set_view_handle(&mut self, view_handle : ViewHandle) {
+//        self.view_handle = Some(view_handle);
+//    }
 
     pub fn get_content(&self) -> &RopeBasedContentProvider {
         &self.content
@@ -82,9 +107,9 @@ impl BufferState {
         &mut self.content
     }
 
-    pub fn get_screen_id(&self) -> &Option<cursive::ScreenId> {
-        &self.screen_id
-    }
+//    pub fn get_view_handle(&self) -> &Option<ViewHandle> {
+//        &self.view_handle
+//    }
 
     pub fn submit_edit_events(&mut self, events: Vec<EditEvent>)
     {
@@ -107,12 +132,17 @@ impl BufferState {
         self.content.save(file)
     }
 
+    /// Returns whether file exists. File with no path obviously does not.
+    pub fn exists(&self) -> bool {
+        self.get_path().map_or(false, |path| path.exists())
+    }
+
     pub fn save(&mut self, path : Option<PathBuf>) -> Result<(), io::Error> {
         if path.is_none() && self.ss.path.is_none() {
             return Err(io::Error::new(io::ErrorKind::NotFound, "No path provided."));
         }
 
-        if path == self.ss.path && self.exists && !self.modified {
+        if path == self.ss.path && self.exists() && !self.modified {
             info!("Early exit from BufferState.save - file not modified.");
             return Ok(());
         }
@@ -128,7 +158,6 @@ impl BufferState {
         self.ss.path = Some(final_path);
 
         self.modified = false;
-        self.exists = true;
         debug!("{:?} saved.", &self.ss.path);
         Ok(())
     }

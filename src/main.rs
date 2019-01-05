@@ -53,6 +53,8 @@ mod color_view_wrapper;
 mod utils;
 mod simple_fuzzy_index;
 mod lsp_client;
+mod view_handle;
+
 
 extern crate ignore;
 extern crate cpuprofiler;
@@ -67,6 +69,9 @@ extern crate stderrlog;
 extern crate syntect;
 extern crate core;
 extern crate enumset;
+#[macro_use]
+extern crate clap;
+extern crate uid;
 
 #[macro_use]
 extern crate languageserver_types;
@@ -80,6 +85,9 @@ use interface::Interface;
 use cpuprofiler::PROFILER;
 use std::path;
 use std::path::PathBuf;
+use std::borrow::Borrow;
+use std::borrow::BorrowMut;
+
 
 // Reason for it being string is that I want to be able to load filelists from remote locations
 fn get_file_list_from_dir(path: &Path) -> Vec<String> {
@@ -106,12 +114,27 @@ fn get_file_list_from_dir(path: &Path) -> Vec<String> {
     file_list
 }
 
+
 fn main() {
     stderrlog::new()
         .module(module_path!())
         .verbosity(5)
         .init()
         .unwrap();
+
+    let yml = clap::load_yaml!("clap.yml");
+    let mut app = clap::App::from_yaml(yml)
+        .author("Andrzej J Skalski <ajskalski@google.com>")
+        .long_version(crate_version!())
+        ;
+
+    let matches = app.clone().get_matches();
+
+    if matches.is_present("help") {
+        app.write_long_help(std::io::stdout().borrow_mut());
+        return;
+    }
+
 
     // TODO(njskalski) use proper input parsing library
 
@@ -132,16 +155,13 @@ fn main() {
     };
 
     let args: Vec<String> = env::args().skip(1).collect();
-    let mut commandline_args : Vec<String> = vec![];
 
     let mut directories : Vec<PathBuf> = Vec::new();
     let mut files : Vec<PathBuf> = Vec::new();
 
-    for mut arg in args {
-        if arg.starts_with("--") {
-            commandline_args.push(arg);
-        } else {
-            let path_arg = Path::new(&arg).to_path_buf();
+    if matches.is_present("files_and_directories") {
+        for value in matches.values_of("files_and_directories").unwrap() {
+            let path_arg = Path::new(value).to_path_buf();
             let path = match fs::canonicalize(&path_arg) {
                 Ok(path) => path,
                 _ => {
@@ -151,12 +171,12 @@ fn main() {
             };
 
             //removing tailing slashes (for some reasons rust's path allow them)
-            while arg.chars().last() == Some('/') {
-                arg.pop();
-            };
+//            while value.chars().last() == Some('/') {
+////                value = value.chars().
+//            };
 
             if !path.exists() {
-                info!("{:?} does not exist, now ignoring.", arg);
+                info!("{:?} does not exist, now ignoring.", value);
                 continue; // TODO(njskalski) stop ignoring new files.
             }
 
@@ -165,7 +185,7 @@ fn main() {
             } else if path.is_file() {
                 files.push(path);
             } else {
-                info!("{:?} is neither a file nor directory. Ignoring.", arg);
+                info!("{:?} is neither a file nor directory. Ignoring.", value);
             }
         }
     }
@@ -173,12 +193,6 @@ fn main() {
 //    warn!("files {:?}", files);
 
     let app_state = AppState::new(directories, files);
-
-    {
-        for arg in &commandline_args {
-            debug!("not supported argument \"{:?}\"", arg);
-        }
-    }
 
     let mut interface = Interface::new(app_state);
     interface.run();
