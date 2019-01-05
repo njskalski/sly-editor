@@ -29,6 +29,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 use std::borrow::Borrow;
+use buffer_state_observer::BufferStateObserver;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BufferOpenMode {
@@ -55,16 +56,19 @@ pub struct BufferState {
     modified : bool,
     mode : BufferOpenMode,
     content : RopeBasedContentProvider,
-    view_handle : Option<ViewHandle>, //no screen no buffer, but can be None after load. TODO fix it later
 }
 
-impl BufferState {
+//impl Rc<RefCell<BufferState>> {
+//    pub fn get_observer(&self) -> BufferStateObserver {
+//        BufferStateObserver::new(self.clone())
+//    }
+//}
 
+impl BufferState {
     pub fn new() -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(BufferState {
             ss: BufferStateS { path : None },
             modified : false,
-            view_handle : None,
             content : RopeBasedContentProvider::new(None),
             mode : BufferOpenMode::ReadWrite,
         }))
@@ -86,15 +90,14 @@ impl BufferState {
         Ok(Rc::new(RefCell::new(BufferState {
             ss : BufferStateS { path : Some(file_path) },
             modified : false,
-            view_handle : None,
             content : RopeBasedContentProvider::new(Some(&mut reader)),
             mode : BufferOpenMode::ReadWrite,
         })))
     }
 
-    pub fn set_view_handle(&mut self, view_handle : ViewHandle) {
-        self.view_handle = Some(view_handle);
-    }
+//    pub fn set_view_handle(&mut self, view_handle : ViewHandle) {
+//        self.view_handle = Some(view_handle);
+//    }
 
     pub fn get_content(&self) -> &RopeBasedContentProvider {
         &self.content
@@ -104,9 +107,9 @@ impl BufferState {
         &mut self.content
     }
 
-    pub fn get_view_handle(&self) -> &Option<ViewHandle> {
-        &self.view_handle
-    }
+//    pub fn get_view_handle(&self) -> &Option<ViewHandle> {
+//        &self.view_handle
+//    }
 
     pub fn submit_edit_events(&mut self, events: Vec<EditEvent>)
     {

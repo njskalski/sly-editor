@@ -50,14 +50,6 @@ impl BufferStateObserver {
         RefMut::map(self.buffer_state.borrow_mut(), |x| x.get_content_mut())
     }
 
-    pub fn is_loaded(&self) -> bool {
-        self.buffer_state.borrow().get_view_handle().is_some()
-    }
-
-    pub fn get_view_handle(&self) -> ViewHandle {
-        self.buffer_state.borrow().get_view_handle().clone().unwrap()
-    }
-
     pub fn get_path(&self) -> Option<PathBuf> {
         self.buffer_state.borrow().get_path()
     }

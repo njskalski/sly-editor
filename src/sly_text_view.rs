@@ -61,6 +61,7 @@ use interface::IChannel;
 use content_provider::{EditEvent, RopeBasedContentProvider};
 use events::IEvent;
 use cursive::theme::{Color, ColorType};
+use view_handle::ViewHandle;
 
 const INDEX_MARGIN: usize = 1;
 const PAGE_WIDTH: usize = 80;
@@ -113,8 +114,12 @@ impl SlyTextView {
         &self.uid
     }
 
+    pub fn view_handle(&self) -> ViewHandle {
+        ViewHandle::new(&self.uid)
+    }
+
     fn submit_events(&mut self, events: Vec<EditEvent>) {
-        self.channel.send(IEvent::BufferEditEvent(self.buffer.get_view_handle(), events)).unwrap()
+        self.channel.send(IEvent::BufferEditEvent(self.view_handle(), events)).unwrap()
     }
 
     /// Returns the position of the cursor in the content string.

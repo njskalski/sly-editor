@@ -85,11 +85,11 @@ impl Interface {
         let channel = mpsc::channel();
         siv.set_theme(theme);
 
-        let screen_id = siv.active_screen();
+//        let screen_id = siv.active_screen();
         let buffer_observer = state.get_first_buffer();
         let sly_text_view = SlyTextView::new(settings.clone(), buffer_observer, channel.0.clone());
 
-        let active_editor = ViewHandle::new(screen_id, sly_text_view.uid());
+        let active_editor = sly_text_view.view_handle();
 
         siv.add_fullscreen_layer(IdView::new(format!("sly{}", sly_text_view.uid()), sly_text_view));
 
