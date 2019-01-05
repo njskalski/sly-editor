@@ -218,9 +218,9 @@ impl Interface {
             return;
         }
 
-        let buffer_obs = self.get_active_editor().buffer();
+        let path_op= self.get_active_editor().buffer().get_path();
 
-        let (folder_op, file_op) = match buffer_obs.get_path()  {
+        let (folder_op, file_op) = match path_op  {
                 None => (None, None),
                 Some(path) => utils::path_string_to_pair(path.to_string_lossy().to_string()) // TODO get rid of path_string_to_pair
         };
