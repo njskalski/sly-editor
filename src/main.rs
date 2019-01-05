@@ -69,6 +69,7 @@ extern crate core;
 extern crate enumset;
 #[macro_use]
 extern crate clap;
+extern crate uid;
 
 use std::env;
 use std::fs;

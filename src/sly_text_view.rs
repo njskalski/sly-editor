@@ -87,6 +87,7 @@ pub struct SlyTextView {
     settings : Rc<Settings>,
     clipboard_context : clipboard::ClipboardContext,
     special_char_mappings: HashMap<char, char>,
+    uid : uid::Id<usize>
 }
 
 impl SlyTextView {
@@ -100,7 +101,16 @@ impl SlyTextView {
             settings : settings,
             clipboard_context : clipboard::ClipboardProvider::new().unwrap(),
             special_char_mappings : hashmap!['\n' => '\u{21B5}'],
+            uid : uid::Id::<usize>::new(),
         }
+    }
+
+    pub fn buffer(&self) -> &BufferStateObserver {
+        &self.buffer
+    }
+
+    pub fn uid(&self) -> &uid::Id<usize> {
+        &self.uid
     }
 
     fn submit_events(&mut self, events: Vec<EditEvent>) {

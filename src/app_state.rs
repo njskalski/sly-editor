@@ -55,12 +55,13 @@ use std::path::PathBuf;
 use view_handle::ViewHandle;
 use std::cell::Cell;
 use buffer_state::CreationPolicy;
+use core::borrow::Borrow;
+
+
 
 pub struct AppState {
-    // Map of buffers that has been loaded into memory AND assigned a ScreenID.
-    loaded_buffers : HashMap<ViewHandle, Rc<RefCell<BufferState>>>,
-
-    /// List of buffers that have been loaded into memory, but yet have no assigned ScreenIDs
+    // TODO not sure if there is any reason to distinguish between the two.
+    loaded_buffers : Vec<Rc<RefCell<BufferState>>>,
     buffers_to_load : Vec<Rc<RefCell<BufferState>>>,
 
     index : Arc<RefCell<FuzzyIndex>>, //because searches are mutating the cache TODO this can be solved with "interior mutability", as other caches in this app
@@ -70,15 +71,14 @@ pub struct AppState {
 
 impl AppState{
 
-    //TODO this interface is temporary.
-    pub fn get_buffer_for_screen(&self, view_handle : &ViewHandle) -> Option<Rc<RefCell<BufferState>>> {
-        self.loaded_buffers.get(view_handle).map(|x| x.clone())
-    }
+//    //TODO this interface is temporary.
+//    pub fn get_buffer_for_screen(&self, view_handle : &ViewHandle) -> Option<Rc<RefCell<BufferState>>> {
+//        self.loaded_buffers.get(view_handle).map(|x| x.clone())
+//    }
 
     /// Returns list of buffers. Rather stable.
     pub fn get_buffers(&self) -> Vec<BufferStateObserver> {
-        assert!(!self.has_buffers_to_load()); //TODO not decided yet.
-        self.loaded_buffers.iter().map(|(k, v)| BufferStateObserver::new(v.clone())).collect()
+        self.loaded_buffers.iter().map(|b| BufferStateObserver::new(b.clone())).collect()
     }
 
     /// Returns file index. Rather stable.
@@ -90,20 +90,6 @@ impl AppState{
         self.dir_and_files_tree.clone()
     }
 
-    // TODO(njskalski) this interface is temporary. We should submit events to buffer, not screen.
-    pub fn submit_edit_events_to_buffer(&mut self, view_handle : &ViewHandle, events : Vec<content_provider::EditEvent>) {
-        self.loaded_buffers[view_handle].borrow_mut().submit_edit_events(events);
-    }
-
-    /// this loads TO SCREEN, not to memory.
-    pub fn has_buffers_to_load(&self) -> bool {
-        self.buffers_to_load.len() > 0
-    }
-
-    pub fn get_buffer_observer(&self, view_handle : &ViewHandle) -> Option<BufferStateObserver> {
-        self.loaded_buffers.get(view_handle).map(|x| BufferStateObserver::new(x.clone()))
-    }
-
     pub fn schedule_file_for_load(&mut self, file_path : PathBuf) -> Result<(), io::Error> {
         let buffer_state = BufferState::open(file_path, CreationPolicy::Can)?;
         self.buffers_to_load.push(buffer_state);
@@ -111,23 +97,25 @@ impl AppState{
     }
 
     /// This method is called while constructing interface, to determine content of first edit view.
-    pub fn get_first_buffer(&self) -> BufferStateObserver {
+    pub fn get_first_buffer(&mut self) -> BufferStateObserver {
         if self.get_first_buffer_guard.get() {
             error!("secondary call to app_state::get_first_buffer!");
         }
-
         self.get_first_buffer_guard.set(true);
+
+        self.loaded_buffers.append(&mut self.buffers_to_load);
 
         if self.buffers_to_load.is_empty() {
             /// if there is no buffer to load, we create an unnamed one.
-
-
+            self.loaded_buffers.push(BufferState::new());
         }
+
+        BufferStateObserver::new(self.loaded_buffers.first().unwrap().clone())
     }
 
     pub fn new(directories : Vec<PathBuf>, files : Vec<PathBuf>) -> Self {
         let mut buffers : Vec<Rc<RefCell<BufferState>>> = Vec::new();
-        for file in files {
+        for file in &files {
             match BufferState::open(file.clone(), CreationPolicy::Must) {
                 Ok(buffer_state) => buffers.push(buffer_state),
                 Err(e) => error!("{}", e)
@@ -143,7 +131,7 @@ impl AppState{
 
         AppState {
             buffers_to_load : buffers,
-            loaded_buffers : HashMap::new(),
+            loaded_buffers : Vec::new(),
             index : Arc::new(RefCell::new(FuzzyIndex::new(file_index_items))),
             dir_and_files_tree: Rc::new(LazyTreeNode::new(directories, files)),
             get_first_buffer_guard: Cell::new(false),

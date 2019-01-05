@@ -28,6 +28,7 @@ use cursive;
 use rich_content::RichContent;
 use std::cell::RefMut;
 use view_handle::ViewHandle;
+use content_provider;
 
 #[derive(Clone)]
 pub struct BufferStateObserver {
@@ -54,7 +55,7 @@ impl BufferStateObserver {
     }
 
     pub fn get_view_handle(&self) -> ViewHandle {
-        self.buffer_state.borrow().get_view_handle().unwrap()
+        self.buffer_state.borrow().get_view_handle().clone().unwrap()
     }
 
     pub fn get_path(&self) -> Option<PathBuf> {
@@ -63,5 +64,9 @@ impl BufferStateObserver {
 
     pub fn get_filename(&self) -> Option<OsString> {
         self.buffer_state.borrow().get_filename()
+    }
+
+    pub fn submit_edit_events_to_buffer(&self, events : Vec<content_provider::EditEvent>) {
+        self.buffer_state.borrow_mut().submit_edit_events(events)
     }
 }

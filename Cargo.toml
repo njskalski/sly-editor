@@ -23,6 +23,8 @@ ignore = "0.4"
 enumset = "0.3"
 # static_assertions = "0.2.5"
 # either = "1.5.0"
+uid = "0.1.4"
+
 
 [dependencies.clap]
 version = "2.32"
