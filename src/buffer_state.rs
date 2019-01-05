@@ -30,45 +30,57 @@ use std::cell::RefCell;
 
 use std::borrow::Borrow;
 
-pub enum BufferReadMode {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BufferOpenMode {
     ReadOnly,
     ReadWrite
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CreationPolicy {
+    Must,
+    Can,
+    MustNot
+}
+
+/// This struct represents serializable part of BufferState.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BufferStateS {
-    path : Option<PathBuf>, //unnamed possible, right?
+    /// Path can be None. This represents a buffer which has no file name set.
+    path : Option<PathBuf>,
 }
 
 pub struct BufferState {
     ss : BufferStateS,
     modified : bool,
     exists : bool,
-    mode : BufferReadMode,
+    mode : BufferOpenMode,
     content : RopeBasedContentProvider,
     view_handle : Option<ViewHandle>, //no screen no buffer, but can be None after load. TODO fix it later
 }
 
 impl BufferState {
-    pub fn open(file_path: PathBuf) -> Result<Rc<RefCell<BufferState>>, io::Error> {
-        debug!("reading file {:?}", file_path);
+    pub fn open(file_path: PathBuf, creation_policy : CreationPolicy) -> Result<Rc<RefCell<BufferState>>, io::Error> {
+        debug!("reading file {:?}, creation_policy = {:?}", file_path, creation_policy);
 
-        // TODO(njskalski) add support to new files here?
-        if !file_path.exists() {
-            Err(io::Error::new(io::ErrorKind::InvalidInput, format!("\"{:?}\" not found.", &file_path)))
-        } else if !file_path.is_file() {
-            Err(io::Error::new(io::ErrorKind::InvalidInput, format!("\"{:?}\" is not file.", &file_path)))
-        } else {
-            let mut reader : fs::File = path_to_reader(&file_path);
-            Ok(Rc::new(RefCell::new(BufferState {
-                ss : BufferStateS { path : Some(file_path) },
-                modified : false,
-                exists : true,
-                view_handle : None,
-                content : RopeBasedContentProvider::new(Some(&mut reader)),
-                mode : BufferReadMode::ReadWrite,
-            })))
+        if !file_path.exists() && creation_policy == CreationPolicy::Must {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("\"{:?}\" not found, and required", &file_path)))
         }
+
+        if file_path.exists() && creation_policy == CreationPolicy::MustNot {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("\"{:?}\" found and required not to be there.", &file_path)))
+        }
+
+        let mut reader : fs::File = path_to_reader(&file_path);
+
+        Ok(Rc::new(RefCell::new(BufferState {
+            ss : BufferStateS { path : Some(file_path) },
+            modified : false,
+            exists : file_path.exists(),
+            view_handle : None,
+            content : RopeBasedContentProvider::new(Some(&mut reader)),
+            mode : BufferOpenMode::ReadWrite, //TODO
+        })))
     }
 
     pub fn set_view_handle(&mut self, view_handle : ViewHandle) {

@@ -37,7 +37,7 @@ use fuzzy_index::FuzzyIndex;
 use fuzzy_view_item::file_list_to_items;
 use buffer_state::BufferState;
 use buffer_state::BufferStateS;
-use buffer_state::BufferReadMode;
+use buffer_state::BufferOpenMode;
 use buffer_state_observer::BufferStateObserver;
 
 use std::cell::{RefCell, Ref};
@@ -53,6 +53,8 @@ use std::io::Write;
 use lazy_dir_tree::LazyTreeNode;
 use std::path::PathBuf;
 use view_handle::ViewHandle;
+use std::cell::Cell;
+use buffer_state::CreationPolicy;
 
 pub struct AppState {
     // Map of buffers that has been loaded into memory AND assigned a ScreenID.
@@ -63,6 +65,7 @@ pub struct AppState {
 
     index : Arc<RefCell<FuzzyIndex>>, //because searches are mutating the cache TODO this can be solved with "interior mutability", as other caches in this app
     dir_and_files_tree: Rc<LazyTreeNode>,
+    get_first_buffer_guard: Cell<bool>
 }
 
 impl AppState{
@@ -102,40 +105,48 @@ impl AppState{
     }
 
     pub fn schedule_file_for_load(&mut self, file_path : PathBuf) -> Result<(), io::Error> {
-        let buffer_state = BufferState::open(file_path)?;
+        let buffer_state = BufferState::open(file_path, CreationPolicy::Can)?;
         self.buffers_to_load.push(buffer_state);
         Ok(())
     }
 
-    // This method takes first buffer scheduled for load and assigns it a ScreenId.
-//    pub fn load_buffer(&mut self, screen_id : cursive::ScreenId) -> BufferStateObserver {
-//        assert!(!self.loaded_buffers.contains_key(&screen_id));
-//        let mut buffer = self.buffers_to_load.pop().unwrap();
-//        buffer.borrow_mut().set_view_handle(screen_id);
-//        self.loaded_buffers.insert(screen_id, buffer);
-//        self.get_buffer_observer(&screen_id).unwrap()
-//    }
-
-    pub fn new(directories : Vec<PathBuf>, files : Vec<PathBuf>) -> Self {
-        let buffers : Vec<_> = files.iter().map(|file| {
-            BufferState::open(file.clone()).unwrap()
-        }).collect();
-
-        //TODO(njskalski): I think I wanted files copied somewhere for interface.
-
-        let mut files2 : Vec<PathBuf> = files.to_owned();
-
-        for dir in &directories {
-            build_file_index(&mut files2, dir, false, None);
+    /// This method is called while constructing interface, to determine content of first edit view.
+    pub fn get_first_buffer(&self) -> BufferStateObserver {
+        if self.get_first_buffer_guard.get() {
+            error!("secondary call to app_state::get_first_buffer!");
         }
 
-        let file_index_items = file_list_to_items(&files2);
+        self.get_first_buffer_guard.set(true);
+
+//        if self.buffers_to_load.is_empty() {
+//            /// if there is no buffer to load, we create an unnamed one.
+//
+//
+//        }
+    }
+
+    pub fn new(directories : Vec<PathBuf>, files : Vec<PathBuf>) -> Self {
+        let mut buffers : Vec<Rc<RefCell<BufferState>>> = Vec::new();
+        for file in files {
+            match BufferState::open(file.clone(), CreationPolicy::Must) {
+                Ok(buffer_state) => buffers.push(buffer_state),
+                Err(e) => error!("{}", e)
+            }
+        }
+
+        let mut files_to_index : Vec<PathBuf> = files.to_owned();
+        for dir in &directories {
+            build_file_index(&mut files_to_index, dir, false, None);
+        }
+
+        let file_index_items = file_list_to_items(&files_to_index);
 
         AppState {
             buffers_to_load : buffers,
             loaded_buffers : HashMap::new(),
             index : Arc::new(RefCell::new(FuzzyIndex::new(file_index_items))),
-            dir_and_files_tree: Rc::new(LazyTreeNode::new(directories, files))
+            dir_and_files_tree: Rc::new(LazyTreeNode::new(directories, files)),
+            get_first_buffer_guard: Cell::new(false),
         }
     }
 
