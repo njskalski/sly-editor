@@ -18,10 +18,10 @@ limitations under the License.
 
 // TODO(njskalski) add RefCell<Vec<LazyTreeNode>> cache, refresh "on file change"
 
+use std::cmp::{Ord, Ordering, PartialEq, PartialOrd};
 use std::fmt;
-use std::rc::Rc;
 use std::path::*;
-use std::cmp::{Ord, PartialOrd, PartialEq, Ordering};
+use std::rc::Rc;
 
 /*
     This enum contains entire paths to filesystem nodes (directories or files), except the root
@@ -39,21 +39,22 @@ pub enum LazyTreeNode {
 }
 
 impl fmt::Display for LazyTreeNode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &LazyTreeNode::RootNode(_) => {write!(f,"<root>") },
-            &LazyTreeNode::DirNode(ref path) => {write!(f, "{}", path.file_name().unwrap().to_string_lossy())},
-            &LazyTreeNode::FileNode(ref path) => {write!(f, "{}", path.file_name().unwrap().to_string_lossy())}
+            &LazyTreeNode::RootNode(_) => write!(f, "<root>"),
+            &LazyTreeNode::DirNode(ref path) => write!(f, "{}", path.file_name().unwrap().to_string_lossy()),
+            &LazyTreeNode::FileNode(ref path) => write!(f, "{}", path.file_name().unwrap().to_string_lossy()),
         }
     }
 }
 
 impl LazyTreeNode {
     pub fn new(directories : Vec<PathBuf>, files : Vec<PathBuf>) -> Self {
-        let mut nodes : Vec<Rc<LazyTreeNode>> = directories.into_iter().map(
-            |x| Rc::new(LazyTreeNode::DirNode(Rc::new(x)))).chain(
-            files.into_iter().map(
-                |x| Rc::new(LazyTreeNode::FileNode(Rc::new(x))))).collect();
+        let mut nodes : Vec<Rc<LazyTreeNode>> =
+            directories.into_iter()
+                       .map(|x| Rc::new(LazyTreeNode::DirNode(Rc::new(x))))
+                       .chain(files.into_iter().map(|x| Rc::new(LazyTreeNode::FileNode(Rc::new(x)))))
+                       .collect();
         nodes.sort();
         LazyTreeNode::RootNode(nodes)
     }
@@ -61,21 +62,21 @@ impl LazyTreeNode {
     pub fn is_file(&self) -> bool {
         match self {
             &LazyTreeNode::FileNode(_) => true,
-            _ => false
+            _ => false,
         }
     }
 
     pub fn is_dir(&self) -> bool {
         match self {
             &LazyTreeNode::DirNode(_) => true,
-            _ => false
+            _ => false,
         }
     }
 
     pub fn is_root(&self) -> bool {
         match self {
             &LazyTreeNode::RootNode(_) => true,
-            _ => false
+            _ => false,
         }
     }
 }

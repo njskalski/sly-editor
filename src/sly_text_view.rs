@@ -28,43 +28,42 @@ limitations under the License.
 // - python script in replace
 
 // TODO(njskalski) never allow overlapping cursors
-// TODO(njskalski) update cursors on autoreload from hard drive (autoreload enabled if non-modified, and not disabled in options)
-// TODO(njskalski) use View::layout instead of View::required_size to determine window size.
-
+// TODO(njskalski) update cursors on autoreload from hard drive (autoreload enabled if non-modified, and not disabled in
+// options) TODO(njskalski) use View::layout instead of View::required_size to determine window size.
 
 use time;
 
+use buffer_state_observer::BufferStateObserver;
+use clipboard;
+use clipboard::ClipboardProvider;
+use content_provider::{EditEvent, RopeBasedContentProvider};
 use cursive::direction::Direction;
 use cursive::event::{Event, EventResult, Key, MouseButton, MouseEvent};
+use cursive::theme::{Color, ColorType};
 use cursive::theme::{ColorStyle, Effect};
 use cursive::utils::lines::simple::{prefix, simple_prefix, LinesIterator, Row};
 use cursive::vec::Vec2;
 use cursive::view::{View, ViewWrapper};
 use cursive::{Printer, With, XY};
+use events::IEvent;
+use interface::IChannel;
+use rich_content::{RichContent, RichLine};
+use ropey::Rope;
+use settings::Settings;
+use std::borrow::BorrowMut;
+use std::cmp;
 use std::cmp::min;
+use std::collections::HashMap;
+use std::iter;
+use std::rc::Rc;
+use std::usize::MAX;
+use unicode_segmentation;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
-use ropey::Rope;
-use rich_content::{RichLine, RichContent};
-use std::collections::HashMap;
-use clipboard;
-use clipboard::ClipboardProvider;
-use std::iter;
-use unicode_segmentation;
-use std::cmp;
-use std::usize::MAX;
-use std::rc::Rc;
-use std::borrow::BorrowMut;
-use settings::Settings;
-use buffer_state_observer::BufferStateObserver;
-use interface::IChannel;
-use content_provider::{EditEvent, RopeBasedContentProvider};
-use events::IEvent;
-use cursive::theme::{Color, ColorType};
 use view_handle::ViewHandle;
 
-const INDEX_MARGIN: usize = 1;
-const PAGE_WIDTH: usize = 80;
+const INDEX_MARGIN : usize = 1;
+const PAGE_WIDTH : usize = 80;
 
 macro_rules! hashmap {
     ($( $key: expr => $val: expr ),*) => {{
@@ -80,30 +79,28 @@ type Cursor = (usize, Option<usize>);
 //const NEWLINE_DRAWING : char = '\u{2424}';
 
 pub struct SlyTextView {
-    channel : IChannel, // interface feedback channel
-    buffer : BufferStateObserver,
-    cursors: Vec<Cursor>, // offset in CHARS, preferred column
-    position: Vec2, // position of upper left corner of view in file
-    last_view_size: Option<Vec2>, //not sure if using properly
-    settings : Rc<Settings>,
-    clipboard_context : clipboard::ClipboardContext,
-    special_char_mappings: HashMap<char, char>,
-    uid : uid::Id<usize>
+    channel :               IChannel, // interface feedback channel
+    buffer :                BufferStateObserver,
+    cursors :               Vec<Cursor>,  // offset in CHARS, preferred column
+    position :              Vec2,         // position of upper left corner of view in file
+    last_view_size :        Option<Vec2>, //not sure if using properly
+    settings :              Rc<Settings>,
+    clipboard_context :     clipboard::ClipboardContext,
+    special_char_mappings : HashMap<char, char>,
+    uid :                   uid::Id<usize>,
 }
 
 impl SlyTextView {
     pub fn new(settings : Rc<Settings>, buffer : BufferStateObserver, channel : IChannel) -> Self {
-        SlyTextView {
-            channel : channel,
-            buffer : buffer,
-            cursors: vec![(0, None)],
-            position: Vec2::new(0, 0),
-            last_view_size: None,
-            settings : settings,
-            clipboard_context : clipboard::ClipboardProvider::new().unwrap(),
-            special_char_mappings : hashmap!['\n' => '\u{21B5}'],
-            uid : uid::Id::<usize>::new(),
-        }
+        SlyTextView { channel :               channel,
+                      buffer :                buffer,
+                      cursors :               vec![(0, None)],
+                      position :              Vec2::new(0, 0),
+                      last_view_size :        None,
+                      settings :              settings,
+                      clipboard_context :     clipboard::ClipboardProvider::new().unwrap(),
+                      special_char_mappings : hashmap!['\n' => '\u{21B5}'],
+                      uid :                   uid::Id::<usize>::new(), }
     }
 
     pub fn buffer(&self) -> &BufferStateObserver {
@@ -118,7 +115,7 @@ impl SlyTextView {
         ViewHandle::new(&self.uid)
     }
 
-    fn submit_events(&mut self, events: Vec<EditEvent>) {
+    fn submit_events(&mut self, events : Vec<EditEvent>) {
         self.channel.send(IEvent::BufferEditEvent(self.view_handle(), events)).unwrap()
     }
 
@@ -134,58 +131,47 @@ impl SlyTextView {
     }
 }
 
-//TODO(njskalski) remove
-fn helper_split_lines(s: &String) -> Vec<String> {
-    let mut result: Vec<String> = Vec::new();
-    for line in s.split("\n") {
-        result.push(line.to_string());
-    }
-    result
-}
-
 //TODO(njskalski) handle too small space.
 impl View for SlyTextView {
-    fn draw(&self, printer: &Printer) {
-
+    fn draw(&self, printer : &Printer) {
         let content = self.buffer.borrow_content();
 
         let line_count : usize = content.get_lines().len_lines();
         let index_length = line_count.to_string().len();
 
-        let cursors = &self.cursors;//: Vec<Vec2> = textWindow.filter_cursors(&self.cursors);
+        let cursors = &self.cursors; //: Vec<Vec2> = textWindow.filter_cursors(&self.cursors);
         let lines = content.get_lines();
 
         let view_size = self.last_view_size.expect("view size not known.");
 
         //index + INDEX_MARGIN ----------------------------------------------------------------
-        for line_no in (self.position.y)..(cmp::min(lines.len_lines(), self.position.y+view_size.y)) {
-            let mut x: usize = 0;
+        for line_no in (self.position.y)..(cmp::min(lines.len_lines(), self.position.y + view_size.y)) {
+            let mut x : usize = 0;
 
             let y = line_no - self.position.y;
             let line_desc = (line_no + 1).to_string();
             let local_index_length = line_desc.len(); //logarithm? never heard of it.
 
             printer.with_color(ColorStyle::secondary(), |printer| {
-                for _ in 0..(index_length - local_index_length) {
-                    printer.print((x, y), " ");
-                    x += 1;
-                }
-                printer.print((x, y), &line_desc);
-                x += local_index_length;
-                for _ in 0..INDEX_MARGIN {
-                    printer.print((x, y), " ");
-                    x += 1;
-                }
-            });
+                       for _ in 0..(index_length - local_index_length) {
+                           printer.print((x, y), " ");
+                           x += 1;
+                       }
+                       printer.print((x, y), &line_desc);
+                       x += local_index_length;
+                       for _ in 0..INDEX_MARGIN {
+                           printer.print((x, y), " ");
+                           x += 1;
+                       }
+                   });
 
             assert!(x == index_length + INDEX_MARGIN);
         }
         // end of index + INDEX_MARGIN --------------------------------------------------------
 
-
         //line --------------------------------------------------------------------------------
 
-        for line_no in (self.position.y)..(cmp::min(lines.len_lines(), self.position.y+view_size.y)) {
+        for line_no in (self.position.y)..(cmp::min(lines.len_lines(), self.position.y + view_size.y)) {
             let y = line_no - self.position.y;
             let line_offset = &content.get_lines().line_to_char(line_no);
             let line = &content.get_lines().line(line_no);
@@ -202,9 +188,11 @@ impl View for SlyTextView {
                 let char_offset = line_offset + char_idx;
 
                 let mut special_char = false;
-                let symbol: char = if line.len_chars() > char_idx {
+                let symbol : char = if line.len_chars() > char_idx {
                     let c = line.char(char_idx);
-                    if !self.special_char_mappings.contains_key(&c) { c } else {
+                    if !self.special_char_mappings.contains_key(&c) {
+                        c
+                    } else {
                         special_char = true;
                         self.special_char_mappings[&c]
                     }
@@ -212,19 +200,18 @@ impl View for SlyTextView {
                     ' '
                 };
 
-                let color_style: ColorStyle = if self.had_cursor_at(&char_offset) {
+                let color_style : ColorStyle = if self.had_cursor_at(&char_offset) {
                     ColorStyle::highlight()
                 } else {
                     if char_idx <= 80 && !special_char {
-
                         let mut someColor = ColorStyle::primary();
 
                         match &rich_line_op {
-                            None => {},
+                            None => {}
                             Some(rich_line) => {
                                 rich_line.get_color_at(char_idx).map(|color : Color| {
-                                    someColor.front = ColorType::Color(color);
-                                });
+                                                                    someColor.front = ColorType::Color(color);
+                                                                });
                             }
                         };
 
@@ -242,23 +229,22 @@ impl View for SlyTextView {
                 let effect = Effect::Simple;
 
                 printer.with_color(color_style, |printer| {
-                    printer.with_effect(effect, |printer| {
-                        printer.print((char_idx + index_length + INDEX_MARGIN, y), &symbol.to_string());
-                    });
-                });
+                           printer.with_effect(effect, |printer| {
+                                      printer.print((char_idx + index_length + INDEX_MARGIN, y), &symbol.to_string());
+                                  });
+                       });
             }
         }
         //end of line ------------------------------------------------------------------------
     }
 
-    fn required_size(&mut self, constraint: Vec2) -> Vec2 {
+    fn required_size(&mut self, constraint : Vec2) -> Vec2 {
         self.last_view_size = Some(constraint);
         debug!("got constraint {:?}", constraint);
         constraint //now we just take whole available space
     }
 
-    fn on_event(&mut self, event: Event) -> EventResult {
-
+    fn on_event(&mut self, event : Event) -> EventResult {
         let text_keybindings = &self.settings.get_keybindings("text");
         if text_keybindings.contains_key(&event) {
             let action : &String = &text_keybindings[&event];
@@ -267,14 +253,16 @@ impl View for SlyTextView {
                 "paste" => {
                     let cc = self.clipboard_context.get_contents();
                     match cc {
-                        Ok(ref string) => { self.add_text(string); },
+                        Ok(ref string) => {
+                            self.add_text(string);
+                        }
                         Err(err_box) => {
                             info!("Error while attempting to access clipboard: {:?}", err_box);
                         }
                     };
                     debug!("pasted");
                     return EventResult::Consumed(None);
-                },
+                }
                 "copy" => {
                     debug!("copy! (NOT IMPLEMENTED)");
                     // TODO(njskalski): implement copy.
@@ -311,33 +299,33 @@ impl View for SlyTextView {
                 &self.backspace();
                 debug!("hit backspace");
                 EventResult::Consumed(None)
-            },
+            }
             Event::Key(Key::Left) => {
                 &self.move_all_cursors_left();
                 EventResult::Consumed(None)
-            },
+            }
             Event::Key(Key::Right) => {
                 &self.move_all_cursors_right();
                 EventResult::Consumed(None)
-            },
+            }
             Event::Key(Key::Up) => {
                 &self.move_all_cursors_up(1);
                 EventResult::Consumed(None)
-            },
+            }
             Event::Key(Key::Down) => {
                 &self.move_all_cursors_down(1);
                 EventResult::Consumed(None)
-            },
+            }
             Event::Key(Key::PageUp) => {
                 let height = self.last_view_size.unwrap().y;
                 &self.move_all_cursors_up(height);
                 EventResult::Consumed(None)
-            },
+            }
             Event::Key(Key::PageDown) => {
                 let height = self.last_view_size.unwrap().y;
                 &self.move_all_cursors_down(height);
                 EventResult::Consumed(None)
-            },
+            }
             _ => {
                 debug!("unhandled event (in sly_text_view) {:?}", event);
                 EventResult::Ignored
@@ -356,7 +344,7 @@ impl SlyTextView {
 
         for c in &self.cursors {
             if c.0 < first_offset || c.0 > last_offset {
-                return true
+                return true;
             }
         }
         false
@@ -377,12 +365,11 @@ impl SlyTextView {
 
     // These are work-in-progress implementations.
     fn add_text(&mut self, text : &String) {
-        let mut edit_events : Vec<EditEvent> = self.cursors.iter().map(|&cursor| {
-            EditEvent::Insert{
-                offset : cursor.0,
-                content : text.clone()
-            }
-        }).collect();
+        let mut edit_events : Vec<EditEvent> =
+            self.cursors
+                .iter()
+                .map(|&cursor| EditEvent::Insert { offset : cursor.0, content : text.clone() })
+                .collect();
 
         let text_len = unicode_segmentation::UnicodeSegmentation::graphemes(text.as_str(), true).count();
 
@@ -444,14 +431,13 @@ impl SlyTextView {
                     c.0 = rope.len_chars() - 1;
                     c.1 = None;
                 } else {
-                    let next_line_no = cmp::min(rope.len_lines()-1, line + len);
+                    let next_line_no = cmp::min(rope.len_lines() - 1, line + len);
                     Self::move_cursor_to_line(rope, &mut c, next_line_no);
                 }
             }
         }
         self.make_sure_first_cursor_visible();
     }
-
 
     fn move_all_cursors_left(&mut self) {
         let content = self.buffer.borrow_content();
@@ -479,19 +465,17 @@ impl SlyTextView {
         }
     }
 
-
     fn reduce_cursor_duplicates(&mut self) {
-        self.cursors.dedup_by(|a,b| a.0 == b.0);
+        self.cursors.dedup_by(|a, b| a.0 == b.0);
     }
 
     fn backspace(&mut self) {
-        let mut edit_events : Vec<EditEvent> = self.cursors.iter().filter(|&cursor| cursor.0 > 0).map(|&cursor| {
-            EditEvent::Change{
-                offset : cursor.0-1,
-                length : 1,
-                content : "".to_string(),
-            }
-        }).collect();
+        let mut edit_events : Vec<EditEvent> =
+            self.cursors
+                .iter()
+                .filter(|&cursor| cursor.0 > 0)
+                .map(|&cursor| EditEvent::Change { offset : cursor.0 - 1, length : 1, content : "".to_string() })
+                .collect();
 
         self.mod_all_cursors(-1);
 
@@ -502,10 +486,10 @@ impl SlyTextView {
     fn mod_all_cursors(&mut self, diff : isize) {
         for (i, c) in self.cursors.iter_mut().enumerate() {
             if diff > 0 {
-                c.0 += (diff as usize * (i+1));
+                c.0 += (diff as usize * (i + 1));
             } else {
                 let pdiff = (diff * -1) as usize;
-                c.0 -= cmp::min(c.0, pdiff * (i+1));
+                c.0 -= cmp::min(c.0, pdiff * (i + 1));
             }
             c.1 = None;
         }

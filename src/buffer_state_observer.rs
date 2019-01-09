@@ -18,17 +18,17 @@ use std::cell::Ref;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use std::path::PathBuf;
 use std::ffi::OsString;
+use std::path::PathBuf;
 
-use content_provider::RopeBasedContentProvider;
 use buffer_state::BufferState;
+use content_provider::RopeBasedContentProvider;
 
+use content_provider;
 use cursive;
 use rich_content::RichContent;
 use std::cell::RefMut;
 use view_handle::ViewHandle;
-use content_provider;
 
 #[derive(Clone)]
 pub struct BufferStateObserver {
@@ -37,7 +37,7 @@ pub struct BufferStateObserver {
 
 impl BufferStateObserver {
     pub fn new(buffer_state : Rc<RefCell<BufferState>>) -> Self {
-        BufferStateObserver{ buffer_state : buffer_state }
+        BufferStateObserver { buffer_state : buffer_state }
     }
 
     /// borrows unmutably content

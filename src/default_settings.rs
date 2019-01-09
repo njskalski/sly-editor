@@ -65,7 +65,6 @@ const default_settings_string : &'static str = r####"
 }
 "####;
 
-
 pub fn get_default_settings() -> String {
     default_settings_string.to_string()
 }

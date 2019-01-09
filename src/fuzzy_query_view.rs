@@ -32,22 +32,22 @@ description. Example: search line is filename, description is it's location. (do
 // Also, I introduced chache via interior mutability (so it can be cleared in non-mut method "draw"), so number of
 // calls has been reduced to one per draw-input cycle.
 
-use std::any::Any;
 use cursive::view::Selector;
+use std::any::Any;
 type BoxedCallback<'a> = Box<for<'b> FnMut(&'b mut Any) + 'a>;
 
 use std::rc::Rc;
 
 use cursive::event;
 use cursive::event::*;
+use cursive::theme::*;
 use cursive::traits::*;
 use cursive::vec::Vec2;
 use cursive::view::{ScrollBase, View};
 use cursive::views::*;
 use cursive::{Cursive, Printer};
-use cursive::theme::*;
 
-use fuzzy_index::{HARD_QUERY_LIMIT};
+use fuzzy_index::HARD_QUERY_LIMIT;
 use fuzzy_index_trait::FuzzyIndexTrait;
 use settings::Settings;
 use unicode_segmentation::UnicodeSegmentation as us;
@@ -55,72 +55,67 @@ use unicode_segmentation::UnicodeSegmentation as us;
 use events::IEvent;
 use fuzzy_view_item::*;
 use interface::IChannel;
+use std::cell::Cell;
+use std::cell::RefCell;
+use std::cmp;
 use std::collections::{HashMap, LinkedList};
 use std::marker::Sized;
 use std::sync::Arc;
-use std::cell::RefCell;
-use std::cell::Cell;
-use std::cmp;
 
 const WIDTH : usize = 100;
 
 pub struct FuzzyQueryView {
-    context: String,
-    marker: String,
-    query: String,
-    scrollbase: ScrollBase,
-    index: Arc<RefCell<FuzzyIndexTrait>>,
-    size: Option<Vec2>,
-    needs_relayout: Cell<bool>,
-    selected: usize,
-    settings: Rc<Settings>,
-    channel: IChannel,
-    items_cache : RefCell<Option<Rc<Vec<Rc<ViewItem>>>>>,
-    old_selection : Option<Rc<ViewItem>>
+    context :        String,
+    marker :         String,
+    query :          String,
+    scrollbase :     ScrollBase,
+    index :          Arc<RefCell<FuzzyIndexTrait>>,
+    size :           Option<Vec2>,
+    needs_relayout : Cell<bool>,
+    selected :       usize,
+    settings :       Rc<Settings>,
+    channel :        IChannel,
+    items_cache :    RefCell<Option<Rc<Vec<Rc<ViewItem>>>>>,
+    old_selection :  Option<Rc<ViewItem>>,
 }
 
 impl View for FuzzyQueryView {
-
     fn layout(&mut self, size : Vec2) {
         self.size = Some(size);
         self.try_update_scrollbase();
     }
 
-    fn draw(&self, printer: &Printer) {
+    fn draw(&self, printer : &Printer) {
         //draw context
-        printer.print(
-            (2, 0),
-            &format!("Context : {:?} \tquery: {:?}", &self.context, &self.query),
-        );
+        printer.print((2, 0), &format!("Context : {:?} \tquery: {:?}", &self.context, &self.query));
 
         // debug!("size: {:?}", self.size);
         // debug!("items: {:?}", self.get_current_items());
 
-        self.scrollbase.draw(&printer.offset((0,1)), |printer, line| {
-            let items = self.get_current_items();
-            let (i, item_idx) = get_item_for_line(items.iter(), line).unwrap();
-            // debug!("i : {:?} s : {:?}", line, (i, item));
-            let selected = item_idx == self.selected;
-            self.draw_item(&items[item_idx], selected, line-i, printer);
-        });
+        self.scrollbase.draw(&printer.offset((0, 1)), |printer, line| {
+                           let items = self.get_current_items();
+                           let (i, item_idx) = get_item_for_line(items.iter(), line).unwrap();
+                           // debug!("i : {:?} s : {:?}", line, (i, item));
+                           let selected = item_idx == self.selected;
+                           self.draw_item(&items[item_idx], selected, line - i, printer);
+                       });
     }
 
     fn needs_relayout(&self) -> bool {
         self.needs_relayout.get()
     }
 
-    fn required_size(&mut self, constraint: Vec2) -> Vec2 {
+    fn required_size(&mut self, constraint : Vec2) -> Vec2 {
         // one stands for header.
         let height = 1 + match *self.items_cache.borrow() {
             Some(ref items) => count_items_lines(items.iter()),
-            None => 0
+            None => 0,
         };
 
-        Vec2::new(cmp::min(WIDTH, constraint.x),
-                  cmp::min(height, constraint.y))
+        Vec2::new(cmp::min(WIDTH, constraint.x), cmp::min(height, constraint.y))
     }
 
-    fn on_event(&mut self, event: Event) -> EventResult {
+    fn on_event(&mut self, event : Event) -> EventResult {
         match event {
             Event::Char(c) => {
                 self.add_letter(c);
@@ -151,10 +146,8 @@ impl View for FuzzyQueryView {
                 if items.len() > 0 {
                     assert!(items.len() > self.selected);
                     self.channel
-                        .send(IEvent::FuzzyQueryBarSelected(
-                            self.marker.clone(),
-                            items[self.selected].get_marker().clone(),
-                        ))
+                        .send(IEvent::FuzzyQueryBarSelected(self.marker.clone(),
+                                                            items[self.selected].get_marker().clone()))
                         .unwrap();
                 }
                 EventResult::Consumed(None)
@@ -169,41 +162,37 @@ impl View for FuzzyQueryView {
 
 //TODO tests
 fn count_items_lines<I, T>(items : I) -> usize
-where
-    T: AsRef<ViewItem>,
-    I: Iterator<Item = T>
+    where T : AsRef<ViewItem>,
+          I : Iterator<Item = T>
 {
     items.fold(0, |acc, x| acc + x.as_ref().get_height_in_lines())
 }
 
 //TODO tests, early exit
 /// Returns Option<(number of lines preceeding items consumed, item_idx)>
-fn get_item_for_line<I, T>(mut items : I, line: usize) -> Option<(usize, usize)>
-where
-    T: AsRef<ViewItem>,
-    I: Iterator<Item = T>
+fn get_item_for_line<I, T>(mut items : I, line : usize) -> Option<(usize, usize)>
+    where T : AsRef<ViewItem>,
+          I : Iterator<Item = T>
 {
-    let res : (usize, Option<usize>) = items.enumerate().fold((0, None), |acc, (item_idx, item)| {
-        match acc {
-            (l, None) => {
-                if l <= line && line < l + item.as_ref().get_height_in_lines() {
-                    (l, Some(item_idx))
-                } else {
-                    (l + item.as_ref().get_height_in_lines(), None)
-                }
-            },
-            (l, Some(old_item_idx)) => (l, Some(old_item_idx))
-        }
-    });
+    let res : (usize, Option<usize>) =
+        items.enumerate().fold((0, None), |acc, (item_idx, item)| match acc {
+                             (l, None) => {
+                                 if l <= line && line < l + item.as_ref().get_height_in_lines() {
+                                     (l, Some(item_idx))
+                                 } else {
+                                     (l + item.as_ref().get_height_in_lines(), None)
+                                 }
+                             }
+                             (l, Some(old_item_idx)) => (l, Some(old_item_idx)),
+                         });
 
     match res {
         (line, None) => None,
-        (line, Some(item_idx)) => Some((line, item_idx))
+        (line, Some(item_idx)) => Some((line, item_idx)),
     }
 }
 
 impl FuzzyQueryView {
-
     fn clear_cache(&self) {
         (*self.items_cache.borrow_mut()) = None;
     }
@@ -212,17 +201,17 @@ impl FuzzyQueryView {
         let items = self.get_current_items();
 
         if items.len() == 0 {
-            return (0,0);
+            return (0, 0);
         }
 
         let mut acc = 0;
         for (idx, item) in items.iter().enumerate() {
             if idx == self.selected {
-                return (acc, acc + item.get_height_in_lines())
+                return (acc, acc + item.get_height_in_lines());
             } else {
                 acc += item.get_height_in_lines();
             }
-        };
+        }
 
         panic!("selected item {:?} not on list of current items (len = {:?}).", self.selected, items.len())
     }
@@ -239,20 +228,26 @@ impl FuzzyQueryView {
         rc
     }
 
-    fn get_item_colorstyle(&self, selected: bool, highlighted : bool) -> ColorStyle {
-        self.settings.get_colorstyle(
-            if highlighted { "theme/fuzzy_view/highlighted_text_color" } else { "theme/fuzzy_view/primary_text_color" }
-            ,
-            if selected { "theme/fuzzy_view/selected_background_color" } else { "theme/fuzzy_view/background_color"}
-        )
+    fn get_item_colorstyle(&self, selected : bool, highlighted : bool) -> ColorStyle {
+        self.settings.get_colorstyle(if highlighted {
+                                         "theme/fuzzy_view/highlighted_text_color"
+                                     } else {
+                                         "theme/fuzzy_view/primary_text_color"
+                                     },
+                                     if selected {
+                                         "theme/fuzzy_view/selected_background_color"
+                                     } else {
+                                         "theme/fuzzy_view/background_color"
+                                     })
     }
 
-    fn draw_item(&self, item: &ViewItem, selected: bool, line_no: usize, printer: &Printer) {
+    fn draw_item(&self, item : &ViewItem, selected : bool, line_no : usize, printer : &Printer) {
         let row_width = self.size.unwrap().x;
 
         // debug!("item: {:?}, selected: {:?}, line_no: {:?}", item, selected, line_no);
 
-        if line_no == 0 {//drawing header
+        if line_no == 0 {
+            //drawing header
             let header = us::graphemes(item.get_header().as_str(), true).collect::<Vec<&str>>();
             let query = us::graphemes(self.query.as_str(), true).collect::<Vec<&str>>();
             // debug!("header : {:?}\nquery : {:?}", header, query);
@@ -264,11 +259,13 @@ impl FuzzyQueryView {
                         false
                     } else {
                         if header[header_pos].to_lowercase() == query[query_pos].to_lowercase() {
-                            // debug!("matched {:?} with {:?}", (*header[header_pos]).to_string(), (*query[query_pos]).to_string());
+                            // debug!("matched {:?} with {:?}", (*header[header_pos]).to_string(),
+                            // (*query[query_pos]).to_string());
                             query_pos += 1;
                             true
                         } else {
-                            // debug!("not matched {:?} with {:?}", (*header[header_pos]).to_string(), (*query[query_pos]).to_string());
+                            // debug!("not matched {:?} with {:?}", (*header[header_pos]).to_string(),
+                            // (*query[query_pos]).to_string());
                             false
                         }
                     }
@@ -276,53 +273,56 @@ impl FuzzyQueryView {
 
                 let colorstyle = self.get_item_colorstyle(selected, highlighted);
                 printer.with_color(colorstyle, |printer| {
-                    printer.print((header_pos, 0), header[header_pos]);
-                });
+                           printer.print((header_pos, 0), header[header_pos]);
+                       });
             }
             //empty suffix:
             let colorstyle = self.get_item_colorstyle(selected, false);
             for i in header.len()..row_width {
                 printer.with_color(colorstyle, |printer| {
-                    printer.print((0 + i, 0), " ");
-                });
-            };
-            //end of drawing header
-        } else { //drawing description
+                           printer.print((0 + i, 0), " ");
+                       });
+            }
+        //end of drawing header
+        } else {
+            //drawing description
             //TODO lines below ignores the fact that now I temporarily imposed description lines limit of 1.
             let colorstyle = self.get_item_colorstyle(selected, false);
 
             let desc_len = match item.get_description() {
-                &Some(ref desc) => match desc.lines().skip(line_no-1).next() {
-                        Some(line) => {
-                            printer.with_color(colorstyle, |printer| {
-                                printer.print((0, 0), line);
-                                for x in line.len()..row_width {
-                                    printer.print((x, 0), " ");
-                                }
-                            });
-                        },
-                        None => error!("requested line {} of description of viewitem {:?}", line_no-1, item)
+                &Some(ref desc) => match desc.lines().skip(line_no - 1).next() {
+                    Some(line) => {
+                        printer.with_color(colorstyle, |printer| {
+                                   printer.print((0, 0), line);
+                                   for x in line.len()..row_width {
+                                       printer.print((x, 0), " ");
+                                   }
+                               });
+                    }
+                    None => error!("requested line {} of description of viewitem {:?}", line_no - 1, item),
                 },
-                &None => error!("requested line {} of empty description of viewitem {:?}", line_no-1, item)
+                &None => error!("requested line {} of empty description of viewitem {:?}", line_no - 1, item),
             };
         }
     }
 
-    pub fn new(index: Arc<RefCell<FuzzyIndexTrait>>, marker: String, channel: IChannel, settings : Rc<Settings>) -> Self {
-        let mut res = FuzzyQueryView {
-            context: "context".to_string(),
-            query: String::new(),
-            scrollbase: ScrollBase::new(),
-            index: index,
-            settings : settings,
-            selected: 0,
-            channel: channel,
-            marker: marker,
-            items_cache : RefCell::new(None),
-            size : None,
-            needs_relayout: Cell::new(false),
-            old_selection : None
-        };
+    pub fn new(index : Arc<RefCell<FuzzyIndexTrait>>,
+               marker : String,
+               channel : IChannel,
+               settings : Rc<Settings>)
+               -> Self {
+        let mut res = FuzzyQueryView { context :        "context".to_string(),
+                                       query :          String::new(),
+                                       scrollbase :     ScrollBase::new(),
+                                       index :          index,
+                                       settings :       settings,
+                                       selected :       0,
+                                       channel :        channel,
+                                       marker :         marker,
+                                       items_cache :    RefCell::new(None),
+                                       size :           None,
+                                       needs_relayout : Cell::new(false),
+                                       old_selection :  None, };
         res
     }
 
@@ -341,22 +341,19 @@ impl FuzzyQueryView {
         };
     }
 
-
     fn after_query_ended(&mut self) {
         let items = self.get_current_items();
         match self.old_selection {
-            Some(ref old_selection) => {
-                match items.iter().enumerate().position(|(idx, item)| {item == old_selection}) {
-                    Some(idx) => self.selected = idx,
-                    None => self.selected = 0
-                }
+            Some(ref old_selection) => match items.iter().enumerate().position(|(idx, item)| item == old_selection) {
+                Some(idx) => self.selected = idx,
+                None => self.selected = 0,
             },
             None => {}
         }
         self.old_selection = None;
     }
 
-    fn add_letter(&mut self, letter: char) {
+    fn add_letter(&mut self, letter : char) {
         self.old_selection = self.get_current_items().get(self.selected).map(|x| x.clone());
         self.query.push(letter);
         self.clear_cache();

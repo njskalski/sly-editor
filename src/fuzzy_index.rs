@@ -19,26 +19,26 @@ limitations under the License.
 extern crate fst;
 extern crate fst_regex;
 
-use self::fst::{IntoStreamer, Streamer, Map};
 use self::fst::map;
+use self::fst::{IntoStreamer, Map, Streamer};
 use self::fst_regex::Regex;
-use std::iter::FromIterator;
 use std::char::{ToLowercase, ToUppercase};
+use std::iter::FromIterator;
 
-use fuzzy_view_item::*;
 use fuzzy_index_trait::*;
+use fuzzy_view_item::*;
 
-use std::collections::HashMap;
-use std::sync::mpsc::*;
-use std::sync::mpsc;
-use std::thread;
-use std::sync::Arc;
-use std::rc::Rc;
 use std::cell::*;
+use std::collections::HashMap;
 use std::collections::*;
+use std::rc::Rc;
+use std::sync::mpsc;
+use std::sync::mpsc::*;
+use std::sync::Arc;
+use std::thread;
 
-const MAX_CACHE_SIZE: usize = 30;
-pub const HARD_QUERY_LIMIT: usize = 50;
+const MAX_CACHE_SIZE : usize = 30;
+pub const HARD_QUERY_LIMIT : usize = 50;
 /*
 Disclaimer:
 index matches a fuzzy query to u64, that can be converted to items. So basically we have
@@ -49,16 +49,18 @@ example: mutliple methods with same names from different files.
 It is not possible to add items after a fst::Map has been built.
 */
 pub struct FuzzyIndex {
-    index : Arc<Map>, //this is Map<String, u64>. It's Arc, because queries are ran in worker threads.
-    items : HashMap<u64, Vec<Rc<ViewItem>>>,
-    items_sizes : Arc<HashMap<u64, usize>>, //this field is used by workers to determine whether they hit the limit of records or not.
-    cache: HashMap<String, FuzzySearchTask>,
-    /// used to know in what order clear the cache. Does not contain empty query, which is computed in cache immediately. Also, cache_order and cache sizes are not synchronized, as cache_order can contain duplicates in rare situations.
-    cache_order: LinkedList<String>,
+    index :       Arc<Map>, //this is Map<String, u64>. It's Arc, because queries are ran in worker threads.
+    items :       HashMap<u64, Vec<Rc<ViewItem>>>,
+    items_sizes : Arc<HashMap<u64, usize>>, /* this field is used by workers to determine whether they hit the limit
+                                             * of records or not. */
+    cache : HashMap<String, FuzzySearchTask>,
+    /// used to know in what order clear the cache. Does not contain empty query, which is computed in cache
+    /// immediately. Also, cache_order and cache sizes are not synchronized, as cache_order can contain duplicates in
+    /// rare situations.
+    cache_order : LinkedList<String>,
 }
 
 impl FuzzyIndexTrait for FuzzyIndex {
-
     fn get_results_for(&mut self, query : &String, limit : usize) -> Vec<Rc<ViewItem>> {
         let mut results : Vec<Rc<ViewItem>> = Vec::new();
 
@@ -96,26 +98,25 @@ impl FuzzyIndex {
                 vec.push(Rc::new(ci.clone()));
                 header_to_key.insert(header.clone(), key);
                 items.insert(key, vec);
-                key+=1;
+                key += 1;
             }
-        };
+        }
 
-        let mut header_to_key_sorted : Vec<(String, u64)> = header_to_key.iter().map(|item| (item.0.clone(), item.1.clone())).collect();
+        let mut header_to_key_sorted : Vec<(String, u64)> =
+            header_to_key.iter().map(|item| (item.0.clone(), item.1.clone())).collect();
         header_to_key_sorted.sort();
         let map = Map::from_iter(header_to_key_sorted).unwrap();
 
         let mut item_sizes : HashMap<u64, usize> = HashMap::new();
         for (k, v) in items.iter() {
             item_sizes.insert(*k, v.len());
-        };
+        }
 
-        let mut i = FuzzyIndex{
-            index : Arc::new(map),
-            items : items,
-            items_sizes : Arc::new(item_sizes),
-            cache : HashMap::new(),
-            cache_order : LinkedList::new(),
-        };
+        let mut i = FuzzyIndex { index :       Arc::new(map),
+                                 items :       items,
+                                 items_sizes : Arc::new(item_sizes),
+                                 cache :       HashMap::new(),
+                                 cache_order : LinkedList::new(), };
         i.start_search(&"".to_string(), HARD_QUERY_LIMIT);
         i
     }
@@ -128,8 +129,8 @@ impl FuzzyIndex {
             } else {
                 // not enough results.
                 self.cache.remove(query);
-                // linked list has no remove, so cache and cache_order can become desynchronized. I don't rely on them being in sync, so don't worry.
-                //self.cache_order.remove(&query);
+                // linked list has no remove, so cache and cache_order can become desynchronized. I don't rely on them
+                // being in sync, so don't worry. self.cache_order.remove(&query);
             }
         }
 
@@ -139,9 +140,11 @@ impl FuzzyIndex {
         if query.len() > 0 {
             self.cache_order.push_back(query.clone());
 
-            while self.cache.len() - 1 /* >= 0, look above */ > MAX_CACHE_SIZE { // -1 and condition above stand for the fact I want to keep empty query computed all the time!
+            while self.cache.len() - 1 /* >= 0, look above */ > MAX_CACHE_SIZE {
+                // -1 and condition above stand for the fact I want to keep empty query computed all the time!
                 let oldest_query = self.cache_order.pop_front().unwrap();
-                // this doesn't have to succeed, the cache_order can become a little longer than cache, look at the top of the function why (duplicates possible)
+                // this doesn't have to succeed, the cache_order can become a little longer than cache, look at the top
+                // of the function why (duplicates possible)
                 self.cache.remove(&oldest_query);
             }
         }
@@ -150,10 +153,10 @@ impl FuzzyIndex {
 
 struct FuzzySearchTask {
     receiver : mpsc::Receiver<u64>,
-    query : String,
+    query :    String,
     item_ids : RefCell<Vec<u64>>,
-    done : Cell<bool>,
-    limit : usize
+    done :     Cell<bool>,
+    limit :    usize,
 }
 
 impl FuzzySearchTask {
@@ -189,13 +192,11 @@ impl FuzzySearchTask {
             debug!("3");
         });
 
-        FuzzySearchTask{
-            receiver : receiver,
-            item_ids : RefCell::new(item_ids),
-            done : Cell::new(false),
-            query : query,
-            limit : limit
-        }
+        FuzzySearchTask { receiver : receiver,
+                          item_ids : RefCell::new(item_ids),
+                          done :     Cell::new(false),
+                          query :    query,
+                          limit :    limit, }
     }
 
     pub fn get_result_ids(&self) -> Ref<Vec<u64>> {
@@ -203,10 +204,10 @@ impl FuzzySearchTask {
             match self.receiver.try_recv() {
                 Ok(string) => {
                     self.item_ids.borrow_mut().push(string);
-                },
+                }
                 Err(TryRecvError::Empty) => {
                     break;
-                },
+                }
                 Err(TryRecvError::Disconnected) => {
                     self.done.set(true);
                 }
@@ -232,7 +233,7 @@ impl FuzzySearchTask {
 fn query_to_regex(query : &String) -> Regex {
     let mut regex_vec : Vec<char> = Vec::new();
 
-    regex_vec.append(&mut vec![ '.', '*']);
+    regex_vec.append(&mut vec!['.', '*']);
 
     for letter in query.chars() {
         regex_vec.push('[');

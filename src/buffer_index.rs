@@ -14,14 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+use buffer_state_observer::BufferStateObserver;
 use fuzzy_index_trait::FuzzyIndexTrait;
 use fuzzy_view_item::*;
-use buffer_state_observer::BufferStateObserver;
 use std::rc::Rc;
 
 pub struct BufferIndex {
-    buffers: Vec<BufferStateObserver>,
-    items : Vec<Rc<ViewItem>>
+    buffers : Vec<BufferStateObserver>,
+    items :   Vec<Rc<ViewItem>>,
 }
 
 impl BufferIndex {
@@ -35,17 +35,14 @@ impl BufferIndex {
             items.push(Rc::new(BufferIndex::buffer_to_item(buffer, i.to_string())))
         }
 
-        BufferIndex{buffers : buffers, items : items}
+        BufferIndex { buffers : buffers, items : items }
     }
 
-    fn buffer_to_item(buffer : &BufferStateObserver, marker: String) -> ViewItem {
-        ViewItem::new(
-            buffer.get_filename().unwrap().to_string_lossy().to_string(),
-            buffer.get_path().map(|path| path.to_string_lossy().to_string()),
-            marker
-        )
+    fn buffer_to_item(buffer : &BufferStateObserver, marker : String) -> ViewItem {
+        ViewItem::new(buffer.get_filename().unwrap().to_string_lossy().to_string(),
+                      buffer.get_path().map(|path| path.to_string_lossy().to_string()),
+                      marker)
     }
-
 }
 
 impl FuzzyIndexTrait for BufferIndex {

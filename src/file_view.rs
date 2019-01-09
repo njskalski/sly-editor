@@ -17,30 +17,30 @@ limitations under the License.
 // this is going to be a view that acts as save_as or load file view.
 // I model it after what typical GUI user is accustomed to, no innovation in here in MVP
 
-use cursive::*;
+use cursive::align::*;
+use cursive::direction::*;
+use cursive::event::*;
+use cursive::theme::*;
+use cursive::vec::*;
 use cursive::view::*;
 use cursive::views::*;
-use cursive::event::*;
-use cursive::vec::*;
+use cursive::*;
 use cursive_tree_view::*;
-use cursive::direction::*;
-use cursive::align::*;
-use cursive::theme::*;
 
-use lazy_dir_tree::LazyTreeNode;
-use std::rc::Rc;
-use std::cell::RefCell;
-use std::boxed::Box;
 use core::any::Any;
+use lazy_dir_tree::LazyTreeNode;
 use std::borrow::BorrowMut;
+use std::boxed::Box;
+use std::cell::RefCell;
+use std::rc::Rc;
 
-use std::path::Path;
-use std::env;
-use settings::Settings;
 use color_view_wrapper::{ColorViewWrapper, PrinterModifierType};
+use settings::Settings;
+use std::env;
+use std::path::Path;
 
-use interface::IChannel;
 use events::IEvent;
+use interface::IChannel;
 use std::path::PathBuf;
 
 // TODO(njskalski) this view took longer than anticipated to implement, so I rushed to the end
@@ -54,42 +54,42 @@ use std::path::PathBuf;
 #[derive(Debug)]
 pub enum FileViewVariant {
     SaveAsFile(Option<String>, Option<String>), // directory, filename
-    OpenFile(Option<String>) //directory
+    OpenFile(Option<String>),                   //directory
 }
 
 impl FileViewVariant {
     pub fn get_folder_op(&self) -> &Option<String> {
         match self {
             FileViewVariant::SaveAsFile(folder_op, file_op) => folder_op,
-            FileViewVariant::OpenFile(folder_op) => folder_op
+            FileViewVariant::OpenFile(folder_op) => folder_op,
         }
     }
 
     pub fn get_file_op(&self) -> &Option<String> {
         match self {
             FileViewVariant::SaveAsFile(folder_op, file_op) => file_op,
-            FileViewVariant::OpenFile(folder_op) => &None
+            FileViewVariant::OpenFile(folder_op) => &None,
         }
     }
 
     pub fn is_open(&self) -> bool {
         match self {
             FileViewVariant::OpenFile(_) => true,
-            _ => false
+            _ => false,
         }
     }
 
     pub fn is_save(&self) -> bool {
         match self {
-            FileViewVariant::SaveAsFile(_, _) => true,
-            _ => false
+            FileViewVariant::SaveAsFile(..) => true,
+            _ => false,
         }
     }
 
     pub fn get_title(&self) -> &'static str {
         match self {
-            FileViewVariant::SaveAsFile(_, _) => "Save file",
-            FileViewVariant::OpenFile(_) => "Open file"
+            FileViewVariant::SaveAsFile(..) => "Save file",
+            FileViewVariant::OpenFile(_) => "Open file",
         }
     }
 }
@@ -97,7 +97,7 @@ impl FileViewVariant {
 pub struct FileView {
     variant : FileViewVariant,
     channel : IChannel,
-    mv : LinearLayout,
+    mv :      LinearLayout,
 }
 
 pub const FILE_VIEW_ID : &'static str = "file_view";
@@ -108,14 +108,14 @@ const EDIT_VIEW_ID : &'static str = "fv_edit_view";
 type TreeViewType = TreeView<Rc<LazyTreeNode>>;
 
 fn get_dir_tree_on_collapse_switch_callback(files_visible : bool) -> impl Fn(&mut Cursive, usize, bool, usize) -> () {
-    move |siv : &mut Cursive, row:usize, is_collapsed: bool, children: usize| {
+    move |siv : &mut Cursive, row : usize, is_collapsed : bool, children : usize| {
         // debug!("dir tree on collapse callback at {:}, ic = {:}. children = {:}", row, is_collapsed, children);
         let mut view : ViewRef<TreeViewType> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
-        //the line below looks complicated, but it boils down to copying Rc<LazyTreeNode>, so view borrow can end immediately.
+        //the line below looks complicated, but it boils down to copying Rc<LazyTreeNode>, so view borrow can end
+        // immediately.
         let item = (*view).borrow_item(row).unwrap().clone();
 
         if is_collapsed == false {
-
             let mut dir_vec : Vec<Rc<LazyTreeNode>> = Vec::new();
             let mut file_vec : Vec<Rc<LazyTreeNode>> = Vec::new();
 
@@ -124,11 +124,15 @@ fn get_dir_tree_on_collapse_switch_callback(files_visible : bool) -> impl Fn(&mu
                     for c in children {
                         match c.as_ref() {
                             &LazyTreeNode::DirNode(_) => dir_vec.push(c.clone()),
-                            &LazyTreeNode::FileNode(_) => if files_visible { file_vec.push(c.clone()); },
-                            &LazyTreeNode::RootNode(_) => panic!("RootNode cannot be embedded.")
+                            &LazyTreeNode::FileNode(_) => {
+                                if files_visible {
+                                    file_vec.push(c.clone());
+                                }
+                            }
+                            &LazyTreeNode::RootNode(_) => panic!("RootNode cannot be embedded."),
                         };
-                    };
-                },
+                    }
+                }
                 LazyTreeNode::DirNode(ref p) => {
                     let path = Path::new(&**p);
                     for dir_entry in path.read_dir().expect("read_dir call failed.") {
@@ -144,7 +148,7 @@ fn get_dir_tree_on_collapse_switch_callback(files_visible : bool) -> impl Fn(&mu
                             }
                         }
                     }
-                },
+                }
                 _ => {}
             };
 
@@ -160,7 +164,6 @@ fn get_dir_tree_on_collapse_switch_callback(files_visible : bool) -> impl Fn(&mu
             for file in file_vec.iter() {
                 view.insert_item(file.clone(), Placement::LastChild, row);
             }
-
         } else {
             // TODO(njskalski) - possible bug in cursive_tree_view: removal of these set_collapsed calls
             // leads to cursive_tree_view::draw crash. It seems like there is an override of "index" variable there.
@@ -170,23 +173,24 @@ fn get_dir_tree_on_collapse_switch_callback(files_visible : bool) -> impl Fn(&mu
                     view.set_collapsed(row, false);
                     view.remove_children(row);
                     view.set_collapsed(row, true);
-                },
+                }
                 LazyTreeNode::DirNode(_) => {
                     view.set_collapsed(row, false);
                     view.remove_children(row);
                     view.set_collapsed(row, true);
-                },
-                _ => panic!("Only RootNode or DirNode can be expanded.")
+                }
+                _ => panic!("Only RootNode or DirNode can be expanded."),
             }
         }
     }
 }
 
 //TODO(njskalski) add files support to work with out-of-fileview project-treeview
-fn dir_tree_on_select_callback(siv: &mut Cursive, row: usize) {
+fn dir_tree_on_select_callback(siv : &mut Cursive, row : usize) {
     // debug!("dir tree on select callback at {:}", row);
     let mut view : ViewRef<TreeViewType> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
-    //the line below looks complicated, but it boils down to copying Rc<LazyTreeNode>, so view borrow can end immediately.
+    //the line below looks complicated, but it boils down to copying Rc<LazyTreeNode>, so view borrow can end
+    // immediately.
     let item = (*view).borrow_item(row).unwrap().clone();
 
     let mut file_list_view : ViewRef<SelectView<Rc<LazyTreeNode>>> = siv.find_id(FILE_LIST_VIEW_ID).unwrap();
@@ -211,13 +215,13 @@ fn dir_tree_on_select_callback(siv: &mut Cursive, row: usize) {
                             let res = Rc::new(LazyTreeNode::FileNode(Rc::new(entry.path())));
                             file_vec.push(res);
                         } else if meta.is_dir() {
-                            // let res = Rc::new(LazyTreeNode::DirNode(Rc::new(entry.path().to_str().unwrap().to_string())));
-                            // dir_vec.push(res);
+                            // let res = Rc::new(LazyTreeNode::DirNode(Rc::new(entry.path().to_str().unwrap().
+                            // to_string()))); dir_vec.push(res);
                         }
                     }
                 }
             }
-        },
+        }
         _ => {}
     };
 
@@ -234,19 +238,19 @@ fn dir_tree_on_select_callback(siv: &mut Cursive, row: usize) {
 }
 
 fn get_file_list_on_submit(is_file_open : bool) -> impl Fn(&mut Cursive, &Rc<LazyTreeNode>) -> () {
-    move |siv: &mut Cursive, item : &Rc<LazyTreeNode>| {
+    move |siv : &mut Cursive, item : &Rc<LazyTreeNode>| {
         // TODO(njskalski): for some reason if the line below is uncommented (and shadowing ones
         // are disabled) the unwrap inside get_path_op fails. Investigate why.
         // let mut file_view : ViewRef<FileView> = siv.find_id::<FileView>(FILE_VIEW_ID).unwrap();
         if is_file_open {
-            let mut file_view: ViewRef<FileView> = siv.find_id::<FileView>(FILE_VIEW_ID).unwrap();
+            let mut file_view : ViewRef<FileView> = siv.find_id::<FileView>(FILE_VIEW_ID).unwrap();
             match item.as_ref() {
                 &LazyTreeNode::FileNode(ref path) => file_view.channel.send(IEvent::OpenFile(path.as_ref().clone())),
-                _ => panic!("Expected only FileNodes on file_list.")
+                _ => panic!("Expected only FileNodes on file_list."),
             };
         } else {
             siv.focus_id(EDIT_VIEW_ID);
-            let mut edit_view: ViewRef<EditView> = siv.find_id::<EditView>(EDIT_VIEW_ID).unwrap();
+            let mut edit_view : ViewRef<EditView> = siv.find_id::<EditView>(EDIT_VIEW_ID).unwrap();
             edit_view.borrow_mut().set_content(item.to_string());
         }
     }
@@ -261,13 +265,13 @@ fn get_path_op(siv : &mut Cursive) -> Option<PathBuf> {
     let prefix = match *item {
         LazyTreeNode::RootNode(_) => return None, // root selected, no prefix
         LazyTreeNode::DirNode(ref path) => path.as_ref().clone(),
-        _ => panic!() //no support for FileNodes in this tree.
+        _ => panic!(), //no support for FileNodes in this tree.
     };
 
     Some(prefix)
 }
 
-fn on_file_edit_submit(siv: &mut Cursive, s : &str) {
+fn on_file_edit_submit(siv : &mut Cursive, s : &str) {
     if s.len() == 0 {
         return;
     }
@@ -278,12 +282,12 @@ fn on_file_edit_submit(siv: &mut Cursive, s : &str) {
 
         file_view.channel.send(IEvent::SaveBufferAs(path));
     } else {
-        return // no folder selected, no prefix. TODO(njskalski) add panic?
+        return; // no folder selected, no prefix. TODO(njskalski) add panic?
     };
 }
 
 // TODO(njskalski) this method doesn't work.
-pub fn expand_tree(siv: &mut Cursive, path : &Path) {
+pub fn expand_tree(siv : &mut Cursive, path : &Path) {
     let mut tree_view : ViewRef<TreeViewType> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
 
     let mut row_begin = 0;
@@ -306,11 +310,11 @@ pub fn expand_tree(siv: &mut Cursive, path : &Path) {
                         last_expansion = Some(i);
                         expanded = true;
                         let num_children = tree_view.len() - items_in_total;
-                        row_begin = i+1;
+                        row_begin = i + 1;
                         row_end = row_begin + num_children;
                         break;
                     }
-                },
+                }
                 _ => {}
             }
         }
@@ -327,8 +331,11 @@ pub fn expand_tree(siv: &mut Cursive, path : &Path) {
 }
 
 impl FileView {
-    pub fn new(ch : IChannel, variant : FileViewVariant, root : Rc<LazyTreeNode>, settings : &Rc<Settings>) -> IdView<Self> {
-
+    pub fn new(ch : IChannel,
+               variant : FileViewVariant,
+               root : Rc<LazyTreeNode>,
+               settings : &Rc<Settings>)
+               -> IdView<Self> {
         debug!("creating file view with variant {:?}", variant);
 
         // TODO(njskalski) implement styling with new solution when Cursive updates.
@@ -336,35 +343,31 @@ impl FileView {
         let selected_bg_color = settings.get_color("theme/file_view/selected_background");
         let non_selected_bg_color = settings.get_color("theme/file_view/non_selected_background");
 
-        let printer_to_theme : PrinterModifierType = Rc::new(Box::new(move |p : &Printer| {
+        let printer_to_theme : PrinterModifierType =
+            Rc::new(Box::new(move |p : &Printer| {
+                        let mut palette = theme::Palette::default();
 
-            let mut palette = theme::Palette::default();
+                        // if p.focused {
+                        //     palette[PaletteColor::View] = selected_bg_color;
+                        // } else {
+                        //     palette[PaletteColor::View] = non_selected_bg_color;
+                        // }
+                        // palette[PaletteColor::Background] = palette[PaletteColor::View];
+                        // palette[PaletteColor::Shadow] = palette[PaletteColor::View];
+                        //
+                        // palette[PaletteColor::Primary] = primary_text_color;
+                        // palette[PaletteColor::Secondary] = primary_text_color;
+                        // palette[PaletteColor::Tertiary] = primary_text_color;
+                        // palette[PaletteColor::TitlePrimary] = primary_text_color;
+                        // palette[PaletteColor::TitleSecondary] = primary_text_color;
+                        //
+                        // palette[PaletteColor::Highlight] = primary_text_color;
+                        // palette[PaletteColor::HighlightInactive] = primary_text_color;
 
-            // if p.focused {
-            //     palette[PaletteColor::View] = selected_bg_color;
-            // } else {
-            //     palette[PaletteColor::View] = non_selected_bg_color;
-            // }
-            // palette[PaletteColor::Background] = palette[PaletteColor::View];
-            // palette[PaletteColor::Shadow] = palette[PaletteColor::View];
-            //
-            // palette[PaletteColor::Primary] = primary_text_color;
-            // palette[PaletteColor::Secondary] = primary_text_color;
-            // palette[PaletteColor::Tertiary] = primary_text_color;
-            // palette[PaletteColor::TitlePrimary] = primary_text_color;
-            // palette[PaletteColor::TitleSecondary] = primary_text_color;
-            //
-            // palette[PaletteColor::Highlight] = primary_text_color;
-            // palette[PaletteColor::HighlightInactive] = primary_text_color;
+                        let theme = Theme { shadow : false, borders : BorderStyle::None, palette : palette };
 
-            let theme = Theme {
-                shadow : false,
-                borders : BorderStyle::None,
-                palette : palette
-            };
-
-            theme
-        }));
+                        theme
+                    }));
 
         let mut vl = LinearLayout::new(Orientation::Vertical);
         let mut hl = LinearLayout::new(Orientation::Horizontal);
@@ -385,41 +388,31 @@ impl FileView {
         dir_tree.set_on_collapse(get_dir_tree_on_collapse_switch_callback(false));
         dir_tree.set_on_select(dir_tree_on_select_callback);
 
-        hl.add_child(
-            ColorViewWrapper::new(
-                BoxView::with_fixed_size((30, 15), dir_tree.with_id(DIR_TREE_VIEW_ID)),
-                printer_to_theme.clone()
-            ));
+        hl.add_child(ColorViewWrapper::new(BoxView::with_fixed_size((30, 15), dir_tree.with_id(DIR_TREE_VIEW_ID)),
+                                           printer_to_theme.clone()));
 
         let mut file_select : SelectView<Rc<LazyTreeNode>> = SelectView::new().v_align(VAlign::Top);
         // file_select.set_on_select(file_list_on_select);
         file_select.set_on_submit(get_file_list_on_submit(variant.is_open()));
-        hl.add_child(
-            ColorViewWrapper::new(
-                BoxView::with_fixed_size((50, 15), file_select.with_id(FILE_LIST_VIEW_ID)),
-                printer_to_theme.clone()
-            ));
+        hl.add_child(ColorViewWrapper::new(BoxView::with_fixed_size((50, 15), file_select.with_id(FILE_LIST_VIEW_ID)),
+                                           printer_to_theme.clone()));
 
         vl.add_child(hl);
 
         let mut edit_view = EditView::new().filler(" ");
 
         match variant {
-            FileViewVariant::OpenFile(_) => {
-                edit_view.disable()
-            },
-            FileViewVariant::SaveAsFile(_, _) => {
+            FileViewVariant::OpenFile(_) => edit_view.disable(),
+            FileViewVariant::SaveAsFile(..) => {
                 edit_view.set_on_submit(on_file_edit_submit);
                 variant.get_file_op().clone().map(|file| edit_view.set_content(file));
-                vl.add_child(ColorViewWrapper::new((BoxView::with_fixed_size((80, 1), edit_view.with_id(EDIT_VIEW_ID))), printer_to_theme.clone()));
+                vl.add_child(ColorViewWrapper::new((BoxView::with_fixed_size((80, 1),
+                                                                             edit_view.with_id(EDIT_VIEW_ID))),
+                                                   printer_to_theme.clone()));
             }
         };
 
-        let file_view = FileView {
-            variant : variant,
-            channel : ch,
-            mv : vl
-        };
+        let file_view = FileView { variant : variant, channel : ch, mv : vl };
 
         IdView::<FileView>::new(FILE_VIEW_ID, file_view)
     }
@@ -427,20 +420,19 @@ impl FileView {
 
 // TODO(njskalski) maybe just use ViewWrapper?
 impl View for FileView {
-    fn draw(&self, printer: &Printer) {
+    fn draw(&self, printer : &Printer) {
         self.mv.draw(&printer);
     }
 
-    fn call_on_any<'a>(&mut self, s: &Selector, cb: Box<FnMut(&mut Any) + 'a>) {
+    fn call_on_any<'a>(&mut self, s : &Selector, cb : Box<FnMut(&mut Any) + 'a>) {
         self.mv.call_on_any(s, cb); //this view is transparent
     }
 
-
-    fn on_event(&mut self, event: Event) -> EventResult {
+    fn on_event(&mut self, event : Event) -> EventResult {
         self.mv.on_event(event)
     }
 
-    fn required_size(&mut self, constraint: Vec2) -> Vec2 {
+    fn required_size(&mut self, constraint : Vec2) -> Vec2 {
         self.mv.required_size(constraint)
     }
 
@@ -456,8 +448,7 @@ impl View for FileView {
         self.mv.focus_view(sel)
     }
 
-    fn take_focus(&mut self, source: Direction) -> bool {
+    fn take_focus(&mut self, source : Direction) -> bool {
         self.mv.take_focus(source)
     }
-
 }

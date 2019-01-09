@@ -14,24 +14,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-use serde_json as sj;
 use content_provider;
+use serde_json as sj;
 use std::path::PathBuf;
 use view_handle::ViewHandle;
 
 #[derive(Serialize, Deserialize, Debug)] // ready for json-rpc!
-pub enum IEvent { //Interface event
+pub enum IEvent {
+    //Interface event
     QuitSly,
     ShowFileBar,
     ShowBufferList,
     ShowSaveAs, // TODO add buffer, default filename etc.
     OpenFileDialog,
-    SaveBuffer, // TODO add buffer
-    SaveBufferAs(PathBuf), // path, TODO add buffer
-    OpenFile(PathBuf), // path
+    SaveBuffer,                            // TODO add buffer
+    SaveBufferAs(PathBuf),                 // path, TODO add buffer
+    OpenFile(PathBuf),                     // path
     FuzzyQueryBarSelected(String, String), // marker (the word that search ran agains), selection (value)
     CloseWindow,
-
 
     // Buffer edit events are now in the same queue, not sure yet if that's final.
     BufferEditEvent(ViewHandle, Vec<content_provider::EditEvent>),

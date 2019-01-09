@@ -32,43 +32,42 @@ extern crate serde_derive;
 // #[macro_use]
 // extern crate either;
 
+mod app_state;
+mod buffer_index;
+mod buffer_state;
+mod buffer_state_observer;
+mod color_view_wrapper;
+mod content_provider;
+mod default_settings;
+mod events;
+mod file_view;
 mod fuzzy_index;
 mod fuzzy_index_trait;
 mod fuzzy_query_view;
 mod fuzzy_view_item;
-mod buffer_index;
-mod buffer_state;
-mod buffer_state_observer;
-mod rich_content;
-mod sly_text_view;
-mod content_provider;
-mod default_settings;
-mod settings;
-mod app_state;
 mod interface;
-mod events;
-mod file_view;
 mod lazy_dir_tree;
-mod color_view_wrapper;
-mod utils;
-mod simple_fuzzy_index;
 mod lsp_client;
+mod rich_content;
+mod settings;
+mod simple_fuzzy_index;
+mod sly_text_view;
+mod utils;
 mod view_handle;
 
-
-extern crate ignore;
-extern crate cpuprofiler;
-extern crate serde_json;
-extern crate unicode_segmentation;
-extern crate unicode_width;
-extern crate time;
-extern crate ropey;
 extern crate clipboard;
+extern crate core;
+extern crate cpuprofiler;
+extern crate enumset;
+extern crate ignore;
 extern crate regex;
+extern crate ropey;
+extern crate serde_json;
 extern crate stderrlog;
 extern crate syntect;
-extern crate core;
-extern crate enumset;
+extern crate time;
+extern crate unicode_segmentation;
+extern crate unicode_width;
 #[macro_use]
 extern crate clap;
 extern crate uid;
@@ -76,22 +75,21 @@ extern crate uid;
 #[macro_use]
 extern crate languageserver_types;
 
-use std::env;
-use std::fs;
-use std::rc::Rc;
-use std::path::Path;
 use app_state::AppState;
-use interface::Interface;
 use cpuprofiler::PROFILER;
-use std::path;
-use std::path::PathBuf;
+use interface::Interface;
 use std::borrow::Borrow;
 use std::borrow::BorrowMut;
-
+use std::env;
+use std::fs;
+use std::path;
+use std::path::Path;
+use std::path::PathBuf;
+use std::rc::Rc;
 
 // Reason for it being string is that I want to be able to load filelists from remote locations
-fn get_file_list_from_dir(path: &Path) -> Vec<String> {
-    let mut file_list: Vec<String> = Vec::new();
+fn get_file_list_from_dir(path : &Path) -> Vec<String> {
+    let mut file_list : Vec<String> = Vec::new();
 
     let paths = fs::read_dir(path).unwrap();
 
@@ -114,19 +112,12 @@ fn get_file_list_from_dir(path: &Path) -> Vec<String> {
     file_list
 }
 
-
 fn main() {
-    stderrlog::new()
-        .module(module_path!())
-        .verbosity(5)
-        .init()
-        .unwrap();
+    stderrlog::new().module(module_path!()).verbosity(5).init().unwrap();
 
     let yml = clap::load_yaml!("clap.yml");
-    let mut app = clap::App::from_yaml(yml)
-        .author("Andrzej J Skalski <ajskalski@google.com>")
-        .long_version(crate_version!())
-        ;
+    let mut app =
+        clap::App::from_yaml(yml).author("Andrzej J Skalski <ajskalski@google.com>").long_version(crate_version!());
 
     let matches = app.clone().get_matches();
 
@@ -135,26 +126,28 @@ fn main() {
         return;
     }
 
-
     // TODO(njskalski) use proper input parsing library
 
     let profiling_enabled : bool = {
         let profile_directory_path = Path::new("./profiles");
         if profile_directory_path.exists() && profile_directory_path.is_dir() {
             true
-        } else { false }
+        } else {
+            false
+        }
     };
 
     if profiling_enabled {
         let profile_file : String = format!("./profiles/sly-{:}.profile", time::now().rfc3339());
         let profile_path : &Path = Path::new(&profile_file);
-        if !profile_path.exists() { //with timestamp in name this is probably never true
+        if !profile_path.exists() {
+            //with timestamp in name this is probably never true
             fs::File::create(&profile_file);
         }
         PROFILER.lock().unwrap().start(profile_file.clone()).unwrap();
     };
 
-    let args: Vec<String> = env::args().skip(1).collect();
+    let args : Vec<String> = env::args().skip(1).collect();
 
     let mut directories : Vec<PathBuf> = Vec::new();
     let mut files : Vec<PathBuf> = Vec::new();
@@ -171,9 +164,9 @@ fn main() {
             };
 
             //removing tailing slashes (for some reasons rust's path allow them)
-//            while value.chars().last() == Some('/') {
-////                value = value.chars().
-//            };
+            //            while value.chars().last() == Some('/') {
+            ////                value = value.chars().
+            //            };
 
             if !path.exists() {
                 info!("{:?} does not exist, now ignoring.", value);
@@ -190,7 +183,7 @@ fn main() {
         }
     }
 
-//    warn!("files {:?}", files);
+    //    warn!("files {:?}", files);
 
     let app_state = AppState::new(directories, files);
 

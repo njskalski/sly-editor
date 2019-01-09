@@ -14,14 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-use fuzzy_view_item::*;
 use fuzzy_index_trait::FuzzyIndexTrait;
-use std::rc::Rc;
+use fuzzy_view_item::*;
 use regex;
 use std::iter::FromIterator;
+use std::rc::Rc;
 
 pub struct SimpleIndex {
-    items : Vec<Rc<ViewItem>>
+    items : Vec<Rc<ViewItem>>,
 }
 
 impl SimpleIndex {
@@ -48,7 +48,7 @@ impl FuzzyIndexTrait for SimpleIndex {
 fn query_to_regex(query : &String) -> regex::Regex {
     let mut regex_vec : Vec<char> = Vec::new();
 
-    regex_vec.append(&mut vec![ '.', '*']);
+    regex_vec.append(&mut vec!['.', '*']);
 
     for letter in query.chars() {
         regex_vec.push('[');

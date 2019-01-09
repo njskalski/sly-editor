@@ -22,23 +22,20 @@ use std::path::Path;
 /// folder path and filename. Does not check if file exists, so it cannot difrenetiate between
 /// files and directories, unless path ends with "/", in which case it is assumed it's a directory.
 pub fn path_string_to_pair(path_str : String) -> (Option<String>, Option<String>) {
-
     if path_str.ends_with('/') {
-        (Some(path_str[..path_str.len()-1].to_string()), None)
+        (Some(path_str[..path_str.len() - 1].to_string()), None)
     } else {
-
         match path_str.rfind("/") {
             None => (None, Some(path_str)),
             Some(last_slash) => {
                 let folder = &path_str[..last_slash];
-                let file = &path_str[last_slash+1..];
+                let file = &path_str[last_slash + 1..];
 
-                (if folder.len() > 0 { Some(folder.to_string()) } else {None},
-                 if file.len() > 0 { Some(file.to_string())} else { None })
+                (if folder.len() > 0 { Some(folder.to_string()) } else { None },
+                 if file.len() > 0 { Some(file.to_string()) } else { None })
             }
         }
     }
-
 }
 
 #[cfg(test)]

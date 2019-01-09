@@ -20,61 +20,60 @@ limitations under the License.
 
 // Some design decisions:
 // - history of file is not to be saved. This is not a versioning system.
-// - if editor is closed it asks whether to save changes. If told not to, the changes are lost.
-//      there will be no office-like "unsaved versions"
+// - if editor is closed it asks whether to save changes. If told not to, the changes are lost. there will be no
+//   office-like "unsaved versions"
 // - plugin states are to be lost in first versions
 // - I am heading to MVP.
 
-use serde_json;
-use std::sync::Arc;
-use std::path::Path;
-use std::fs;
 use ignore::gitignore;
+use serde_json;
 use std::env;
+use std::fs;
+use std::path::Path;
+use std::sync::Arc;
 
-use fuzzy_index_trait::FuzzyIndexTrait;
-use fuzzy_index::FuzzyIndex;
-use fuzzy_view_item::file_list_to_items;
+use buffer_state::BufferOpenMode;
 use buffer_state::BufferState;
 use buffer_state::BufferStateS;
-use buffer_state::BufferOpenMode;
 use buffer_state_observer::BufferStateObserver;
+use fuzzy_index::FuzzyIndex;
+use fuzzy_index_trait::FuzzyIndexTrait;
+use fuzzy_view_item::file_list_to_items;
 
-use std::cell::{RefCell, Ref};
-use std::rc::Rc;
-use std::collections::HashMap;
-use content_provider::RopeBasedContentProvider;
 use content_provider;
+use content_provider::RopeBasedContentProvider;
 use cursive;
-use std::io;
+use std::cell::{Ref, RefCell};
+use std::collections::HashMap;
 use std::error;
+use std::io;
 use std::io::Write;
+use std::rc::Rc;
 
-use lazy_dir_tree::LazyTreeNode;
-use std::path::PathBuf;
-use view_handle::ViewHandle;
-use std::cell::Cell;
 use buffer_state::CreationPolicy;
 use core::borrow::Borrow;
-
-
+use lazy_dir_tree::LazyTreeNode;
+use std::cell::Cell;
+use std::path::PathBuf;
+use view_handle::ViewHandle;
 
 pub struct AppState {
     // TODO not sure if there is any reason to distinguish between the two.
-    loaded_buffers : Vec<Rc<RefCell<BufferState>>>,
+    loaded_buffers :  Vec<Rc<RefCell<BufferState>>>,
     buffers_to_load : Vec<Rc<RefCell<BufferState>>>,
 
-    index : Arc<RefCell<FuzzyIndex>>, //because searches are mutating the cache TODO this can be solved with "interior mutability", as other caches in this app
-    dir_and_files_tree: Rc<LazyTreeNode>,
-    get_first_buffer_guard: Cell<bool>
+    index : Arc<RefCell<FuzzyIndex>>, /* because searches are mutating the cache TODO this can be
+                                       * solved with "interior mutability", as other caches in this
+                                       * app */
+    dir_and_files_tree :     Rc<LazyTreeNode>,
+    get_first_buffer_guard : Cell<bool>,
 }
 
-impl AppState{
-
-//    //TODO this interface is temporary.
-//    pub fn get_buffer_for_screen(&self, view_handle : &ViewHandle) -> Option<Rc<RefCell<BufferState>>> {
-//        self.loaded_buffers.get(view_handle).map(|x| x.clone())
-//    }
+impl AppState {
+    //    //TODO this interface is temporary.
+    //    pub fn get_buffer_for_screen(&self, view_handle : &ViewHandle) -> Option<Rc<RefCell<BufferState>>> {
+    //        self.loaded_buffers.get(view_handle).map(|x| x.clone())
+    //    }
 
     /// Returns list of buffers. Rather stable.
     pub fn get_buffers(&self) -> Vec<BufferStateObserver> {
@@ -118,7 +117,7 @@ impl AppState{
         for file in &files {
             match BufferState::open(file.clone(), CreationPolicy::Must) {
                 Ok(buffer_state) => buffers.push(buffer_state),
-                Err(e) => error!("{}", e)
+                Err(e) => error!("{}", e),
             }
         }
 
@@ -129,13 +128,11 @@ impl AppState{
 
         let file_index_items = file_list_to_items(&files_to_index);
 
-        AppState {
-            buffers_to_load : buffers,
-            loaded_buffers : Vec::new(),
-            index : Arc::new(RefCell::new(FuzzyIndex::new(file_index_items))),
-            dir_and_files_tree: Rc::new(LazyTreeNode::new(directories, files)),
-            get_first_buffer_guard: Cell::new(false),
-        }
+        AppState { buffers_to_load :        buffers,
+                   loaded_buffers :         Vec::new(),
+                   index :                  Arc::new(RefCell::new(FuzzyIndex::new(file_index_items))),
+                   dir_and_files_tree :     Rc::new(LazyTreeNode::new(directories, files)),
+                   get_first_buffer_guard : Cell::new(false), }
     }
 
     fn empty() -> Self {
@@ -143,8 +140,12 @@ impl AppState{
     }
 }
 
-/// this method takes into account .git and other directives set in .gitignore. However it only takes into account most recent .gitignore
-fn build_file_index(mut index : &mut Vec<PathBuf>, dir : &Path, enable_gitignore : bool, gi_op : Option<&gitignore::Gitignore>) {
+/// this method takes into account .git and other directives set in .gitignore. However it only takes into account most
+/// recent .gitignore
+fn build_file_index(mut index : &mut Vec<PathBuf>,
+                    dir : &Path,
+                    enable_gitignore : bool,
+                    gi_op : Option<&gitignore::Gitignore>) {
     match fs::read_dir(dir) {
         Ok(read_dir) => {
             let gitignore_op : Option<gitignore::Gitignore> = if enable_gitignore {
@@ -156,8 +157,12 @@ fn build_file_index(mut index : &mut Vec<PathBuf>, dir : &Path, enable_gitignore
                         info!("Error while parsing gitignore file {:?} : {:}", gitignore_path, error);
                     }
                     Some(gi)
-                } else { None }
-            } else { None };
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
 
             for entry_res in read_dir {
                 match entry_res {
@@ -173,22 +178,27 @@ fn build_file_index(mut index : &mut Vec<PathBuf>, dir : &Path, enable_gitignore
 
                         if path.is_file() {
                             if let Some(ref gitignore) = &gitignore_op {
-                                if gitignore.matched(path, false).is_ignore() { continue };
+                                if gitignore.matched(path, false).is_ignore() {
+                                    continue;
+                                };
                             };
                             index.push(path.to_path_buf()); //TODO(njskalski): move instead of copy.
                         } else {
                             if let Some(ref gitignore) = &gitignore_op {
-                                if gitignore.matched(path, true).is_ignore() { continue };
+                                if gitignore.matched(path, true).is_ignore() {
+                                    continue;
+                                };
                             };
 
-                            let most_recent_gitignore = if gitignore_op.is_some() { gitignore_op.as_ref() } else { gi_op };
+                            let most_recent_gitignore =
+                                if gitignore_op.is_some() { gitignore_op.as_ref() } else { gi_op };
                             build_file_index(&mut index, &path, enable_gitignore, most_recent_gitignore);
                         }
-                    },
-                    Err(e) => error!("error listing directory \"{:?}\": {:?}. Skipping.", dir, e)
+                    }
+                    Err(e) => error!("error listing directory \"{:?}\": {:?}. Skipping.", dir, e),
                 } //match
             } //for
-        },
-        Err(e) => warn!("unable to open dir \"{:?}\".", dir)
+        }
+        Err(e) => warn!("unable to open dir \"{:?}\".", dir),
     }
 }

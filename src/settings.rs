@@ -20,16 +20,16 @@ limitations under the License.
 // TODO(njskalski) add validation if commands are known (plugins must be loaded first)
 // TODO(njskalski) parse more keys.
 
-use serde_json as sj;
-use std::io::{Read, Error, ErrorKind};
 use cursive;
-use std::collections::{HashSet, HashMap};
-use std::iter::FromIterator;
-use default_settings::*;
-use log;
 use cursive::event::{Event, Key};
 use cursive::theme;
+use default_settings::*;
+use log;
+use serde_json as sj;
 use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
+use std::io::{Error, ErrorKind, Read};
+use std::iter::FromIterator;
 use std::rc::Rc;
 
 pub type KeybindingsType = HashMap<Event, String>;
@@ -37,21 +37,14 @@ pub type KeybindingsType = HashMap<Event, String>;
 fn get_known_keys() -> HashSet<String> {
     let mut known_keys : HashSet<String> = HashSet::new();
 
-    for s in vec![
-        "ctrl",
-        "alt",
-        "shift",
-        "backspace",
-        "delete",
-        "esc",
-        ] {
-            known_keys.insert(s.to_string());
-    };
+    for s in vec!["ctrl", "alt", "shift", "backspace", "delete", "esc",] {
+        known_keys.insert(s.to_string());
+    }
 
-    let alphabet = (b'A' .. b'z' + 1)      // Start as u8
-        .map(|c| c as char)            // Convert all to chars
-        .filter(|c| c.is_alphabetic())
-        .collect::<Vec<_>>();
+    let alphabet = (b'A'..b'z' + 1) // Start as u8
+                                   .map(|c| c as char) // Convert all to chars
+                                   .filter(|c| c.is_alphabetic())
+                                   .collect::<Vec<_>>();
 
     for c in alphabet {
         known_keys.insert(c.to_string());
@@ -71,23 +64,21 @@ fn color_hex_to_rgb(hex : &str) -> Result<theme::Color, Error> {
         debug!("parsing color {:?} {:?} {:?}", ro, go, bo);
         match (ro, go, bo) {
             (Ok(r), Ok(g), Ok(b)) => Ok(theme::Color::Rgb(r, g, b)),
-            _ => Err(Error::new(ErrorKind::Other, format!("Error parsing color \"{:?}\".", hex)))
+            _ => Err(Error::new(ErrorKind::Other, format!("Error parsing color \"{:?}\".", hex))),
         }
     }
 }
 
 pub struct Settings {
-    tree : sj::Value,
-    color_cache : RefCell<HashMap<&'static str, cursive::theme::Color>>
+    tree :        sj::Value,
+    color_cache : RefCell<HashMap<&'static str, cursive::theme::Color>>,
 }
 
 impl Settings {
-
     pub fn get_color(&self, selector : &'static str) -> cursive::theme::Color {
-
         match self.color_cache.borrow().get(selector) {
             Some(color) => return color.clone(),
-            None => ()
+            None => (),
         }
 
         let mut ptr : Option<&sj::Value> = Some(&self.tree);
@@ -96,8 +87,11 @@ impl Settings {
         }
 
         let color = match ptr {
-            Some(&sj::Value::String(ref color_string)) => color_hex_to_rgb(color_string.as_str()).expect(&format!("failed parsing color {:?} : {:?}", selector, color_string)),
-            anything_else => panic!("expected color, got {:?} in path {:?} (or earlier)", anything_else, selector)
+            Some(&sj::Value::String(ref color_string)) => {
+                color_hex_to_rgb(color_string.as_str()).expect(&format!("failed parsing color {:?} : {:?}",
+                                                                        selector, color_string))
+            }
+            anything_else => panic!("expected color, got {:?} in path {:?} (or earlier)", anything_else, selector),
         };
 
         self.color_cache.borrow_mut().insert(selector, color);
@@ -105,7 +99,8 @@ impl Settings {
         color
     }
 
-    // TODO(njskalski) I decided not to use Cursive's palette mechanism, because most views will be using more than the default number of colors. So this method is obsolete.
+    // TODO(njskalski) I decided not to use Cursive's palette mechanism, because most views will be using more than the
+    // default number of colors. So this method is obsolete.
     pub fn get_palette(&self) -> theme::Palette {
         let mut palette : theme::Palette = theme::Palette::default();
 
@@ -117,49 +112,56 @@ impl Settings {
         palette
     }
 
-    pub fn get_colorstyle(&self, front_selector : &'static str, background_selector : &'static str) -> cursive::theme::ColorStyle {
-        cursive::theme::ColorStyle {
-            front : cursive::theme::ColorType::Color(self.get_color(front_selector)),
-            back : cursive::theme::ColorType::Color(self.get_color(background_selector))
-        }
+    pub fn get_colorstyle(&self,
+                          front_selector : &'static str,
+                          background_selector : &'static str)
+                          -> cursive::theme::ColorStyle {
+        cursive::theme::ColorStyle { front : cursive::theme::ColorType::Color(self.get_color(front_selector)),
+                                     back :  cursive::theme::ColorType::Color(self.get_color(background_selector)), }
     }
 
     pub fn get_keybindings(&self, context : &str) -> KeybindingsType {
-
         let known_keys = get_known_keys();
 
         let text_bindings : &sj::map::Map<String, sj::Value> = match self.tree["keybindings"][context] {
             sj::Value::Object(ref map) => map,
-            _ => { panic!("settings/keybindings/text is not an sj::Object!") }
+            _ => panic!("settings/keybindings/text is not an sj::Object!"),
         };
 
         let mut result : KeybindingsType = HashMap::new();
 
         for (name, object) in text_bindings.iter() {
             let option_name : &String = name;
-            let option_keys : &Vec<sj::Value>= match object {
+            let option_keys : &Vec<sj::Value> = match object {
                 &sj::Value::Array(ref items) => items,
-                _ => { panic!("settings/keybindings/text/{:?} is not an array!", option_name) }
+                _ => panic!("settings/keybindings/text/{:?} is not an array!", option_name),
             };
 
             if option_keys.len() == 0 {
                 panic!("settings/keybindings/text/{:?} cannot assign empty key combination.", option_name);
             }
 
-            let keys : Vec<&String> = option_keys.iter().enumerate().map(|(i, ref value)| {
-                match value {
-                    &&sj::Value::String(ref s) => {
-                        if !known_keys.contains(s) {
-                            panic!("settings/keybindings/text/{:?}/#{:?} (0 based) - unknown key \"{:?}\"!", option_name, i, s);
-                        };
-                        // if i == (option_keys.len() -1) && s.len() != 1 {
-                        //     panic!("settings/keybindings/text/{:?}/#{:?} (0 based) - it is expected (for now) that the last key is always a letter, and got \"{:?}\"", option_name, i, s);
-                        // }
-                        s
-                    },
-                    _ => { panic!("settings/keybindings/text/{:?}/#{:?} (0 based) is not a string!", option_name, i)}
-                }
-            }).collect();
+            let keys : Vec<&String> = option_keys.iter()
+                                                 .enumerate()
+                                                 .map(|(i, ref value)| {
+                                                     match value {
+                                                         &&sj::Value::String(ref s) => {
+                                                             if !known_keys.contains(s) {
+                                                                 panic!("settings/keybindings/text/{:?}/#{:?} (0 \
+                                                                         based) - unknown key \"{:?}\"!",
+                                                                        option_name, i, s);
+                                                             };
+                                                             // if i == (option_keys.len() -1) && s.len() != 1 {
+                                                             //     panic!("settings/keybindings/text/{:?}/#{:?} (0 based) - it is expected (for now) that the last key is always a letter, and got \"{:?}\"", option_name, i, s);
+                                                             // }
+                                                             s
+                                                         }
+                                                         _ => panic!("settings/keybindings/text/{:?}/#{:?} (0 based) \
+                                                                      is not a string!",
+                                                                     option_name, i),
+                                                     }
+                                                 })
+                                                 .collect();
 
             let ctrl_in = keys.contains(&&"ctrl".to_string());
             let shift_in = keys.contains(&&"shift".to_string());
@@ -171,15 +173,15 @@ impl Settings {
             let event = match (shift_in, alt_in, ctrl_in, last_str.as_str()) {
                 (_, _, _, "esc") => Event::Key(Key::Esc),
                 (false, false, true, "c") => Event::Exit, //this is special case
-                (false, false,  false, _) => Event::Char(letter),
-                (false, true ,  false, _) => Event::AltChar(letter),
-                (false, false,  true, _) => Event::CtrlChar(letter),
-                _ => panic!("unsupported key combination = {:?} (now).", option_keys)
+                (false, false, false, _) => Event::Char(letter),
+                (false, true, false, _) => Event::AltChar(letter),
+                (false, false, true, _) => Event::CtrlChar(letter),
+                _ => panic!("unsupported key combination = {:?} (now).", option_keys),
             };
 
             // debug!("assigning {:?} to action {:?}", event, option_name);
             result.insert(event, option_name.clone());
-        };
+        }
 
         result
     }
@@ -197,9 +199,7 @@ pub fn load_settings(reader : &mut Read) -> Option<Settings> {
             debug!("{:?}", some_error);
             log::logger().flush();
             None
-        },
-        Ok(s) => {
-            Some(Settings{tree : s, color_cache : RefCell::new(HashMap::new())})
         }
+        Ok(s) => Some(Settings { tree : s, color_cache : RefCell::new(HashMap::new()) }),
     }
 }
