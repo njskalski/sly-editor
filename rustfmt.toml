@@ -1,11 +1,13 @@
-indent_style = "Visual"
+#indent_style = "Visual"
+indent_style = "Block"
 use_small_heuristics = "Max"
 max_width = 120
 wrap_comments = true
 comment_width = 120
 condense_wildcard_suffixes = true
 format_strings = true
-import_indent = "Visual"
+#import_indent = "Visual"
+import_indent = "Block"
 imports_layout = "HorizontalVertical"
 newline_style = "Unix"
 

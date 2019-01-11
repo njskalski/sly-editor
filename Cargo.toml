@@ -25,6 +25,11 @@ enumset = "0.3"
 # either = "1.5.0"
 languageserver-types = "0.51"
 uid = "0.1.4"
+jsonrpc-core = "9.0.0"
+human-panic = "1"
+
+
+
 
 [dependencies.clap]
 version = "2.32"

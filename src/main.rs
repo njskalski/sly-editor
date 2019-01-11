@@ -20,17 +20,10 @@ limitations under the License.
 #![allow(unused)]
 #![allow(bad_style)]
 
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate cursive;
+#[macro_use] extern crate log;
+#[macro_use] extern crate cursive;
 extern crate cursive_tree_view;
-#[macro_use]
-extern crate serde_derive;
-// #[macro_use]
-// extern crate static_assertions;
-// #[macro_use]
-// extern crate either;
+#[macro_use] extern crate serde_derive;
 
 mod app_state;
 mod buffer_index;
@@ -68,12 +61,14 @@ extern crate syntect;
 extern crate time;
 extern crate unicode_segmentation;
 extern crate unicode_width;
-#[macro_use]
-extern crate clap;
+#[macro_use] extern crate clap;
 extern crate uid;
 
-#[macro_use]
-extern crate languageserver_types;
+#[macro_use] extern crate languageserver_types;
+
+extern crate jsonrpc_core;
+
+#[macro_use] extern crate human_panic;
 
 use app_state::AppState;
 use cpuprofiler::PROFILER;
@@ -113,6 +108,7 @@ fn get_file_list_from_dir(path : &Path) -> Vec<String> {
 }
 
 fn main() {
+    setup_panic!();
     stderrlog::new().module(module_path!()).verbosity(5).init().unwrap();
 
     let yml = clap::load_yaml!("clap.yml");

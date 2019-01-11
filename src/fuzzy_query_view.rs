@@ -54,7 +54,7 @@ use unicode_segmentation::UnicodeSegmentation as us;
 
 use events::IEvent;
 use fuzzy_view_item::*;
-use interface::IChannel;
+use events::IChannel;
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::cmp;

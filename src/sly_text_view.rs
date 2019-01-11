@@ -46,7 +46,7 @@ use cursive::vec::Vec2;
 use cursive::view::{View, ViewWrapper};
 use cursive::{Printer, With, XY};
 use events::IEvent;
-use interface::IChannel;
+use events::IChannel;
 use rich_content::{RichContent, RichLine};
 use ropey::Rope;
 use settings::Settings;

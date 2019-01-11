@@ -18,8 +18,15 @@ use content_provider;
 use serde_json as sj;
 use std::path::PathBuf;
 use view_handle::ViewHandle;
+use std::sync::mpsc;
 
-#[derive(Serialize, Deserialize, Debug)] // ready for json-rpc!
+pub type IChannel = mpsc::Sender<IEvent>;
+
+/// Right now I use single queue for all events, like interface, plugins, language server
+/// interaction etc. It might be the way it stays, but for now it's just for the sake of discovery
+/// of requirements.
+
+#[derive(Serialize, Deserialize, Debug)]
 pub enum IEvent {
     //Interface event
     QuitSly,
@@ -36,5 +43,7 @@ pub enum IEvent {
     // Buffer edit events are now in the same queue, not sure yet if that's final.
     BufferEditEvent(ViewHandle, Vec<content_provider::EditEvent>),
 
+
     Proto(String), //for quick hacking.
 }
+

@@ -40,7 +40,7 @@ use std::env;
 use std::path::Path;
 
 use events::IEvent;
-use interface::IChannel;
+use events::IChannel;
 use std::path::PathBuf;
 
 // TODO(njskalski) this view took longer than anticipated to implement, so I rushed to the end

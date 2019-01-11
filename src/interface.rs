@@ -46,6 +46,7 @@ use std::rc::{Rc, Weak};
 use std::sync::mpsc;
 use std::sync::Arc;
 use view_handle::ViewHandle;
+use events::IChannel;
 
 pub struct Interface {
     state :              AppState,
@@ -58,8 +59,6 @@ pub struct Interface {
     bufferlist_visible : bool,
     active_editor :      ViewHandle,
 }
-
-pub type IChannel = mpsc::Sender<IEvent>;
 
 impl Interface {
     fn get_active_editor(&mut self) -> views::ViewRef<SlyTextView> {
@@ -87,15 +86,17 @@ impl Interface {
 
         siv.add_fullscreen_layer(IdView::new(format!("sly{}", sly_text_view.uid()), sly_text_view));
 
-        let mut i = Interface { state :              state,
-                                settings :           settings,
-                                channel :            channel,
-                                siv :                siv,
-                                done :               false,
-                                file_bar_visible :   false,
-                                filedialog_visible : false,
-                                bufferlist_visible : false,
-                                active_editor :      active_editor, };
+        let mut i = Interface {
+            state :              state,
+            settings :           settings,
+            channel :            channel,
+            siv :                siv,
+            done :               false,
+            file_bar_visible :   false,
+            filedialog_visible : false,
+            bufferlist_visible : false,
+            active_editor :      active_editor,
+        };
 
         // let known_actions = vec!["show_everything_bar"];
         //TODO filter unknown actions
@@ -104,33 +105,33 @@ impl Interface {
             match action.as_str() {
                 "show_file_bar" => {
                     i.siv.add_global_callback(event, move |_| {
-                             ch.send(IEvent::ShowFileBar).unwrap();
-                         });
+                        ch.send(IEvent::ShowFileBar).unwrap();
+                    });
                 }
                 "quit" => {
                     i.siv.add_global_callback(event, move |_| {
-                             ch.send(IEvent::QuitSly).unwrap();
-                         });
+                        ch.send(IEvent::QuitSly).unwrap();
+                    });
                 }
                 "show_buffer_list" => {
                     i.siv.add_global_callback(event, move |_| {
-                             ch.send(IEvent::ShowBufferList).unwrap();
-                         });
+                        ch.send(IEvent::ShowBufferList).unwrap();
+                    });
                 }
                 "save_as" => {
                     i.siv.add_global_callback(event, move |_| {
-                             ch.send(IEvent::ShowSaveAs).unwrap();
-                         });
+                        ch.send(IEvent::ShowSaveAs).unwrap();
+                    });
                 }
                 "open_file_dialog" => {
                     i.siv.add_global_callback(event, move |_| {
-                             ch.send(IEvent::OpenFileDialog).unwrap();
-                         });
+                        ch.send(IEvent::OpenFileDialog).unwrap();
+                    });
                 }
                 "close_window" => {
                     i.siv.add_global_callback(event, move |_| {
-                             ch.send(IEvent::CloseWindow).unwrap();
-                         });
+                        ch.send(IEvent::CloseWindow).unwrap();
+                    });
                 }
                 _ => {
                     debug!("unknown action {:?} bound with event global {:?}", action, event);
@@ -266,10 +267,12 @@ impl Interface {
 
     fn show_file_bar(&mut self) {
         if !self.file_bar_visible {
-            let ebar = FuzzyQueryView::new(self.state.get_file_index(),
-                                           "filebar".to_string(),
-                                           self.get_event_channel(),
-                                           self.settings.clone());
+            let ebar = FuzzyQueryView::new(
+                self.state.get_file_index(),
+                "filebar".to_string(),
+                self.get_event_channel(),
+                self.settings.clone(),
+            );
             self.siv.add_layer(IdView::new("filebar", ebar));
             self.file_bar_visible = true;
         }
