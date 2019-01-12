@@ -39,9 +39,11 @@ impl BufferIndex {
     }
 
     fn buffer_to_item(buffer : &BufferStateObserver, marker : String) -> ViewItem {
-        ViewItem::new(buffer.get_filename().unwrap().to_string_lossy().to_string(),
-                      buffer.get_path().map(|path| path.to_string_lossy().to_string()),
-                      marker)
+        ViewItem::new(
+            buffer.get_filename().unwrap().to_string_lossy().to_string(),
+            buffer.get_path().map(|path| path.to_string_lossy().to_string()),
+            marker,
+        )
     }
 }
 

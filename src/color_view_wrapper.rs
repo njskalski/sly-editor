@@ -39,13 +39,16 @@ impl<T : View> ColorViewWrapper<T> {
 
     // TODO(njskalski) extend constructor, un-hardcode parameters
     pub fn new(view : T, printer_modifier : PrinterModifierType) -> Self
-        where T : View /* + ?Sized */
+    where
+        T : View, /* + ?Sized */
     {
-        ColorViewWrapper { view :             view,
-                           printer_modifier : printer_modifier,
-                           // effects : EnumSet::new(),
-                           // fill_background : true,
-                           size : Vec2::new(0, 0), }
+        ColorViewWrapper {
+            view :             view,
+            printer_modifier : printer_modifier,
+            // effects : EnumSet::new(),
+            // fill_background : true,
+            size : Vec2::new(0, 0),
+        }
     }
 }
 
@@ -62,17 +65,17 @@ impl<T : View + Sized> ViewWrapper for ColorViewWrapper<T> {
         // debug!("new_theme : {:?}", new_theme);
 
         printer.with_theme(&new_theme, |printer| {
-                   // if self.fill_background {
-                   //     for y in 0..self.size.y {
-                   //         for x in 0..self.size.x {
-                   //             printer.print((x, y), " ");
-                   //         }
-                   //     }
-                   // }
+            // if self.fill_background {
+            //     for y in 0..self.size.y {
+            //         for x in 0..self.size.x {
+            //             printer.print((x, y), " ");
+            //         }
+            //     }
+            // }
 
-                   // printer.with_effects(self.effects, |printer| {
-                   self.view.draw(printer);
-                   // });
-               });
+            // printer.with_effects(self.effects, |printer| {
+            self.view.draw(printer);
+            // });
+        });
     }
 }

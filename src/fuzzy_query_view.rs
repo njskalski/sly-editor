@@ -23,14 +23,15 @@ description. Example: search line is filename, description is it's location. (do
 - context header (done, but requires styling)
 */
 
-// TODO(njskalski) profile and remove unnecessary copies. (actually profiling never pointed to this part of code so far)
-// TODO(njskalski) parallelism is disabled right now. Need to update cursive to enable it.
+// TODO(njskalski) profile and remove unnecessary copies. (actually profiling never pointed to this
+// part of code so far) TODO(njskalski) parallelism is disabled right now. Need to update cursive to
+// enable it.
 
 // (CONCURRENCY) we are calling get_current_items twice here, not sure if the
 // results are going to be the same, and I rely on them being in the same order. Clearly
-// a possible error. Update: this seems to be resolved, as fst::Map supposedly returns results in alphabetic order.
-// Also, I introduced chache via interior mutability (so it can be cleared in non-mut method "draw"), so number of
-// calls has been reduced to one per draw-input cycle.
+// a possible error. Update: this seems to be resolved, as fst::Map supposedly returns results in
+// alphabetic order. Also, I introduced chache via interior mutability (so it can be cleared in
+// non-mut method "draw"), so number of calls has been reduced to one per draw-input cycle.
 
 use cursive::view::Selector;
 use std::any::Any;
@@ -52,9 +53,9 @@ use fuzzy_index_trait::FuzzyIndexTrait;
 use settings::Settings;
 use unicode_segmentation::UnicodeSegmentation as us;
 
+use events::IChannel;
 use events::IEvent;
 use fuzzy_view_item::*;
-use events::IChannel;
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::cmp;
@@ -93,12 +94,12 @@ impl View for FuzzyQueryView {
         // debug!("items: {:?}", self.get_current_items());
 
         self.scrollbase.draw(&printer.offset((0, 1)), |printer, line| {
-                           let items = self.get_current_items();
-                           let (i, item_idx) = get_item_for_line(items.iter(), line).unwrap();
-                           // debug!("i : {:?} s : {:?}", line, (i, item));
-                           let selected = item_idx == self.selected;
-                           self.draw_item(&items[item_idx], selected, line - i, printer);
-                       });
+            let items = self.get_current_items();
+            let (i, item_idx) = get_item_for_line(items.iter(), line).unwrap();
+            // debug!("i : {:?} s : {:?}", line, (i, item));
+            let selected = item_idx == self.selected;
+            self.draw_item(&items[item_idx], selected, line - i, printer);
+        });
     }
 
     fn needs_relayout(&self) -> bool {
@@ -146,8 +147,10 @@ impl View for FuzzyQueryView {
                 if items.len() > 0 {
                     assert!(items.len() > self.selected);
                     self.channel
-                        .send(IEvent::FuzzyQueryBarSelected(self.marker.clone(),
-                                                            items[self.selected].get_marker().clone()))
+                        .send(IEvent::FuzzyQueryBarSelected(
+                            self.marker.clone(),
+                            items[self.selected].get_marker().clone(),
+                        ))
                         .unwrap();
                 }
                 EventResult::Consumed(None)
@@ -162,8 +165,9 @@ impl View for FuzzyQueryView {
 
 //TODO tests
 fn count_items_lines<I, T>(items : I) -> usize
-    where T : AsRef<ViewItem>,
-          I : Iterator<Item = T>
+where
+    T : AsRef<ViewItem>,
+    I : Iterator<Item = T>,
 {
     items.fold(0, |acc, x| acc + x.as_ref().get_height_in_lines())
 }
@@ -171,20 +175,21 @@ fn count_items_lines<I, T>(items : I) -> usize
 //TODO tests, early exit
 /// Returns Option<(number of lines preceeding items consumed, item_idx)>
 fn get_item_for_line<I, T>(mut items : I, line : usize) -> Option<(usize, usize)>
-    where T : AsRef<ViewItem>,
-          I : Iterator<Item = T>
+where
+    T : AsRef<ViewItem>,
+    I : Iterator<Item = T>,
 {
     let res : (usize, Option<usize>) =
         items.enumerate().fold((0, None), |acc, (item_idx, item)| match acc {
-                             (l, None) => {
-                                 if l <= line && line < l + item.as_ref().get_height_in_lines() {
-                                     (l, Some(item_idx))
-                                 } else {
-                                     (l + item.as_ref().get_height_in_lines(), None)
-                                 }
-                             }
-                             (l, Some(old_item_idx)) => (l, Some(old_item_idx)),
-                         });
+            (l, None) => {
+                if l <= line && line < l + item.as_ref().get_height_in_lines() {
+                    (l, Some(item_idx))
+                } else {
+                    (l + item.as_ref().get_height_in_lines(), None)
+                }
+            }
+            (l, Some(old_item_idx)) => (l, Some(old_item_idx)),
+        });
 
     match res {
         (line, None) => None,
@@ -213,14 +218,20 @@ impl FuzzyQueryView {
             }
         }
 
-        panic!("selected item {:?} not on list of current items (len = {:?}).", self.selected, items.len())
+        panic!(
+            "selected item {:?} not on list of current items (len = {:?}).",
+            self.selected,
+            items.len()
+        )
     }
 
     //blocking!
     fn get_current_items(&self) -> Rc<Vec<Rc<ViewItem>>> {
         let mut refmut = self.items_cache.borrow_mut();
         if refmut.is_none() {
-            *refmut = Some(Rc::new(self.index.borrow_mut().get_results_for(&self.query, HARD_QUERY_LIMIT)));
+            *refmut = Some(Rc::new(
+                self.index.borrow_mut().get_results_for(&self.query, HARD_QUERY_LIMIT),
+            ));
             self.needs_relayout.set(true);
         }
 
@@ -229,16 +240,18 @@ impl FuzzyQueryView {
     }
 
     fn get_item_colorstyle(&self, selected : bool, highlighted : bool) -> ColorStyle {
-        self.settings.get_colorstyle(if highlighted {
-                                         "theme/fuzzy_view/highlighted_text_color"
-                                     } else {
-                                         "theme/fuzzy_view/primary_text_color"
-                                     },
-                                     if selected {
-                                         "theme/fuzzy_view/selected_background_color"
-                                     } else {
-                                         "theme/fuzzy_view/background_color"
-                                     })
+        self.settings.get_colorstyle(
+            if highlighted {
+                "theme/fuzzy_view/highlighted_text_color"
+            } else {
+                "theme/fuzzy_view/primary_text_color"
+            },
+            if selected {
+                "theme/fuzzy_view/selected_background_color"
+            } else {
+                "theme/fuzzy_view/background_color"
+            },
+        )
     }
 
     fn draw_item(&self, item : &ViewItem, selected : bool, line_no : usize, printer : &Printer) {
@@ -264,7 +277,8 @@ impl FuzzyQueryView {
                             query_pos += 1;
                             true
                         } else {
-                            // debug!("not matched {:?} with {:?}", (*header[header_pos]).to_string(),
+                            // debug!("not matched {:?} with {:?}",
+                            // (*header[header_pos]).to_string(),
                             // (*query[query_pos]).to_string());
                             false
                         }
@@ -273,56 +287,68 @@ impl FuzzyQueryView {
 
                 let colorstyle = self.get_item_colorstyle(selected, highlighted);
                 printer.with_color(colorstyle, |printer| {
-                           printer.print((header_pos, 0), header[header_pos]);
-                       });
+                    printer.print((header_pos, 0), header[header_pos]);
+                });
             }
             //empty suffix:
             let colorstyle = self.get_item_colorstyle(selected, false);
             for i in header.len()..row_width {
                 printer.with_color(colorstyle, |printer| {
-                           printer.print((0 + i, 0), " ");
-                       });
+                    printer.print((0 + i, 0), " ");
+                });
             }
         //end of drawing header
         } else {
             //drawing description
-            //TODO lines below ignores the fact that now I temporarily imposed description lines limit of 1.
+            //TODO lines below ignores the fact that now I temporarily imposed description lines
+            // limit of 1.
             let colorstyle = self.get_item_colorstyle(selected, false);
 
             let desc_len = match item.get_description() {
                 &Some(ref desc) => match desc.lines().skip(line_no - 1).next() {
                     Some(line) => {
                         printer.with_color(colorstyle, |printer| {
-                                   printer.print((0, 0), line);
-                                   for x in line.len()..row_width {
-                                       printer.print((x, 0), " ");
-                                   }
-                               });
+                            printer.print((0, 0), line);
+                            for x in line.len()..row_width {
+                                printer.print((x, 0), " ");
+                            }
+                        });
                     }
-                    None => error!("requested line {} of description of viewitem {:?}", line_no - 1, item),
+                    None => error!(
+                        "requested line {} of description of viewitem {:?}",
+                        line_no - 1,
+                        item
+                    ),
                 },
-                &None => error!("requested line {} of empty description of viewitem {:?}", line_no - 1, item),
+                &None => error!(
+                    "requested line {} of empty description of viewitem {:?}",
+                    line_no - 1,
+                    item
+                ),
             };
         }
     }
 
-    pub fn new(index : Arc<RefCell<FuzzyIndexTrait>>,
-               marker : String,
-               channel : IChannel,
-               settings : Rc<Settings>)
-               -> Self {
-        let mut res = FuzzyQueryView { context :        "context".to_string(),
-                                       query :          String::new(),
-                                       scrollbase :     ScrollBase::new(),
-                                       index :          index,
-                                       settings :       settings,
-                                       selected :       0,
-                                       channel :        channel,
-                                       marker :         marker,
-                                       items_cache :    RefCell::new(None),
-                                       size :           None,
-                                       needs_relayout : Cell::new(false),
-                                       old_selection :  None, };
+    pub fn new(
+        index : Arc<RefCell<FuzzyIndexTrait>>,
+        marker : String,
+        channel : IChannel,
+        settings : Rc<Settings>,
+    ) -> Self {
+        let mut res = FuzzyQueryView {
+            context :        "context".to_string(),
+            query :          String::new(),
+            scrollbase :     ScrollBase::new(),
+            index :          index,
+            settings :       settings,
+            selected :       0,
+            channel :        channel,
+            marker :         marker,
+            items_cache :    RefCell::new(None),
+            size :           None,
+            needs_relayout : Cell::new(false),
+            old_selection :  None,
+        };
         res
     }
 
@@ -344,10 +370,12 @@ impl FuzzyQueryView {
     fn after_query_ended(&mut self) {
         let items = self.get_current_items();
         match self.old_selection {
-            Some(ref old_selection) => match items.iter().enumerate().position(|(idx, item)| item == old_selection) {
-                Some(idx) => self.selected = idx,
-                None => self.selected = 0,
-            },
+            Some(ref old_selection) => {
+                match items.iter().enumerate().position(|(idx, item)| item == old_selection) {
+                    Some(idx) => self.selected = idx,
+                    None => self.selected = 0,
+                }
+            }
             None => {}
         }
         self.old_selection = None;

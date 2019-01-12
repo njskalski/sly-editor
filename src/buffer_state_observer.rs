@@ -24,6 +24,7 @@ use std::path::PathBuf;
 use buffer_state::BufferState;
 use content_provider::RopeBasedContentProvider;
 
+use buffer_id::BufferId;
 use content_provider;
 use cursive;
 use rich_content::RichContent;
@@ -32,17 +33,27 @@ use view_handle::ViewHandle;
 
 #[derive(Clone)]
 pub struct BufferStateObserver {
+    buffer_id :    BufferId,
     buffer_state : Rc<RefCell<BufferState>>,
 }
 
 impl BufferStateObserver {
     pub fn new(buffer_state : Rc<RefCell<BufferState>>) -> Self {
-        BufferStateObserver { buffer_state : buffer_state }
+        let buffer_id = (*buffer_state).borrow().id();
+        BufferStateObserver { buffer_id, buffer_state }
+    }
+
+    pub fn buffer_id(&self) -> BufferId {
+        self.buffer_id.clone()
     }
 
     /// borrows unmutably content
     pub fn borrow_content(&self) -> Ref<RopeBasedContentProvider> {
         Ref::map(self.buffer_state.borrow(), |x| x.get_content())
+    }
+
+    pub fn borrow_state(&self) -> RefMut<BufferState> {
+        self.buffer_state.borrow_mut()
     }
 
     /// borrows mutably content

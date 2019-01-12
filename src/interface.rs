@@ -83,8 +83,7 @@ impl Interface {
         let channel = mpsc::channel();
         siv.set_theme(theme);
 
-        //        let screen_id = siv.active_screen();
-        let buffer_observer = state.get_first_buffer();
+        let buffer_observer = state.get_first_buffer().unwrap(); // TODO(njskalski): panics. Semantics unclear.
         let sly_text_view = SlyTextView::new(settings.clone(), buffer_observer, channel.0.clone());
 
         let active_editor = sly_text_view.view_handle();
@@ -124,11 +123,16 @@ impl Interface {
                         ch.send(IEvent::ShowBufferList).unwrap();
                     });
                 }
-                "save_as" => {
-                    i.siv.add_global_callback(event, move |_| {
-                        ch.send(IEvent::ShowSaveAs).unwrap();
-                    });
-                }
+                //                "save" => {
+                //                    i.siv.add_global_callback(event, move |_| {
+                //                        ch.send(IEvent::SaveBuffer).unwrap();
+                //                    });
+                //                }
+                //                "save_as" => {
+                //                    i.siv.add_global_callback(event, move |_| {
+                //                        ch.send(IEvent::ShowSaveAs).unwrap();
+                //                    });
+                //                }
                 "open_file_dialog" => {
                     i.siv.add_global_callback(event, move |_| {
                         ch.send(IEvent::OpenFileDialog).unwrap();
@@ -172,11 +176,14 @@ impl Interface {
                 }
                 IEvent::BufferEditEvent(view_handle, events) => {
                     //TODO now I just send to active editor, ignoring view_handle
-                    self.get_active_editor().buffer().submit_edit_events_to_buffer(events);
+                    self.get_active_editor().buffer_obs().submit_edit_events_to_buffer(events);
                 }
-                IEvent::ShowSaveAs => {
-                    self.show_save_as();
-                }
+                //                IEvent::SaveBuffer => {
+                //                    self.save();
+                //                }
+                //                IEvent::ShowSaveAs => {
+                //                    self.show_save_as();
+                //                }
                 IEvent::OpenFileDialog => {
                     self.show_open_file_dialog();
                 }
@@ -184,19 +191,20 @@ impl Interface {
                     self.state.schedule_file_for_load(file_path);
                     self.close_filedialog();
                 }
-                IEvent::SaveBufferAs(file_path) => {
-                    //                    match self.get_active_editor() {
-                    //                        Some(view_handle) => {
-                    //                            // TODO(njskalski) Create a separate buffer on
-                    // this?                            let buffer_state:
-                    // Rc<RefCell<BufferState>> = self.state.
-                    // get_buffer_for_screen(&view_handle).unwrap();
-                    // buffer_state.borrow_mut().save(Some(file_path));                        },
-                    //                        None => debug!("unable to SaveBufferAs - no buffer
-                    // found")                    }
-                    debug!("IEvent::SaveBufferAs not implemented");
-                    self.close_filedialog();
-                }
+                //                IEvent::SaveBufferAs(file_path) => {
+                //                    //                    match self.get_active_editor() {
+                //                    //                        Some(view_handle) => {
+                //                    //                            // TODO(njskalski) Create a
+                // separate buffer on                    // this?
+                // let buffer_state:                    // Rc<RefCell<BufferState>>
+                // = self.state.                    //
+                // get_buffer_for_screen(&view_handle).unwrap();                    
+                // // buffer_state.borrow_mut().save(Some(file_path));                        },
+                //                    //                        None => debug!("unable to
+                // SaveBufferAs - no buffer                    // found")
+                // }                    debug!("IEvent::SaveBufferAs not
+                // implemented");                    self.close_filedialog();
+                //                }
                 IEvent::ShowBufferList => {
                     self.show_buffer_list();
                 }
@@ -238,14 +246,15 @@ impl Interface {
             return;
         }
 
-        let path_op = self.get_active_editor().buffer().get_path();
+        let id = self.get_active_editor().buffer_obs().buffer_id();
+        let path_op = self.get_active_editor().buffer_obs().get_path();
 
         let (folder_op, file_op) = match path_op {
             None => (None, None),
             Some(path) => utils::path_string_to_pair(path.to_string_lossy().to_string()), /* TODO get rid of
                                                                                            * path_string_to_pair */
         };
-        self.show_file_dialog(FileViewVariant::SaveAsFile(folder_op, file_op));
+        self.show_file_dialog(FileViewVariant::SaveAsFile(id,folder_op, file_op));
     }
 
     fn show_open_file_dialog(&mut self) {
@@ -320,5 +329,16 @@ impl Interface {
             Some(self.state.directories()),
         );
         self.lsp_clients.push(lsp.unwrap());
+    }
+
+    fn save(&mut self) {
+        let path = self.get_active_editor().buffer_obs().get_path();
+        if path.is_none() {
+            self.show_save_as();
+        } else {
+            let editor = self.get_active_editor();
+            let mut buffer = editor.buffer_obs().borrow_state();
+            buffer.save(None);
+        }
     }
 }

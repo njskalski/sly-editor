@@ -31,8 +31,10 @@ pub fn path_string_to_pair(path_str : String) -> (Option<String>, Option<String>
                 let folder = &path_str[..last_slash];
                 let file = &path_str[last_slash + 1..];
 
-                (if folder.len() > 0 { Some(folder.to_string()) } else { None },
-                 if file.len() > 0 { Some(file.to_string()) } else { None })
+                (
+                    if folder.len() > 0 { Some(folder.to_string()) } else { None },
+                    if file.len() > 0 { Some(file.to_string()) } else { None },
+                )
             }
         }
     }
@@ -46,7 +48,13 @@ mod tests {
     #[test]
     fn path_string_to_pair_works() {
         assert_eq!(path_string_to_pair("/bin/".to_string()), (Some("/bin".to_string()), None));
-        assert_eq!(path_string_to_pair("/bin/tmp".to_string()), (Some("/bin".to_string()), Some("tmp".to_string())));
-        assert_eq!(path_string_to_pair("/bin/tmp/".to_string()), (Some("/bin/tmp".to_string()), None));
+        assert_eq!(
+            path_string_to_pair("/bin/tmp".to_string()),
+            (Some("/bin".to_string()), Some("tmp".to_string()))
+        );
+        assert_eq!(
+            path_string_to_pair("/bin/tmp/".to_string()),
+            (Some("/bin/tmp".to_string()), None)
+        );
     }
 }

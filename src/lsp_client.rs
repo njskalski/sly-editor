@@ -1,5 +1,6 @@
 // Some code in this file is copied from https://github.com/hatoo/Accepted/blob/master/src/lsp.rs ver eba4846
-// or at least heavily inspired with. Thanks for figuring out how to work with languageserver_types crate.
+// or at least heavily inspired with. Thanks for figuring out how to work with languageserver_types
+// crate.
 
 use languageserver_types as lst;
 use std::collections::HashMap;
@@ -20,8 +21,8 @@ use std::thread::JoinHandle;
 use events::IChannel;
 use events::IEvent;
 use jsonrpc_core::types as jt;
-use languageserver_types;
 use jsonrpc_core::Output;
+use languageserver_types;
 
 pub struct LspClient {
     waiter_handle :  JoinHandle<()>,
@@ -39,14 +40,11 @@ const ID_INIT : u64 = 0; // it's always a first message.
 const ID_COMPLETION : u64 = 0;
 
 impl LspClient {
-
     pub fn new(
         path_to_program : &OsStr,
         event_sink : IChannel,
         workspace_folders : Option<&Vec<PathBuf>>,
-    ) -> Result<LspClient, Box<Error>>
-    {
-
+    ) -> Result<LspClient, Box<Error>> {
         let workspace_folders_op = workspace_folders.map(|v| {
             v.iter()
                 .map(|path| {
@@ -80,7 +78,8 @@ impl LspClient {
         debug!("started LSP");
 
         let mut stdin = lsp.stdin.take().ok_or("unable to grab stdin of language server")?;
-        let mut reader = BufReader::new(lsp.stdout.take().ok_or("unable to grab stdout of language server")?);
+        let mut reader =
+            BufReader::new(lsp.stdout.take().ok_or("unable to grab stdout of language server")?);
 
         send_request::<_, languageserver_types::request::Initialize>(&mut stdin, ID_INIT, init)?;
 
@@ -119,19 +118,21 @@ impl LspClient {
                         if suc.id == jsonrpc_core::id::Id::Num(ID_INIT) {
                             lsp_sink.send(LSPEvent::Initialized).unwrap();
                         } else if suc.id == jsonrpc_core::id::Id::Num(ID_COMPLETION) {
-                            let completion =
-                                serde_json::from_value::<languageserver_types::CompletionResponse>(suc.result).unwrap();
+                            let completion = serde_json::from_value::<
+                                languageserver_types::CompletionResponse,
+                            >(suc.result)
+                            .unwrap();
 
-                            //                        let mut completion = extract_completion(completion);
+                            //                        let mut completion =
+                            // extract_completion(completion);
                             //                        tx.send(completion).unwrap();
                         }
-                    },
-                    Ok(jt::Output::Failure(f)) => debug!("lsp: unable to parse \n{}\nfailure:\n{:?}\n", msg, f),
-                    Err(e) => debug!("lsp: unable to parse \n{}\nerrror:\n{:?}\n", msg, e)
+                    }
+                    Ok(jt::Output::Failure(f)) => {
+                        debug!("lsp: unable to parse \n{}\nfailure:\n{:?}\n", msg, f)
+                    }
+                    Err(e) => debug!("lsp: unable to parse \n{}\nerrror:\n{:?}\n", msg, e),
                 };
-
-
-
             }
         });
 

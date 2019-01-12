@@ -14,20 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-use cursive;
 use uid;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ViewHandle {
-    view_id : usize,
+pub struct BufferId {
+    id : usize,
 }
 
-impl ViewHandle {
-    pub fn new(view_id : &uid::Id<usize>) -> Self {
-        ViewHandle { view_id : view_id.get() }
+impl BufferId {
+    pub fn new() -> Self {
+        BufferId { id : uid::Id::<usize>::new().get() }
     }
 
-    pub fn view_id(&self) -> usize {
-        self.view_id
+    pub fn id(&self) -> usize {
+        self.id
     }
 }

@@ -20,12 +20,16 @@ limitations under the License.
 #![allow(unused)]
 #![allow(bad_style)]
 
-#[macro_use] extern crate log;
-#[macro_use] extern crate cursive;
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate cursive;
 extern crate cursive_tree_view;
-#[macro_use] extern crate serde_derive;
+#[macro_use]
+extern crate serde_derive;
 
 mod app_state;
+mod buffer_id;
 mod buffer_index;
 mod buffer_state;
 mod buffer_state_observer;
@@ -61,14 +65,17 @@ extern crate syntect;
 extern crate time;
 extern crate unicode_segmentation;
 extern crate unicode_width;
-#[macro_use] extern crate clap;
+#[macro_use]
+extern crate clap;
 extern crate uid;
 
-#[macro_use] extern crate languageserver_types;
+#[macro_use]
+extern crate languageserver_types;
 
 extern crate jsonrpc_core;
 
-#[macro_use] extern crate human_panic;
+#[macro_use]
+extern crate human_panic;
 
 use app_state::AppState;
 use cpuprofiler::PROFILER;
@@ -108,12 +115,13 @@ fn get_file_list_from_dir(path : &Path) -> Vec<String> {
 }
 
 fn main() {
-//    setup_panic!();
+    //    setup_panic!();
     stderrlog::new().module(module_path!()).verbosity(5).init().unwrap();
 
     let yml = clap::load_yaml!("clap.yml");
-    let mut app =
-        clap::App::from_yaml(yml).author("Andrzej J Skalski <ajskalski@google.com>").long_version(crate_version!());
+    let mut app = clap::App::from_yaml(yml)
+        .author("Andrzej J Skalski <ajskalski@google.com>")
+        .long_version(crate_version!());
 
     let matches = app.clone().get_matches();
 
@@ -176,7 +184,7 @@ fn main() {
         // if no directory is specified, we take current directory as "project root".
         match env::current_dir() {
             Ok(path) => directories.push(path),
-            Err(e) => debug!("unable to access current directory, because {:?}", e)
+            Err(e) => debug!("unable to access current directory, because {:?}", e),
         }
     }
 

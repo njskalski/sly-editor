@@ -28,6 +28,7 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
+use buffer_id::BufferId;
 use buffer_state_observer::BufferStateObserver;
 use std::borrow::Borrow;
 
@@ -52,45 +53,57 @@ pub struct BufferStateS {
 }
 
 pub struct BufferState {
+    id :       BufferId,
     ss :       BufferStateS,
     modified : bool,
     mode :     BufferOpenMode,
     content :  RopeBasedContentProvider,
 }
 
-//impl Rc<RefCell<BufferState>> {
-//    pub fn get_observer(&self) -> BufferStateObserver {
-//        BufferStateObserver::new(self.clone())
-//    }
-//}
-
 impl BufferState {
     pub fn new() -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(BufferState { ss :       BufferStateS { path : None },
-                                           modified : false,
-                                           content :  RopeBasedContentProvider::new(None),
-                                           mode :     BufferOpenMode::ReadWrite, }))
+        Rc::new(RefCell::new(BufferState {
+            id :       BufferId::new(),
+            ss :       BufferStateS { path : None },
+            modified : false,
+            content :  RopeBasedContentProvider::new(None),
+            mode :     BufferOpenMode::ReadWrite,
+        }))
     }
 
-    pub fn open(file_path : PathBuf, creation_policy : CreationPolicy) -> Result<Rc<RefCell<Self>>, io::Error> {
+    pub fn id(&self) -> BufferId {
+        self.id.clone()
+    }
+
+    pub fn open(
+        file_path : PathBuf,
+        creation_policy : CreationPolicy,
+    ) -> Result<Rc<RefCell<Self>>, io::Error> {
         debug!("reading file {:?}, creation_policy = {:?}", file_path, creation_policy);
 
         if !file_path.exists() && creation_policy == CreationPolicy::Must {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput,
-                                      format!("\"{:?}\" not found, and required", &file_path)));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("\"{:?}\" not found, and required", &file_path),
+            ));
         }
 
         if file_path.exists() && creation_policy == CreationPolicy::MustNot {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput,
-                                      format!("\"{:?}\" found and required not to be there.", &file_path)));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("\"{:?}\" found and required not to be there.", &file_path),
+            ));
         }
 
         let mut reader : fs::File = path_to_reader(&file_path);
 
-        Ok(Rc::new(RefCell::new(BufferState { ss :       BufferStateS { path : Some(file_path) },
-                                              modified : false,
-                                              content :  RopeBasedContentProvider::new(Some(&mut reader)),
-                                              mode :     BufferOpenMode::ReadWrite, })))
+        Ok(Rc::new(RefCell::new(BufferState {
+            id :       BufferId::new(),
+            ss :       BufferStateS { path : Some(file_path) },
+            modified : false,
+            content :  RopeBasedContentProvider::new(Some(&mut reader)),
+            mode :     BufferOpenMode::ReadWrite,
+        })))
     }
 
     //    pub fn set_view_handle(&mut self, view_handle : ViewHandle) {

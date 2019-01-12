@@ -75,22 +75,33 @@ impl PartialEq for ViewItem {
 impl Eq for ViewItem {}
 
 pub fn get_dummy_items() -> Vec<ViewItem> {
-    vec![ViewItem { header : "header 1".to_string(),
-                    desc :   Some("some boring desc1".to_string()),
-                    marker : "1".to_string(), },
-         ViewItem { header : "hakuna 2".to_string(),
-                    desc :   Some("some boring desc2".to_string()),
-                    marker : "2".to_string(), },
-         ViewItem { header : "matata 3".to_string(),
-                    desc :   Some("some boringmultiline\ndesc3".to_string()),
-                    marker : "3".to_string(), },]
+    vec![
+        ViewItem {
+            header : "header 1".to_string(),
+            desc :   Some("some boring desc1".to_string()),
+            marker : "1".to_string(),
+        },
+        ViewItem {
+            header : "hakuna 2".to_string(),
+            desc :   Some("some boring desc2".to_string()),
+            marker : "2".to_string(),
+        },
+        ViewItem {
+            header : "matata 3".to_string(),
+            desc :   Some("some boringmultiline\ndesc3".to_string()),
+            marker : "3".to_string(),
+        },
+    ]
 }
 
 pub fn file_list_to_items(file_list : &Vec<PathBuf>) -> Vec<ViewItem> {
     // TODO(njskalski) add support to new (non-existent) files.
-    file_list.iter()
-             .map(|f| ViewItem { header : f.file_name().unwrap().to_string_lossy().to_string(),
-                                 desc :   None,
-                                 marker : f.to_string_lossy().to_string(), })
-             .collect()
+    file_list
+        .iter()
+        .map(|f| ViewItem {
+            header : f.file_name().unwrap().to_string_lossy().to_string(),
+            desc :   None,
+            marker : f.to_string_lossy().to_string(),
+        })
+        .collect()
 }

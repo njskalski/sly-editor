@@ -46,9 +46,10 @@ struct RopeBasedContent {
 impl RopeBasedContent {
     pub fn new(reader_op : Option<&mut Read>) -> Self {
         match reader_op {
-            Some(reader) => RopeBasedContent { lines :     Rope::from_reader(reader).expect("failed to build rope \
-                                                                                             from reader"), /* TODO(njskalski) error handling */
-                                               timestamp : time::now(), },
+            Some(reader) => RopeBasedContent {
+                lines :     Rope::from_reader(reader).expect("failed to build rope from reader"), /* TODO(njskalski) error handling */
+                timestamp : time::now(),
+            },
             None => RopeBasedContent { lines : Rope::new(), timestamp : time::now() },
         }
     }
@@ -69,8 +70,8 @@ pub struct RopeBasedContentProvider {
 // Applies events to RopeBasedContent producing new one, and returning *number of lines common* to
 // both new and original contents.
 // Now events are applied one after another in order they were issued.
-//TODO in some combinations offsets should be recomputed. But I expect no such combinations appear. I should however
-// check it just in case.
+//TODO in some combinations offsets should be recomputed. But I expect no such combinations appear.
+// I should however check it just in case.
 fn apply_events(c : &RopeBasedContent, events : &Vec<EditEvent>) -> (RopeBasedContent, usize) {
     let mut new_lines : Rope = c.lines.clone();
 
@@ -112,20 +113,24 @@ fn apply_events(c : &RopeBasedContent, events : &Vec<EditEvent>) -> (RopeBasedCo
 
 impl RopeBasedContentProvider {
     pub fn new(reader_op : Option<&mut Read>) -> Self {
-        RopeBasedContentProvider { history :      vec![RopeBasedContent::new(reader_op)],
-                                   current :      0,
-                                   rich_content : None, }
+        RopeBasedContentProvider {
+            history :      vec![RopeBasedContent::new(reader_op)],
+            current :      0,
+            rich_content : None,
+        }
     }
 
     pub fn set_rich_content_enabled(&mut self, enabled : bool) {
         if !enabled {
             self.rich_content = None
         } else {
-            self.rich_content = Some(RichContent::new(// TODO(njskalski): this needs decoupling (obviously) from here.
-                                                      Rc::new(HighlightSettings::new()),
-                                                      // This costs O(1), but if content provider changes, it needs
-                                                      // update.
-                                                      self.get_lines().clone()))
+            self.rich_content = Some(RichContent::new(
+                // TODO(njskalski): this needs decoupling (obviously) from here.
+                Rc::new(HighlightSettings::new()),
+                // This costs O(1), but if content provider changes, it needs
+                // update.
+                self.get_lines().clone(),
+            ))
         }
     }
 
@@ -168,9 +173,9 @@ impl RopeBasedContentProvider {
 
         // Dropping outdated lines of RichContent. They will be regenerated on-demand.
         self.rich_content.as_mut().map(|rich_content| {
-                                      rich_content.drop_lines(num_common_lines);
-                                      rich_content.update_raw_content(rope);
-                                  });
+            rich_content.drop_lines(num_common_lines);
+            rich_content.update_raw_content(rope);
+        });
     }
 
     pub fn save<T : io::Write>(&self, writer : T) -> io::Result<()> {

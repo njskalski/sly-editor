@@ -37,14 +37,14 @@ pub type KeybindingsType = HashMap<Event, String>;
 fn get_known_keys() -> HashSet<String> {
     let mut known_keys : HashSet<String> = HashSet::new();
 
-    for s in vec!["ctrl", "alt", "shift", "backspace", "delete", "esc",] {
+    for s in vec!["ctrl", "alt", "shift", "backspace", "delete", "esc"] {
         known_keys.insert(s.to_string());
     }
 
     let alphabet = (b'A'..b'z' + 1) // Start as u8
-                                   .map(|c| c as char) // Convert all to chars
-                                   .filter(|c| c.is_alphabetic())
-                                   .collect::<Vec<_>>();
+        .map(|c| c as char) // Convert all to chars
+        .filter(|c| c.is_alphabetic())
+        .collect::<Vec<_>>();
 
     for c in alphabet {
         known_keys.insert(c.to_string());
@@ -87,11 +87,12 @@ impl Settings {
         }
 
         let color = match ptr {
-            Some(&sj::Value::String(ref color_string)) => {
-                color_hex_to_rgb(color_string.as_str()).expect(&format!("failed parsing color {:?} : {:?}",
-                                                                        selector, color_string))
-            }
-            anything_else => panic!("expected color, got {:?} in path {:?} (or earlier)", anything_else, selector),
+            Some(&sj::Value::String(ref color_string)) => color_hex_to_rgb(color_string.as_str())
+                .expect(&format!("failed parsing color {:?} : {:?}", selector, color_string)),
+            anything_else => panic!(
+                "expected color, got {:?} in path {:?} (or earlier)",
+                anything_else, selector
+            ),
         };
 
         self.color_cache.borrow_mut().insert(selector, color);
@@ -99,34 +100,41 @@ impl Settings {
         color
     }
 
-    // TODO(njskalski) I decided not to use Cursive's palette mechanism, because most views will be using more than the
-    // default number of colors. So this method is obsolete.
+    // TODO(njskalski) I decided not to use Cursive's palette mechanism, because most views will be
+    // using more than the default number of colors. So this method is obsolete.
     pub fn get_palette(&self) -> theme::Palette {
         let mut palette : theme::Palette = theme::Palette::default();
 
-        palette[theme::PaletteColor::Background] = self.get_color("theme/text_view/background_color");
+        palette[theme::PaletteColor::Background] =
+            self.get_color("theme/text_view/background_color");
         palette[theme::PaletteColor::View] = palette[theme::PaletteColor::Background];
-        palette[theme::PaletteColor::Primary] = self.get_color("theme/text_view/primary_text_color");
-        palette[theme::PaletteColor::Secondary] = self.get_color("theme/text_view/secondary_text_color");
+        palette[theme::PaletteColor::Primary] =
+            self.get_color("theme/text_view/primary_text_color");
+        palette[theme::PaletteColor::Secondary] =
+            self.get_color("theme/text_view/secondary_text_color");
 
         palette
     }
 
-    pub fn get_colorstyle(&self,
-                          front_selector : &'static str,
-                          background_selector : &'static str)
-                          -> cursive::theme::ColorStyle {
-        cursive::theme::ColorStyle { front : cursive::theme::ColorType::Color(self.get_color(front_selector)),
-                                     back :  cursive::theme::ColorType::Color(self.get_color(background_selector)), }
+    pub fn get_colorstyle(
+        &self,
+        front_selector : &'static str,
+        background_selector : &'static str,
+    ) -> cursive::theme::ColorStyle {
+        cursive::theme::ColorStyle {
+            front : cursive::theme::ColorType::Color(self.get_color(front_selector)),
+            back :  cursive::theme::ColorType::Color(self.get_color(background_selector)),
+        }
     }
 
     pub fn get_keybindings(&self, context : &str) -> KeybindingsType {
         let known_keys = get_known_keys();
 
-        let text_bindings : &sj::map::Map<String, sj::Value> = match self.tree["keybindings"][context] {
-            sj::Value::Object(ref map) => map,
-            _ => panic!("settings/keybindings/text is not an sj::Object!"),
-        };
+        let text_bindings : &sj::map::Map<String, sj::Value> =
+            match self.tree["keybindings"][context] {
+                sj::Value::Object(ref map) => map,
+                _ => panic!("settings/keybindings/text is not an sj::Object!"),
+            };
 
         let mut result : KeybindingsType = HashMap::new();
 
@@ -138,30 +146,38 @@ impl Settings {
             };
 
             if option_keys.len() == 0 {
-                panic!("settings/keybindings/text/{:?} cannot assign empty key combination.", option_name);
+                panic!(
+                    "settings/keybindings/text/{:?} cannot assign empty key combination.",
+                    option_name
+                );
             }
 
-            let keys : Vec<&String> = option_keys.iter()
-                                                 .enumerate()
-                                                 .map(|(i, ref value)| {
-                                                     match value {
-                                                         &&sj::Value::String(ref s) => {
-                                                             if !known_keys.contains(s) {
-                                                                 panic!("settings/keybindings/text/{:?}/#{:?} (0 \
-                                                                         based) - unknown key \"{:?}\"!",
-                                                                        option_name, i, s);
-                                                             };
-                                                             // if i == (option_keys.len() -1) && s.len() != 1 {
-                                                             //     panic!("settings/keybindings/text/{:?}/#{:?} (0 based) - it is expected (for now) that the last key is always a letter, and got \"{:?}\"", option_name, i, s);
-                                                             // }
-                                                             s
-                                                         }
-                                                         _ => panic!("settings/keybindings/text/{:?}/#{:?} (0 based) \
-                                                                      is not a string!",
-                                                                     option_name, i),
-                                                     }
-                                                 })
-                                                 .collect();
+            let keys : Vec<&String> = option_keys
+                .iter()
+                .enumerate()
+                .map(|(i, ref value)| {
+                    match value {
+                        &&sj::Value::String(ref s) => {
+                            if !known_keys.contains(s) {
+                                panic!(
+                                    "settings/keybindings/text/{:?}/#{:?} (0 based) - unknown key \
+                                     \"{:?}\"!",
+                                    option_name, i, s
+                                );
+                            };
+                            // if i == (option_keys.len() -1) && s.len() != 1 {
+                            //     panic!("settings/keybindings/text/{:?}/#{:?} (0 based) - it is
+                            // expected (for now) that the last key is always a letter, and got
+                            // \"{:?}\"", option_name, i, s); }
+                            s
+                        }
+                        _ => panic!(
+                            "settings/keybindings/text/{:?}/#{:?} (0 based) is not a string!",
+                            option_name, i
+                        ),
+                    }
+                })
+                .collect();
 
             let ctrl_in = keys.contains(&&"ctrl".to_string());
             let shift_in = keys.contains(&&"shift".to_string());

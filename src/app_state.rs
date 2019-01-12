@@ -20,8 +20,8 @@ limitations under the License.
 
 // Some design decisions:
 // - history of file is not to be saved. This is not a versioning system.
-// - if editor is closed it asks whether to save changes. If told not to, the changes are lost. there will be no
-//   office-like "unsaved versions"
+// - if editor is closed it asks whether to save changes. If told not to, the changes are lost.
+//   there will be no office-like "unsaved versions"
 // - plugin states are to be lost in first versions
 // - I am heading to MVP.
 
@@ -50,36 +50,34 @@ use std::io;
 use std::io::Write;
 use std::rc::Rc;
 
+use buffer_id::BufferId;
 use buffer_state::CreationPolicy;
 use core::borrow::Borrow;
 use lazy_dir_tree::LazyTreeNode;
 use std::cell::Cell;
+use std::collections::VecDeque;
+use std::io::Error;
 use std::path::PathBuf;
 use view_handle::ViewHandle;
 
 pub struct AppState {
-    // TODO not sure if there is any reason to distinguish between the two.
-    loaded_buffers :  Vec<Rc<RefCell<BufferState>>>,
-    buffers_to_load : Vec<Rc<RefCell<BufferState>>>,
+    buffers_to_load : VecDeque<PathBuf>,
 
-    index : Arc<RefCell<FuzzyIndex>>, /* because searches are mutating the cache TODO this can be
-                                       * solved with "interior mutability", as other caches in this
+    index : Arc<RefCell<FuzzyIndex>>, /* because searches are mutating the cache TODO this can
+                                       * be solved with
+                                       * "interior mutability", as other caches in this
                                        * app */
     dir_and_files_tree :     Rc<LazyTreeNode>,
     get_first_buffer_guard : Cell<bool>,
     directories :            Vec<PathBuf>, /* it's a straigthforward copy of arguments used
                                             * to guess "workspace" parameter for languageserver */
+    loaded_buffers : HashMap<BufferId, Rc<RefCell<BufferState>>>,
 }
 
 impl AppState {
-    //    //TODO this interface is temporary.
-    //    pub fn get_buffer_for_screen(&self, view_handle : &ViewHandle) -> Option<Rc<RefCell<BufferState>>> {
-    //        self.loaded_buffers.get(view_handle).map(|x| x.clone())
-    //    }
-
     /// Returns list of buffers. Rather stable.
     pub fn get_buffers(&self) -> Vec<BufferStateObserver> {
-        self.loaded_buffers.iter().map(|b| BufferStateObserver::new(b.clone())).collect()
+        self.loaded_buffers.iter().map(|b| BufferStateObserver::new(b.1.clone())).collect()
     }
 
     /// Returns file index. Rather stable.
@@ -91,48 +89,47 @@ impl AppState {
         self.dir_and_files_tree.clone()
     }
 
-    pub fn schedule_file_for_load(&mut self, file_path : PathBuf) -> Result<(), io::Error> {
-        let buffer_state = BufferState::open(file_path, CreationPolicy::Can)?;
-        self.buffers_to_load.push(buffer_state);
-        Ok(())
+    pub fn schedule_file_for_load(&mut self, file_path : PathBuf) {
+        self.buffers_to_load.push_back(file_path);
+    }
+
+    pub fn buffer(&self, id : &BufferId) -> BufferStateObserver {
+        BufferStateObserver::new(self.loaded_buffers.get(id).unwrap().clone())
     }
 
     /// This method is called while constructing interface, to determine content of first edit view.
-    pub fn get_first_buffer(&mut self) -> BufferStateObserver {
+    pub fn get_first_buffer(&mut self) -> Result<BufferStateObserver, io::Error> {
         if self.get_first_buffer_guard.get() {
-            error!("secondary call to app_state::get_first_buffer!");
+            panic!("secondary call to app_state::get_first_buffer!");
         }
         self.get_first_buffer_guard.set(true);
 
-        self.loaded_buffers.append(&mut self.buffers_to_load);
-
-        if self.buffers_to_load.is_empty() {
+        let buffer : Rc<RefCell<BufferState>> = if self.buffers_to_load.is_empty() {
             /// if there is no buffer to load, we create an unnamed one.
-            self.loaded_buffers.push(BufferState::new());
-        }
+            BufferState::new()
+        } else {
+            let file_path = self.buffers_to_load.pop_front().unwrap();
+            BufferState::open(file_path, CreationPolicy::Can)?
+        };
 
-        BufferStateObserver::new(self.loaded_buffers.first().unwrap().clone())
+        let id = (*buffer).borrow().id();
+        self.loaded_buffers.insert(id.clone(), buffer);
+
+        Ok(self.buffer(&id))
     }
 
     pub fn new(directories : Vec<PathBuf>, files : Vec<PathBuf>) -> Self {
-        let mut buffers : Vec<Rc<RefCell<BufferState>>> = Vec::new();
-        for file in &files {
-            match BufferState::open(file.clone(), CreationPolicy::Must) {
-                Ok(buffer_state) => buffers.push(buffer_state),
-                Err(e) => error!("{}", e),
-            }
-        }
-
         let mut files_to_index : Vec<PathBuf> = files.to_owned();
         for dir in &directories {
             build_file_index(&mut files_to_index, dir, false, None);
         }
 
         let file_index_items = file_list_to_items(&files_to_index);
+        let buffers_to_load : VecDeque<PathBuf> = files.iter().map(|x| x.clone()).collect();
 
         AppState {
-            buffers_to_load :        buffers,
-            loaded_buffers :         Vec::new(),
+            buffers_to_load :        buffers_to_load,
+            loaded_buffers :         HashMap::new(),
             index :                  Arc::new(RefCell::new(FuzzyIndex::new(file_index_items))),
             dir_and_files_tree :     Rc::new(LazyTreeNode::new(directories.clone(), files)),
             get_first_buffer_guard : Cell::new(false),
@@ -149,8 +146,8 @@ impl AppState {
     }
 }
 
-/// this method takes into account .git and other directives set in .gitignore. However it only takes into account most
-/// recent .gitignore
+/// this method takes into account .git and other directives set in .gitignore. However it only
+/// takes into account most recent .gitignore
 fn build_file_index(
     mut index : &mut Vec<PathBuf>,
     dir : &Path,
@@ -165,7 +162,10 @@ fn build_file_index(
                 if gitignore_path.exists() && gitignore_path.is_file() {
                     let (gi, error_op) = gitignore::Gitignore::new(&gitignore_path);
                     if let Some(error) = error_op {
-                        info!("Error while parsing gitignore file {:?} : {:}", gitignore_path, error);
+                        info!(
+                            "Error while parsing gitignore file {:?} : {:}",
+                            gitignore_path, error
+                        );
                     }
                     Some(gi)
                 } else {
@@ -203,7 +203,12 @@ fn build_file_index(
 
                             let most_recent_gitignore =
                                 if gitignore_op.is_some() { gitignore_op.as_ref() } else { gi_op };
-                            build_file_index(&mut index, &path, enable_gitignore, most_recent_gitignore);
+                            build_file_index(
+                                &mut index,
+                                &path,
+                                enable_gitignore,
+                                most_recent_gitignore,
+                            );
                         }
                     }
                     Err(e) => error!("error listing directory \"{:?}\": {:?}. Skipping.", dir, e),

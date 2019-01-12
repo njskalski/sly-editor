@@ -49,14 +49,16 @@ example: mutliple methods with same names from different files.
 It is not possible to add items after a fst::Map has been built.
 */
 pub struct FuzzyIndex {
-    index :       Arc<Map>, //this is Map<String, u64>. It's Arc, because queries are ran in worker threads.
+    index :       Arc<Map>, /* this is Map<String, u64>. It's Arc, because queries are ran in
+                             * worker threads. */
     items :       HashMap<u64, Vec<Rc<ViewItem>>>,
-    items_sizes : Arc<HashMap<u64, usize>>, /* this field is used by workers to determine whether they hit the limit
+    items_sizes : Arc<HashMap<u64, usize>>, /* this field is used by workers to determine
+                                             * whether they hit the limit
                                              * of records or not. */
     cache : HashMap<String, FuzzySearchTask>,
-    /// used to know in what order clear the cache. Does not contain empty query, which is computed in cache
-    /// immediately. Also, cache_order and cache sizes are not synchronized, as cache_order can contain duplicates in
-    /// rare situations.
+    /// used to know in what order clear the cache. Does not contain empty query, which is computed
+    /// in cache immediately. Also, cache_order and cache sizes are not synchronized, as
+    /// cache_order can contain duplicates in rare situations.
     cache_order : LinkedList<String>,
 }
 
@@ -112,11 +114,13 @@ impl FuzzyIndex {
             item_sizes.insert(*k, v.len());
         }
 
-        let mut i = FuzzyIndex { index :       Arc::new(map),
-                                 items :       items,
-                                 items_sizes : Arc::new(item_sizes),
-                                 cache :       HashMap::new(),
-                                 cache_order : LinkedList::new(), };
+        let mut i = FuzzyIndex {
+            index :       Arc::new(map),
+            items :       items,
+            items_sizes : Arc::new(item_sizes),
+            cache :       HashMap::new(),
+            cache_order : LinkedList::new(),
+        };
         i.start_search(&"".to_string(), HARD_QUERY_LIMIT);
         i
     }
@@ -129,8 +133,9 @@ impl FuzzyIndex {
             } else {
                 // not enough results.
                 self.cache.remove(query);
-                // linked list has no remove, so cache and cache_order can become desynchronized. I don't rely on them
-                // being in sync, so don't worry. self.cache_order.remove(&query);
+                // linked list has no remove, so cache and cache_order can become desynchronized. I
+                // don't rely on them being in sync, so don't worry.
+                // self.cache_order.remove(&query);
             }
         }
 
@@ -141,10 +146,11 @@ impl FuzzyIndex {
             self.cache_order.push_back(query.clone());
 
             while self.cache.len() - 1 /* >= 0, look above */ > MAX_CACHE_SIZE {
-                // -1 and condition above stand for the fact I want to keep empty query computed all the time!
+                // -1 and condition above stand for the fact I want to keep empty query computed all
+                // the time!
                 let oldest_query = self.cache_order.pop_front().unwrap();
-                // this doesn't have to succeed, the cache_order can become a little longer than cache, look at the top
-                // of the function why (duplicates possible)
+                // this doesn't have to succeed, the cache_order can become a little longer than
+                // cache, look at the top of the function why (duplicates possible)
                 self.cache.remove(&oldest_query);
             }
         }
@@ -192,11 +198,13 @@ impl FuzzySearchTask {
             debug!("3");
         });
 
-        FuzzySearchTask { receiver : receiver,
-                          item_ids : RefCell::new(item_ids),
-                          done :     Cell::new(false),
-                          query :    query,
-                          limit :    limit, }
+        FuzzySearchTask {
+            receiver : receiver,
+            item_ids : RefCell::new(item_ids),
+            done :     Cell::new(false),
+            query :    query,
+            limit :    limit,
+        }
     }
 
     pub fn get_result_ids(&self) -> Ref<Vec<u64>> {

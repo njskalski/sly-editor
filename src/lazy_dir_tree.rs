@@ -42,19 +42,23 @@ impl fmt::Display for LazyTreeNode {
     fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
         match self {
             &LazyTreeNode::RootNode(_) => write!(f, "<root>"),
-            &LazyTreeNode::DirNode(ref path) => write!(f, "{}", path.file_name().unwrap().to_string_lossy()),
-            &LazyTreeNode::FileNode(ref path) => write!(f, "{}", path.file_name().unwrap().to_string_lossy()),
+            &LazyTreeNode::DirNode(ref path) => {
+                write!(f, "{}", path.file_name().unwrap().to_string_lossy())
+            }
+            &LazyTreeNode::FileNode(ref path) => {
+                write!(f, "{}", path.file_name().unwrap().to_string_lossy())
+            }
         }
     }
 }
 
 impl LazyTreeNode {
     pub fn new(directories : Vec<PathBuf>, files : Vec<PathBuf>) -> Self {
-        let mut nodes : Vec<Rc<LazyTreeNode>> =
-            directories.into_iter()
-                       .map(|x| Rc::new(LazyTreeNode::DirNode(Rc::new(x))))
-                       .chain(files.into_iter().map(|x| Rc::new(LazyTreeNode::FileNode(Rc::new(x)))))
-                       .collect();
+        let mut nodes : Vec<Rc<LazyTreeNode>> = directories
+            .into_iter()
+            .map(|x| Rc::new(LazyTreeNode::DirNode(Rc::new(x))))
+            .chain(files.into_iter().map(|x| Rc::new(LazyTreeNode::FileNode(Rc::new(x)))))
+            .collect();
         nodes.sort();
         LazyTreeNode::RootNode(nodes)
     }

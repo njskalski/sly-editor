@@ -38,7 +38,14 @@ use std::rc::Rc;
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use syntect::highlighting::{HighlightIterator, HighlightState, Highlighter, Style, Theme, ThemeSet};
+use syntect::highlighting::{
+    HighlightIterator,
+    HighlightState,
+    Highlighter,
+    Style,
+    Theme,
+    ThemeSet,
+};
 use syntect::parsing::{ParseState, ScopeStack, SyntaxReference, SyntaxSet};
 
 const PARSING_MILESTONE : usize = 80;
@@ -123,19 +130,22 @@ impl ParseCacheRecord {
 pub struct RichContent {
     highlight_settings : Rc<HighlightSettings>,
     raw_content :        Rope,
-    // the key corresponds to number of next line to parse by ParseState. NOT DONE, bc I don't want negative numbers.
+    // the key corresponds to number of next line to parse by ParseState. NOT DONE, bc I don't want
+    // negative numbers.
     parse_cache : RefCell<Vec<ParseCacheRecord>>, //TODO is it possible to remove RefCell?
     lines :       RefCell<Vec<Rc<RichLine>>>,
 }
 
 impl RichContent {
     pub fn new(settings : Rc<HighlightSettings>, rope : Rope) -> Self {
-        RichContent { highlight_settings : settings,
-                      raw_content :        rope,
-                      //contract: sorted.
-                      parse_cache : RefCell::new(Vec::new()),
-                      //contract: max key of parse_cache < len(lines)
-                      lines : RefCell::new(Vec::new()), }
+        RichContent {
+            highlight_settings : settings,
+            raw_content :        rope,
+            //contract: sorted.
+            parse_cache : RefCell::new(Vec::new()),
+            //contract: max key of parse_cache < len(lines)
+            lines : RefCell::new(Vec::new()),
+        }
     }
 
     //TODO(njskalski): it should have some kind of observer, but reference to ContentProvider
@@ -190,16 +200,17 @@ impl RichContent {
         let parse_cache : Ref<Vec<ParseCacheRecord>> = self.parse_cache.borrow();
 
         if !parse_cache.is_empty() {
-            let cache : Option<usize> = match parse_cache.binary_search_by(|rec| rec.line_to_parse.cmp(&line_no)) {
-                Ok(idx) => Some(idx),
-                Err(higher_index) => {
-                    if higher_index == 0 {
-                        None
-                    } else {
-                        Some(higher_index - 1)
+            let cache : Option<usize> =
+                match parse_cache.binary_search_by(|rec| rec.line_to_parse.cmp(&line_no)) {
+                    Ok(idx) => Some(idx),
+                    Err(higher_index) => {
+                        if higher_index == 0 {
+                            None
+                        } else {
+                            Some(higher_index - 1)
+                        }
                     }
-                }
-            };
+                };
             cache
         } else {
             None
@@ -227,7 +238,10 @@ impl RichContent {
         let mut parse_cache : ParseCacheRecord = match self.get_cache(line_no) {
             None => {
                 debug!("cache miss for line_no {:}", line_no);
-                ParseCacheRecord::new(ParseState::new(&self.highlight_settings.syntax), &highlighter)
+                ParseCacheRecord::new(
+                    ParseState::new(&self.highlight_settings.syntax),
+                    &highlighter,
+                )
             }
             Some(x) => {
                 debug!("cache HIT for line_no {:} ({:})", line_no, x.line_to_parse);
@@ -235,8 +249,10 @@ impl RichContent {
             }
         };
 
-        let line_limit =
-            std::cmp::min((line_no / PARSING_MILESTONE + 1) * PARSING_MILESTONE, self.raw_content.len_lines());
+        let line_limit = std::cmp::min(
+            (line_no / PARSING_MILESTONE + 1) * PARSING_MILESTONE,
+            self.raw_content.len_lines(),
+        );
         let first_line = std::cmp::min(self.lines.borrow().len(), parse_cache.line_to_parse);
 
         self.drop_lines(first_line);
@@ -244,14 +260,23 @@ impl RichContent {
         debug!("generating lines from [{:}, {:})", first_line, line_limit);
         for current_line_no in (first_line)..(line_limit) {
             let line_str = self.raw_content.line(current_line_no).to_string();
-            let ops = parse_cache.parse_state.parse_line(&line_str, &self.highlight_settings.syntax_set);
+            let ops =
+                parse_cache.parse_state.parse_line(&line_str, &self.highlight_settings.syntax_set);
 
             let ranges : Vec<(Style, &str)> = {
-                HighlightIterator::new(&mut parse_cache.highlight_state, &ops[..], &line_str, &highlighter).collect()
+                HighlightIterator::new(
+                    &mut parse_cache.highlight_state,
+                    &ops[..],
+                    &line_str,
+                    &highlighter,
+                )
+                .collect()
             };
 
-            let new_line : Vec<(Color, String)> =
-                ranges.into_iter().map(|(style, words)| (simplify_style(&style), words.to_string())).collect();
+            let new_line : Vec<(Color, String)> = ranges
+                .into_iter()
+                .map(|(style, words)| (simplify_style(&style), words.to_string()))
+                .collect();
             let rc_rich_line = Rc::new(RichLine::new(current_line_no, new_line));
 
             //            debug!("generated line {:?}", rc_rich_line);

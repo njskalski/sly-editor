@@ -14,11 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+use buffer_id::BufferId;
 use content_provider;
 use serde_json as sj;
 use std::path::PathBuf;
-use view_handle::ViewHandle;
 use std::sync::mpsc;
+use view_handle::ViewHandle;
 
 pub type IChannel = mpsc::Sender<IEvent>;
 
@@ -32,12 +33,13 @@ pub enum IEvent {
     QuitSly,
     ShowFileBar,
     ShowBufferList,
-    ShowSaveAs, // TODO add buffer, default filename etc.
+    ShowSaveAs(BufferId, Option<PathBuf>),
     OpenFileDialog,
-    SaveBuffer,                            // TODO add buffer
-    SaveBufferAs(PathBuf),                 // path, TODO add buffer
-    OpenFile(PathBuf),                     // path
-    FuzzyQueryBarSelected(String, String), // marker (the word that search ran agains), selection (value)
+    SaveBufferAs(BufferId, PathBuf), // sent by file_view
+    //    SaveBuffer(BufferId),
+    OpenFile(PathBuf), // path
+    FuzzyQueryBarSelected(String, String), /* marker (the word that search ran agains),
+                        * selection (value) */
     CloseWindow,
 
     // Buffer edit events are now in the same queue, not sure yet if that's final.
@@ -46,4 +48,3 @@ pub enum IEvent {
 
     Proto(String), //for quick hacking.
 }
-
