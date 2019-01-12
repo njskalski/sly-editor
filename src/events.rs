@@ -42,7 +42,7 @@ pub enum IEvent {
 
     // Buffer edit events are now in the same queue, not sure yet if that's final.
     BufferEditEvent(ViewHandle, Vec<content_provider::EditEvent>),
-
+    EnableLSP,
 
     Proto(String), //for quick hacking.
 }

@@ -38,7 +38,8 @@ const default_settings_string : &'static str = r####"
       "close_window" : ["esc"],
       "save" : ["ctrl", "s"],
       "save_as" : ["ctrl","w"],
-      "open_file_dialog" : ["ctrl", "u"]
+      "open_file_dialog" : ["ctrl", "u"],
+      "start_lsp" : ["ctrl", "i"]
     },
     "file_bar" : {
     }

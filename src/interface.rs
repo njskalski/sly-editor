@@ -37,8 +37,11 @@ use sly_text_view::SlyTextView;
 use std::thread;
 use utils;
 
+use events::IChannel;
+use lsp_client::LspClient;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::ffi::OsString;
 use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
@@ -46,7 +49,7 @@ use std::rc::{Rc, Weak};
 use std::sync::mpsc;
 use std::sync::Arc;
 use view_handle::ViewHandle;
-use events::IChannel;
+use std::ffi::OsStr;
 
 pub struct Interface {
     state :              AppState,
@@ -101,7 +104,7 @@ impl Interface {
         // let known_actions = vec!["show_everything_bar"];
         //TODO filter unknown actions
         for (event, action) in i.settings.get_keybindings("global") {
-            let ch = i.get_event_channel();
+            let ch = i.get_event_sink();
             match action.as_str() {
                 "show_file_bar" => {
                     i.siv.add_global_callback(event, move |_| {
@@ -131,6 +134,11 @@ impl Interface {
                 "close_window" => {
                     i.siv.add_global_callback(event, move |_| {
                         ch.send(IEvent::CloseWindow).unwrap();
+                    });
+                }
+                "start_lsp" => {
+                    i.siv.add_global_callback(event, move |_| {
+                        ch.send(IEvent::EnableLSP).unwrap();
                     });
                 }
                 _ => {
@@ -188,6 +196,9 @@ impl Interface {
                 IEvent::ShowBufferList => {
                     self.show_buffer_list();
                 }
+                IEvent::EnableLSP => {
+                    self.enable_lsp();
+                }
                 _ => {
                     debug!("unhandled IEvent {:?}", &msg);
                 }
@@ -208,7 +219,7 @@ impl Interface {
         self.close_buffer_list();
     }
 
-    pub fn get_event_channel(&self) -> IChannel {
+    pub fn get_event_sink(&self) -> IChannel {
         self.channel.0.clone()
     }
 
@@ -245,7 +256,7 @@ impl Interface {
         if !self.filedialog_visible {
             self.assert_no_file_view();
             let is_save = variant.is_save();
-            let file_view = FileView::new(self.get_event_channel(), variant, self.state.get_dir_tree(), &self.settings);
+            let file_view = FileView::new(self.get_event_sink(), variant, self.state.get_dir_tree(), &self.settings);
             self.siv.add_layer(IdView::new("filedialog", file_view));
             self.filedialog_visible = true;
         }
@@ -270,7 +281,7 @@ impl Interface {
             let ebar = FuzzyQueryView::new(
                 self.state.get_file_index(),
                 "filebar".to_string(),
-                self.get_event_channel(),
+                self.get_event_sink(),
                 self.settings.clone(),
             );
             self.siv.add_layer(IdView::new("filebar", ebar));
@@ -291,6 +302,11 @@ impl Interface {
             self.siv.pop_layer();
             self.bufferlist_visible = false;
         }
+    }
+
+    fn enable_lsp(&mut self) {
+
+        let lsp = LspClient::new(OsStr::new("rls"), self.get_event_sink(), None);
     }
 }
 

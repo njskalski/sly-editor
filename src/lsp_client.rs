@@ -21,11 +21,11 @@ use events::IChannel;
 use events::IEvent;
 use jsonrpc_core::types as jt;
 
-struct LspClient {
-    waiter_handle :    JoinHandle<()>,
-    is_initialized :   bool,
-    i_event_sink :     IChannel,
-    channel :          (Sender<LSPEvent>, Receiver<LSPEvent>),
+pub struct LspClient {
+    waiter_handle :  JoinHandle<()>,
+    is_initialized : bool,
+    i_event_sink :   IChannel,
+    channel :        (Sender<LSPEvent>, Receiver<LSPEvent>),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -38,10 +38,11 @@ const ID_COMPLETION : u64 = 0;
 
 impl LspClient {
     pub fn new(
-        path_to_program : OsString,
+        path_to_program : &OsStr,
         event_sink : IChannel,
         workspace_folders : Option<Vec<PathBuf>>,
-    ) -> Result<LspClient, Box<Error>> {
+    ) -> Result<LspClient, Box<Error>>
+    {
         let workspace_folders_op = workspace_folders.map(|ref v| {
             v.iter()
                 .map(|path| {
@@ -62,7 +63,7 @@ impl LspClient {
             workspace_folders :      workspace_folders_op,
         };
 
-        let mut lsp_command = Command::new(&path_to_program);
+        let mut lsp_command = Command::new(path_to_program);
 
         let mut lsp = lsp_command
             .stdin(process::Stdio::piped())
