@@ -1,9 +1,9 @@
 #indent_style = "Visual"
 indent_style = "Block"
 use_small_heuristics = "Max"
-max_width = 120
+max_width = 100
 wrap_comments = true
-comment_width = 120
+comment_width = 100
 condense_wildcard_suffixes = true
 format_strings = true
 #import_indent = "Visual"

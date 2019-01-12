@@ -20,6 +20,8 @@ use std::thread::JoinHandle;
 use events::IChannel;
 use events::IEvent;
 use jsonrpc_core::types as jt;
+use languageserver_types;
+use jsonrpc_core::Output;
 
 pub struct LspClient {
     waiter_handle :  JoinHandle<()>,
@@ -37,13 +39,15 @@ const ID_INIT : u64 = 0; // it's always a first message.
 const ID_COMPLETION : u64 = 0;
 
 impl LspClient {
+
     pub fn new(
         path_to_program : &OsStr,
         event_sink : IChannel,
-        workspace_folders : Option<Vec<PathBuf>>,
+        workspace_folders : Option<&Vec<PathBuf>>,
     ) -> Result<LspClient, Box<Error>>
     {
-        let workspace_folders_op = workspace_folders.map(|ref v| {
+
+        let workspace_folders_op = workspace_folders.map(|v| {
             v.iter()
                 .map(|path| {
                     let uri = path.to_str().unwrap().to_owned();
@@ -65,11 +69,15 @@ impl LspClient {
 
         let mut lsp_command = Command::new(path_to_program);
 
+        debug!("starting LSP");
+
         let mut lsp = lsp_command
             .stdin(process::Stdio::piped())
             .stdout(process::Stdio::piped())
             .stderr(process::Stdio::piped())
             .spawn()?;
+
+        debug!("started LSP");
 
         let mut stdin = lsp.stdin.take().ok_or("unable to grab stdin of language server")?;
         let mut reader = BufReader::new(lsp.stdout.take().ok_or("unable to grab stdout of language server")?);
@@ -101,21 +109,29 @@ impl LspClient {
                 let content_len = headers["Content-Length"].parse().unwrap();
                 let mut content = vec![0; content_len];
                 reader.read_exact(&mut content).unwrap();
-                let msg = String::from_utf8(content).unwrap();
-                let output : serde_json::Result<jt::Output> = serde_json::from_str(&msg);
-                if let Ok(jt::Output::Success(suc)) = output {
-                    if suc.id == jsonrpc_core::id::Id::Num(ID_INIT) {
-                        lsp_sink.send(LSPEvent::Initialized).unwrap();
-                    } else if suc.id == jsonrpc_core::id::Id::Num(ID_COMPLETION) {
-                        let completion =
-                            serde_json::from_value::<languageserver_types::CompletionResponse>(suc.result).unwrap();
 
-                        //                        let mut completion = extract_completion(completion);
-                        //                        tx.send(completion).unwrap();
-                    }
-                } else {
-                    debug!("lsp: unable to parse \"{}\"", msg);
-                }
+                let msg = String::from_utf8(content).unwrap();
+
+                let output : serde_json::Result<Output> = serde_json::from_str(&msg);
+                debug!("dd : {:?}", &output);
+                match output {
+                    Ok(jt::Output::Success(suc)) => {
+                        if suc.id == jsonrpc_core::id::Id::Num(ID_INIT) {
+                            lsp_sink.send(LSPEvent::Initialized).unwrap();
+                        } else if suc.id == jsonrpc_core::id::Id::Num(ID_COMPLETION) {
+                            let completion =
+                                serde_json::from_value::<languageserver_types::CompletionResponse>(suc.result).unwrap();
+
+                            //                        let mut completion = extract_completion(completion);
+                            //                        tx.send(completion).unwrap();
+                        }
+                    },
+                    Ok(jt::Output::Failure(f)) => debug!("lsp: unable to parse \n{}\nfailure:\n{:?}\n", msg, f),
+                    Err(e) => debug!("lsp: unable to parse \n{}\nerrror:\n{:?}\n", msg, e)
+                };
+
+
+
             }
         });
 
@@ -143,6 +159,7 @@ where
             params :  jsonrpc_core::Params::Map(params),
             id :      jsonrpc_core::Id::Num(id),
         });
+        debug!("sending {:?}", &req);
         let request = serde_json::to_string(&req).unwrap();
         write!(write, "Content-Length: {}\r\n\r\n{}", request.len(), request)
     } else {

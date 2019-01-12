@@ -41,6 +41,7 @@ use events::IChannel;
 use lsp_client::LspClient;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::fmt;
 use std::path::Path;
@@ -49,7 +50,6 @@ use std::rc::{Rc, Weak};
 use std::sync::mpsc;
 use std::sync::Arc;
 use view_handle::ViewHandle;
-use std::ffi::OsStr;
 
 pub struct Interface {
     state :              AppState,
@@ -61,6 +61,7 @@ pub struct Interface {
     filedialog_visible : bool,
     bufferlist_visible : bool,
     active_editor :      ViewHandle,
+    lsp_clients :        Vec<LspClient>, //TODO(njskalski): temporary storage to avoid removal
 }
 
 impl Interface {
@@ -76,7 +77,8 @@ impl Interface {
 
         let palette = settings.get_palette();
 
-        let theme : Theme = Theme { shadow : false, borders : BorderStyle::Simple, palette : palette };
+        let theme : Theme =
+            Theme { shadow : false, borders : BorderStyle::Simple, palette : palette };
 
         let channel = mpsc::channel();
         siv.set_theme(theme);
@@ -99,6 +101,7 @@ impl Interface {
             filedialog_visible : false,
             bufferlist_visible : false,
             active_editor :      active_editor,
+            lsp_clients :        Vec::new(),
         };
 
         // let known_actions = vec!["show_everything_bar"];
@@ -184,12 +187,13 @@ impl Interface {
                 IEvent::SaveBufferAs(file_path) => {
                     //                    match self.get_active_editor() {
                     //                        Some(view_handle) => {
-                    //                            // TODO(njskalski) Create a separate buffer on this?
-                    //                            let buffer_state: Rc<RefCell<BufferState>> =
-                    // self.state.get_buffer_for_screen(&view_handle).unwrap();
+                    //                            // TODO(njskalski) Create a separate buffer on
+                    // this?                            let buffer_state:
+                    // Rc<RefCell<BufferState>> = self.state.
+                    // get_buffer_for_screen(&view_handle).unwrap();
                     // buffer_state.borrow_mut().save(Some(file_path));                        },
-                    //                        None => debug!("unable to SaveBufferAs - no buffer found")
-                    //                    }
+                    //                        None => debug!("unable to SaveBufferAs - no buffer
+                    // found")                    }
                     debug!("IEvent::SaveBufferAs not implemented");
                     self.close_filedialog();
                 }
@@ -256,7 +260,12 @@ impl Interface {
         if !self.filedialog_visible {
             self.assert_no_file_view();
             let is_save = variant.is_save();
-            let file_view = FileView::new(self.get_event_sink(), variant, self.state.get_dir_tree(), &self.settings);
+            let file_view = FileView::new(
+                self.get_event_sink(),
+                variant,
+                self.state.get_dir_tree(),
+                &self.settings,
+            );
             self.siv.add_layer(IdView::new("filedialog", file_view));
             self.filedialog_visible = true;
         }
@@ -305,14 +314,11 @@ impl Interface {
     }
 
     fn enable_lsp(&mut self) {
-
-        let lsp = LspClient::new(OsStr::new("rls"), self.get_event_sink(), None);
+        let lsp = LspClient::new(
+            OsStr::new("rls"),
+            self.get_event_sink(),
+            Some(self.state.directories()),
+        );
+        self.lsp_clients.push(lsp.unwrap());
     }
-}
-
-fn pair_string_to_pathbuf(folder : String, file : String) -> PathBuf {
-    let mut file_path : PathBuf = PathBuf::new();
-    file_path.push(folder);
-    file_path.push(file);
-    file_path
 }

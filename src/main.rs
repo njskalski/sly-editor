@@ -108,7 +108,7 @@ fn get_file_list_from_dir(path : &Path) -> Vec<String> {
 }
 
 fn main() {
-    setup_panic!();
+//    setup_panic!();
     stderrlog::new().module(module_path!()).verbosity(5).init().unwrap();
 
     let yml = clap::load_yaml!("clap.yml");
@@ -159,11 +159,6 @@ fn main() {
                 }
             };
 
-            //removing tailing slashes (for some reasons rust's path allow them)
-            //            while value.chars().last() == Some('/') {
-            ////                value = value.chars().
-            //            };
-
             if !path.exists() {
                 info!("{:?} does not exist, now ignoring.", value);
                 continue; // TODO(njskalski) stop ignoring new files.
@@ -176,6 +171,12 @@ fn main() {
             } else {
                 info!("{:?} is neither a file nor directory. Ignoring.", value);
             }
+        }
+    } else {
+        // if no directory is specified, we take current directory as "project root".
+        match env::current_dir() {
+            Ok(path) => directories.push(path),
+            Err(e) => debug!("unable to access current directory, because {:?}", e)
         }
     }
 

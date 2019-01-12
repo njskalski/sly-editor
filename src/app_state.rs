@@ -67,6 +67,8 @@ pub struct AppState {
                                        * app */
     dir_and_files_tree :     Rc<LazyTreeNode>,
     get_first_buffer_guard : Cell<bool>,
+    directories :            Vec<PathBuf>, /* it's a straigthforward copy of arguments used
+                                            * to guess "workspace" parameter for languageserver */
 }
 
 impl AppState {
@@ -128,24 +130,33 @@ impl AppState {
 
         let file_index_items = file_list_to_items(&files_to_index);
 
-        AppState { buffers_to_load :        buffers,
-                   loaded_buffers :         Vec::new(),
-                   index :                  Arc::new(RefCell::new(FuzzyIndex::new(file_index_items))),
-                   dir_and_files_tree :     Rc::new(LazyTreeNode::new(directories, files)),
-                   get_first_buffer_guard : Cell::new(false), }
+        AppState {
+            buffers_to_load :        buffers,
+            loaded_buffers :         Vec::new(),
+            index :                  Arc::new(RefCell::new(FuzzyIndex::new(file_index_items))),
+            dir_and_files_tree :     Rc::new(LazyTreeNode::new(directories.clone(), files)),
+            get_first_buffer_guard : Cell::new(false),
+            directories :            directories,
+        }
     }
 
     fn empty() -> Self {
         Self::new(Vec::new(), Vec::new())
     }
+
+    pub fn directories(&self) -> &Vec<PathBuf> {
+        &self.directories
+    }
 }
 
 /// this method takes into account .git and other directives set in .gitignore. However it only takes into account most
 /// recent .gitignore
-fn build_file_index(mut index : &mut Vec<PathBuf>,
-                    dir : &Path,
-                    enable_gitignore : bool,
-                    gi_op : Option<&gitignore::Gitignore>) {
+fn build_file_index(
+    mut index : &mut Vec<PathBuf>,
+    dir : &Path,
+    enable_gitignore : bool,
+    gi_op : Option<&gitignore::Gitignore>,
+) {
     match fs::read_dir(dir) {
         Ok(read_dir) => {
             let gitignore_op : Option<gitignore::Gitignore> = if enable_gitignore {
