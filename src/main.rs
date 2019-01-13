@@ -118,7 +118,7 @@ fn get_file_list_from_dir(path : &Path) -> Vec<String> {
 }
 
 fn main() {
-    //    setup_panic!();
+//        setup_panic!();
     stderrlog::new().module(module_path!()).verbosity(5).init().unwrap();
 
     let yml = clap::load_yaml!("clap.yml");

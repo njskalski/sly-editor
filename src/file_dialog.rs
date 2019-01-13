@@ -180,8 +180,8 @@ impl OverlayDialog<FileDialogResult, FileDialogError> for FileDialog {
 }
 
 impl SlyView for FileDialog {
-    fn handle(&self) -> &ViewHandle {
-        &self.handle
+    fn handle(&self) -> ViewHandle {
+        self.handle.clone()
     }
 
     fn siv_uid(&self) -> String {
@@ -515,8 +515,7 @@ impl FileDialog {
 
         let file_view = FileDialog { variant, vertical_layout, result : None, handle };
 
-        let siv_uid = file_view.siv_uid();
-        file_view.with_id(siv_uid)
+        IdView::new(file_view.siv_uid(), file_view)
     }
 
     fn tree_view(&mut self) -> ViewRef<TreeViewType> {

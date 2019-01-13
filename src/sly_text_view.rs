@@ -63,6 +63,7 @@ use unicode_segmentation;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 use view_handle::ViewHandle;
+use cursive::views::IdView;
 
 const INDEX_MARGIN : usize = 1;
 const PAGE_WIDTH : usize = 80;
@@ -93,18 +94,18 @@ pub struct SlyTextView {
 }
 
 impl SlyView for SlyTextView {
-    fn handle(&self) -> &ViewHandle {
-        &self.handle
+    fn handle(&self) -> ViewHandle {
+        self.handle.clone()
     }
 
     fn siv_uid(&self) -> String {
-        format!("sly_text_view_{}", self.handle())
+        format!("sly{}", self.handle())
     }
 }
 
 impl SlyTextView {
-    pub fn new(settings : Rc<Settings>, buffer : BufferStateObserver, channel : IChannel) -> Self {
-        SlyTextView {
+    pub fn new(settings : Rc<Settings>, buffer : BufferStateObserver, channel : IChannel) -> IdView<Self> {
+        let view = SlyTextView {
             channel :               channel,
             buffer :                buffer,
             cursors :               vec![(0, None)],
@@ -114,7 +115,9 @@ impl SlyTextView {
             clipboard_context :     clipboard::ClipboardProvider::new().unwrap(),
             special_char_mappings : hashmap!['\n' => '\u{21B5}'],
             handle :                ViewHandle::new(),
-        }
+        };
+
+        IdView::new(view.siv_uid(), view)
     }
 
     pub fn buffer_obs(&self) -> &BufferStateObserver {

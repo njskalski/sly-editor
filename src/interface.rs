@@ -37,6 +37,7 @@ use sly_text_view::SlyTextView;
 use std::thread;
 use utils;
 
+use core::borrow::BorrowMut;
 use events::IChannel;
 use lsp_client::LspClient;
 use overlay_dialog::OverlayDialog;
@@ -52,7 +53,6 @@ use std::rc::{Rc, Weak};
 use std::sync::mpsc;
 use std::sync::Arc;
 use view_handle::ViewHandle;
-use core::borrow::BorrowMut;
 
 pub struct Interface {
     state :              AppState,
@@ -125,11 +125,6 @@ impl Interface {
                         ch.send(IEvent::SaveCurrentBuffer).unwrap();
                     });
                 }
-                //                "save_as" => {
-                //                    i.siv.add_global_callback(event, move |_| {
-                //                        ch.send(IEvent::ShowSaveAs).unwrap();
-                //                    });
-                //                }
                 "open_file_dialog" => {
                     i.siv.add_global_callback(event, move |_| {
                         ch.send(IEvent::OpenFileDialog).unwrap();
@@ -311,10 +306,9 @@ impl Interface {
     }
 }
 
-
 fn match_handle<V>(siv : &mut Cursive, handle_op : &Option<ViewHandle>) -> Option<ViewRef<V>>
-    where
-        V : SlyView + View,
+where
+    V : SlyView + View,
 {
     match handle_op {
         Some(handle) => siv.find_id(&handle.to_string()),
