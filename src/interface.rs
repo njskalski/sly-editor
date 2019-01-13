@@ -53,6 +53,7 @@ use std::rc::{Rc, Weak};
 use std::sync::mpsc;
 use std::sync::Arc;
 use view_handle::ViewHandle;
+use buffer_id::BufferId;
 
 pub struct Interface {
     state :                AppState,
@@ -210,9 +211,53 @@ impl Interface {
     /// Main program method
     pub fn main(&mut self) {
         while !self.done {
+            // first, let's finish whatever action have been started in a previous frame.
+            self.process_dialogs();
+
             self.process_events();
             self.siv.step();
         }
+    }
+
+    fn num_open_dialogs(&self) -> usize {
+        (if self.file_dialog_handle.is_some() { 1 } else { 0 }) +
+            (if self.buffer_list_handle.is_some() { 1 } else { 0 }) +
+            (if self.file_bar_handle.is_some() {1 } else {0})
+    }
+
+    fn remove_window(&mut self, handle : &ViewHandle) {
+        self.siv.focus_id(&handle.to_string());
+        self.siv.pop_layer();
+    }
+
+    /// consumes results of previous dialog choices.
+    fn process_dialogs(&mut self) {
+        if self.num_open_dialogs() > 1 {
+            panic!("unexpected situations - more than one dialog open.")
+        }
+
+        if self.file_dialog_handle.is_some() {
+            let mut file_dialog = self.file_dialog().unwrap();
+
+            if let Some(result) = file_dialog.get_result() {
+                match result {
+                    Ok(FileDialogResult::Cancel) => {},
+                    Ok(FileDialogResult::FileSave(buffer_id, path)) => self.state.save_buffer_as(&buffer_id, path),
+                    Ok(FileDialogResult::FileOpen(path)) => {
+                        let buf_id = self.state.open_file(path);
+                        debug!("buffer_id {:?}", buf_id);
+                    },
+                    Err(e) => {
+                        error!("opening file failed, because \"{}\"", e);
+                    }
+                }
+
+                let handle = self.file_dialog_handle.take().unwrap();
+                self.remove_window(&handle);
+            }
+        }
+
+        // TODO(njskalski): add processing of file_bar and fuzzy stuff.
     }
 
     pub fn get_event_sink(&self) -> IChannel {

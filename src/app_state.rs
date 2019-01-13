@@ -100,6 +100,18 @@ impl AppState {
         BufferStateObserver::new(self.loaded_buffers.get(id).unwrap().clone())
     }
 
+    pub fn save_buffer_as(&mut self, id : &BufferId, path : PathBuf) {
+        
+    }
+
+    pub fn open_file(&mut self, path : PathBuf) -> Result<BufferId, io::Error> {
+        // TODO(njskalski): add delayed load (promise)
+        let buffer = BufferState::open(path, CreationPolicy::MustNot)?;
+        let id = (*buffer).borrow().id();
+        self.loaded_buffers.insert(id.clone(), buffer);
+        Ok(id)
+    }
+
     /// This method is called while constructing interface, to determine content of first edit view.
     pub fn get_first_buffer(&mut self) -> Result<BufferStateObserver, io::Error> {
         if self.get_first_buffer_guard.get() {
