@@ -286,7 +286,7 @@ fn get_dir_tree_on_select_callback(
         // borrow can end immediately.
         let item = (*view).borrow_item(row).unwrap().clone();
 
-        let mut file_list_view : ViewRef<SelectViewType> = siv.find_id(FILE_LIST_VIEW_ID).unwrap();
+        let mut file_list_view : ViewRef<SelectViewType> = file_dialog.file_list_view();
         file_list_view.clear();
 
         let mut dir_vec : Vec<Rc<LazyTreeNode>> = Vec::new();
@@ -350,7 +350,7 @@ fn get_file_list_on_submit(
             match item.as_ref() {
                 &LazyTreeNode::FileNode(ref path) => {
                     file_view.result = Some(Ok(FileDialogResult::FileOpen((**path).clone())))
-                },
+                }
                 _ => panic!("Expected only FileNodes on file_list."),
             };
         } else {
@@ -382,9 +382,8 @@ fn get_on_file_edit_save_submit(file_dialog_handle : ViewHandle) -> impl Fn(&mut
             return;
         }
 
-        let mut file_view : ViewRef<FileDialog> = get_file_dialog(siv, &file_dialog_handle);
-
         if let Some(mut path) = get_path_op(siv, &file_dialog_handle) {
+            let mut file_view : ViewRef<FileDialog> = get_file_dialog(siv, &file_dialog_handle);
             path.push(file_name);
             let buffer_id = file_view.get_buffer_id_op().unwrap();
             file_view.result = Some(Ok(FileDialogResult::FileSave(buffer_id, path)));
@@ -481,7 +480,7 @@ impl FileDialog {
         dir_tree.set_on_select(get_dir_tree_on_select_callback(handle.clone()));
 
         horizontal_layout.add_child(ColorViewWrapper::new(
-            BoxView::with_fixed_size((30, 15), dir_tree),
+            BoxView::with_fixed_size((30, 15), dir_tree.with_id(DIR_TREE_VIEW_ID)),
             printer_to_theme.clone(),
         ));
 
@@ -489,7 +488,7 @@ impl FileDialog {
         file_select.set_on_submit(get_file_list_on_submit(handle.clone(), variant.is_open()));
 
         horizontal_layout.add_child(ColorViewWrapper::new(
-            BoxView::with_fixed_size((50, 15), file_select),
+            BoxView::with_fixed_size((50, 15), file_select.with_id(FILE_LIST_VIEW_ID)),
             printer_to_theme.clone(),
         ));
 
@@ -503,7 +502,7 @@ impl FileDialog {
                 edit_view.set_on_submit(get_on_file_edit_save_submit(handle.clone()));
                 variant.get_file_op().clone().map(|file| edit_view.set_content(file));
                 vertical_layout.add_child(ColorViewWrapper::new(
-                    (BoxView::with_fixed_size((80, 1), edit_view)),
+                    (BoxView::with_fixed_size((80, 1), edit_view.with_id(EDIT_VIEW_ID))),
                     printer_to_theme.clone(),
                 ));
             }
