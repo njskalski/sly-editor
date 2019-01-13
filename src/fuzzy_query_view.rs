@@ -56,12 +56,14 @@ use unicode_segmentation::UnicodeSegmentation as us;
 use events::IChannel;
 use events::IEvent;
 use fuzzy_view_item::*;
+use sly_view::SlyView;
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::cmp;
 use std::collections::{HashMap, LinkedList};
 use std::marker::Sized;
 use std::sync::Arc;
+use view_handle::ViewHandle;
 
 const WIDTH : usize = 100;
 
@@ -78,6 +80,17 @@ pub struct FuzzyQueryView {
     channel :        IChannel,
     items_cache :    RefCell<Option<Rc<Vec<Rc<ViewItem>>>>>,
     old_selection :  Option<Rc<ViewItem>>,
+    handle :         ViewHandle,
+}
+
+impl SlyView for FuzzyQueryView {
+    fn handle(&self) -> &ViewHandle {
+        &self.handle
+    }
+
+    fn siv_uid(&self) -> String {
+        format!("fqv{}", self.handle)
+    }
 }
 
 impl View for FuzzyQueryView {
@@ -334,8 +347,8 @@ impl FuzzyQueryView {
         marker : String,
         channel : IChannel,
         settings : Rc<Settings>,
-    ) -> Self {
-        let mut res = FuzzyQueryView {
+    ) -> IdView<Self> {
+        let res = FuzzyQueryView {
             context :        "context".to_string(),
             query :          String::new(),
             scrollbase :     ScrollBase::new(),
@@ -348,8 +361,10 @@ impl FuzzyQueryView {
             size :           None,
             needs_relayout : Cell::new(false),
             old_selection :  None,
+            handle :         ViewHandle::new(),
         };
-        res
+        let siv_uid = res.siv_uid();
+        res.with_id(siv_uid)
     }
 
     fn after_update_selection(&mut self) {

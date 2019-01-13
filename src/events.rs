@@ -36,8 +36,6 @@ pub enum IEvent {
     ShowSaveAs(BufferId, Option<PathBuf>),
     OpenFileDialog,
     SaveCurrentBuffer,
-    SaveBufferAs(BufferId, PathBuf), // sent by file_view
-    OpenFile(PathBuf),               // path
     FuzzyQueryBarSelected(String, String), /* marker (the word that search ran agains),
                                       * selection (value) */
     CloseWindow,

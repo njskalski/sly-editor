@@ -123,11 +123,10 @@ impl FileDialogVariant {
 }
 
 pub struct FileDialog {
-    variant : FileDialogVariant,
-    channel : IChannel,
-    vertical_layout:  LinearLayout,
-    result :  Option<Result<FileDialogResult, FileDialogError>>,
-    handle :  ViewHandle,
+    variant :         FileDialogVariant,
+    vertical_layout : LinearLayout,
+    result :          Option<Result<FileDialogResult, FileDialogError>>,
+    handle :          ViewHandle,
 }
 
 impl FileDialog {
@@ -144,7 +143,7 @@ pub enum FileDialogResult {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-struct FileDialogError;
+pub struct FileDialogError;
 
 impl fmt::Display for FileDialogError {
     fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
@@ -280,21 +279,22 @@ fn get_dir_tree_on_collapse_switch_callback(
 }
 
 //TODO(njskalski) add files support to work with out-of-FileDialog project-treeview
-fn get_dir_tree_on_select_callback(file_dialog_handle : ViewHandle) -> impl Fn(&mut Cursive, usize) {
+fn get_dir_tree_on_select_callback(
+    file_dialog_handle : ViewHandle,
+) -> impl Fn(&mut Cursive, usize) {
     move |siv : &mut Cursive, row : usize| {
         // debug!("dir tree on select callback at {:}", row);
         let mut file_dialog = get_file_dialog(siv, &file_dialog_handle);
-        let mut view: ViewRef<TreeViewType> = file_dialog.tree_view();
+        let mut view : ViewRef<TreeViewType> = file_dialog.tree_view();
         //the line below looks complicated, but it boils down to copying Rc<LazyTreeNode>, so view
         // borrow can end immediately.
         let item = (*view).borrow_item(row).unwrap().clone();
 
-        let mut file_list_view: ViewRef<SelectViewType> =
-            siv.find_id(FILE_LIST_VIEW_ID).unwrap();
+        let mut file_list_view : ViewRef<SelectViewType> = siv.find_id(FILE_LIST_VIEW_ID).unwrap();
         file_list_view.clear();
 
-        let mut dir_vec: Vec<Rc<LazyTreeNode>> = Vec::new();
-        let mut file_vec: Vec<Rc<LazyTreeNode>> = Vec::new();
+        let mut dir_vec : Vec<Rc<LazyTreeNode>> = Vec::new();
+        let mut file_vec : Vec<Rc<LazyTreeNode>> = Vec::new();
 
         match *item {
             // TODO(njskalski) add the argument files as children of RootNode?
@@ -353,8 +353,8 @@ fn get_file_list_on_submit(
             let mut file_view = get_file_dialog(siv, &file_dialog_handle);
             match item.as_ref() {
                 &LazyTreeNode::FileNode(ref path) => {
-                    file_view.channel.send(IEvent::OpenFile(path.as_ref().clone()))
-                }
+                    file_view.result = Some(Ok(FileDialogResult::FileOpen((**path).clone())))
+                },
                 _ => panic!("Expected only FileNodes on file_list."),
             };
         } else {
@@ -391,8 +391,7 @@ fn get_on_file_edit_save_submit(file_dialog_handle : ViewHandle) -> impl Fn(&mut
         if let Some(mut path) = get_path_op(siv, &file_dialog_handle) {
             path.push(file_name);
             let buffer_id = file_view.get_buffer_id_op().unwrap();
-
-            file_view.channel.send(IEvent::SaveBufferAs(buffer_id, path));
+            file_view.result = Some(Ok(FileDialogResult::FileSave(buffer_id, path)));
         } else {
             return; // no folder selected, no prefix. TODO(njskalski) add panic?
         };
@@ -482,7 +481,7 @@ impl FileDialog {
 
         dir_tree.insert_container_item(root, Placement::LastChild, 0);
         dir_tree.set_collapsed(0, true);
-        dir_tree.set_on_collapse(get_dir_tree_on_collapse_switch_callback(handle.clone(),false));
+        dir_tree.set_on_collapse(get_dir_tree_on_collapse_switch_callback(handle.clone(), false));
         dir_tree.set_on_select(get_dir_tree_on_select_callback(handle.clone()));
 
         horizontal_layout.add_child(ColorViewWrapper::new(
@@ -505,7 +504,7 @@ impl FileDialog {
         match &variant {
             FileDialogVariant::OpenFile(_) => edit_view.disable(),
             FileDialogVariant::SaveAsFile(buffer_id, ..) => {
-                edit_view.set_on_submit(get_on_file_edit_save_submit(handle));
+                edit_view.set_on_submit(get_on_file_edit_save_submit(handle.clone()));
                 variant.get_file_op().clone().map(|file| edit_view.set_content(file));
                 vertical_layout.add_child(ColorViewWrapper::new(
                     (BoxView::with_fixed_size((80, 1), edit_view)),
@@ -514,23 +513,31 @@ impl FileDialog {
             }
         };
 
-        let file_view =
-            FileDialog { variant, channel : ch, vertical_layout: vertical_layout, result : None, handle };
+        let file_view = FileDialog { variant, vertical_layout, result : None, handle };
 
-        file_view.with_id(file_view.siv_uid())
+        let siv_uid = file_view.siv_uid();
+        file_view.with_id(siv_uid)
     }
 
-
     fn tree_view(&mut self) -> ViewRef<TreeViewType> {
-        self.vertical_layout.call_on(&view::Selector::Id(DIR_TREE_VIEW_ID), views::IdView::<TreeViewType>::get_mut).unwrap()
+        self.vertical_layout
+            .call_on(&view::Selector::Id(DIR_TREE_VIEW_ID), views::IdView::<TreeViewType>::get_mut)
+            .unwrap()
     }
 
     fn file_list_view(&mut self) -> ViewRef<SelectViewType> {
-        self.vertical_layout.call_on(&view::Selector::Id(FILE_LIST_VIEW_ID), views::IdView::<SelectViewType>::get_mut).unwrap()
+        self.vertical_layout
+            .call_on(
+                &view::Selector::Id(FILE_LIST_VIEW_ID),
+                views::IdView::<SelectViewType>::get_mut,
+            )
+            .unwrap()
     }
 
     fn edit_view(&mut self) -> ViewRef<EditView> {
-        self.vertical_layout.call_on(&view::Selector::Id(EDIT_VIEW_ID), views::IdView::<EditView>::get_mut).unwrap()
+        self.vertical_layout
+            .call_on(&view::Selector::Id(EDIT_VIEW_ID), views::IdView::<EditView>::get_mut)
+            .unwrap()
     }
 }
 
