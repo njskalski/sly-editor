@@ -42,7 +42,12 @@ use std::path::Path;
 use buffer_id::BufferId;
 use events::IChannel;
 use events::IEvent;
+use overlay_dialog::OverlayDialog;
+use sly_view::SlyView;
+use std::error;
+use std::fmt;
 use std::path::PathBuf;
+use view_handle::ViewHandle;
 
 // TODO(njskalski) this view took longer than anticipated to implement, so I rushed to the end
 // sacrificing quality a refactor is required.
@@ -53,75 +58,131 @@ use std::path::PathBuf;
 // TODO(njskalski) add opening a proper folder and filling file field while data is provided
 
 #[derive(Debug)]
-pub enum FileViewVariant {
+pub enum FileDialogVariant {
     SaveAsFile(BufferId, Option<String>, Option<String>), // directory, filename
     OpenFile(Option<String>),                             //directory
 }
 
-impl FileViewVariant {
+impl FileDialogVariant {
     pub fn get_buffer_id_op(&self) -> Option<BufferId> {
         match self {
-            FileViewVariant::SaveAsFile(buffer_id, folder_op, file_op) => Some(buffer_id.clone()),
-            FileViewVariant::OpenFile(folder_op) => None,
+            FileDialogVariant::SaveAsFile(buffer_id, folder_op, file_op) => Some(buffer_id.clone()),
+            FileDialogVariant::OpenFile(folder_op) => None,
         }
     }
 
     pub fn get_folder_op(&self) -> &Option<String> {
         match self {
-            FileViewVariant::SaveAsFile(buffer_id, folder_op, file_op) => folder_op,
-            FileViewVariant::OpenFile(folder_op) => folder_op,
+            FileDialogVariant::SaveAsFile(buffer_id, folder_op, file_op) => folder_op,
+            FileDialogVariant::OpenFile(folder_op) => folder_op,
         }
     }
 
     pub fn get_file_op(&self) -> &Option<String> {
         match self {
-            FileViewVariant::SaveAsFile(buffer_id, folder_op, file_op) => file_op,
-            FileViewVariant::OpenFile(folder_op) => &None,
+            FileDialogVariant::SaveAsFile(buffer_id, folder_op, file_op) => file_op,
+            FileDialogVariant::OpenFile(folder_op) => &None,
         }
     }
 
     pub fn is_open(&self) -> bool {
         match self {
-            FileViewVariant::OpenFile(_) => true,
+            FileDialogVariant::OpenFile(_) => true,
             _ => false,
         }
     }
 
     pub fn is_save(&self) -> bool {
         match self {
-            FileViewVariant::SaveAsFile(..) => true,
+            FileDialogVariant::SaveAsFile(..) => true,
             _ => false,
         }
     }
 
     pub fn get_title(&self) -> &'static str {
         match self {
-            FileViewVariant::SaveAsFile(..) => "Save file",
-            FileViewVariant::OpenFile(_) => "Open file",
+            FileDialogVariant::SaveAsFile(..) => "Save file",
+            FileDialogVariant::OpenFile(_) => "Open file",
         }
     }
 }
 
-pub struct FileView {
-    variant : FileViewVariant,
+pub struct FileDialog {
+    variant : FileDialogVariant,
     channel : IChannel,
-    mv :      LinearLayout,
+    layout :  LinearLayout,
+    result :  Option<Result<FileDialogResult, FileDialogError>>,
+    handle :  ViewHandle,
 }
 
-impl FileView {
+impl FileDialog {
     fn get_buffer_id_op(&self) -> Option<BufferId> {
         self.variant.get_buffer_id_op()
     }
 }
 
-pub const FILE_VIEW_ID : &'static str = "file_view";
-const DIR_TREE_VIEW_ID : &'static str = "fv_dir_tree_view";
-const FILE_LIST_VIEW_ID : &'static str = "fv_file_list_view";
-const EDIT_VIEW_ID : &'static str = "fv_edit_view";
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum FileDialogResult {
+    Cancel,
+    FileOpen(PathBuf),
+    FileSave(BufferId, PathBuf),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct FileDialogError;
+
+impl fmt::Display for FileDialogError {
+    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "FileDialogError (not defined)")
+    }
+}
+
+impl std::error::Error for FileDialogError {
+    fn description(&self) -> &str {
+        "FileDialogError (not defined)"
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        None
+    }
+}
+
+impl OverlayDialog<FileDialogResult, FileDialogError> for FileDialog {
+    fn is_displayed(&self) -> bool {
+        self.result.is_none()
+    }
+
+    fn is_finished(&self) -> bool {
+        self.result.is_some()
+    }
+
+    fn get_result(&self) -> Option<Result<FileDialogResult, FileDialogError>> {
+        self.result.clone()
+    }
+
+    fn cancel(&mut self) {
+        self.result = Some(Ok(FileDialogResult::Cancel))
+    }
+}
+
+impl SlyView for FileDialog {
+    fn handle(&self) -> &ViewHandle {
+        &self.handle
+    }
+
+    fn siv_uid(&self) -> String {
+        format!("file_dialog_{}", self.handle())
+    }
+}
+
+pub const FILE_VIEW_ID : &'static str = "file_dialog";
+const DIR_TREE_VIEW_ID : &'static str = "file_dialog_dir_tree_view";
+const FILE_LIST_VIEW_ID : &'static str = "file_dialog_file_list_view";
+const EDIT_VIEW_ID : &'static str = "file_dialog_edit_view";
 
 type TreeViewType = TreeView<Rc<LazyTreeNode>>;
 
-fn get_file_view(siv: &mut Cursive) -> ViewRef<FileView> {
+fn get_file_view(siv : &mut Cursive) -> ViewRef<FileDialog> {
     siv.find_id(FILE_VIEW_ID).unwrap()
 }
 
@@ -208,7 +269,7 @@ fn get_dir_tree_on_collapse_switch_callback(
     }
 }
 
-//TODO(njskalski) add files support to work with out-of-fileview project-treeview
+//TODO(njskalski) add files support to work with out-of-FileDialog project-treeview
 fn dir_tree_on_select_callback(siv : &mut Cursive, row : usize) {
     // debug!("dir tree on select callback at {:}", row);
     let mut view : ViewRef<TreeViewType> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
@@ -266,9 +327,11 @@ fn get_file_list_on_submit(is_file_open : bool) -> impl Fn(&mut Cursive, &Rc<Laz
     move |siv : &mut Cursive, item : &Rc<LazyTreeNode>| {
         // TODO(njskalski): for some reason if the line below is uncommented (and shadowing ones
         // are disabled) the unwrap inside get_path_op fails. Investigate why.
-        // let mut file_view : ViewRef<FileView> = siv.find_id::<FileView>(FILE_VIEW_ID).unwrap();
+        // let mut file_view : ViewRef<FileDialog> =
+        // siv.find_id::<FileDialog>(FILE_VIEW_ID).unwrap();
         if is_file_open {
-            let mut file_view : ViewRef<FileView> = siv.find_id::<FileView>(FILE_VIEW_ID).unwrap();
+            let mut file_view : ViewRef<FileDialog> =
+                siv.find_id::<FileDialog>(FILE_VIEW_ID).unwrap();
             match item.as_ref() {
                 &LazyTreeNode::FileNode(ref path) => {
                     file_view.channel.send(IEvent::OpenFile(path.as_ref().clone()))
@@ -304,7 +367,7 @@ fn on_file_edit_save_submit(siv : &mut Cursive, file_name : &str) {
     }
 
     if let Some(mut path) = get_path_op(siv) {
-        let mut file_view : ViewRef<FileView> = get_file_view(siv);
+        let mut file_view : ViewRef<FileDialog> = get_file_view(siv);
         path.push(file_name);
         let buffer_id = file_view.get_buffer_id_op().unwrap();
 
@@ -358,10 +421,10 @@ pub fn expand_tree(siv : &mut Cursive, path : &Path) {
     }
 }
 
-impl FileView {
+impl FileDialog {
     pub fn new(
         ch : IChannel,
-        variant : FileViewVariant,
+        variant : FileDialogVariant,
         root : Rc<LazyTreeNode>,
         settings : &Rc<Settings>,
     ) -> IdView<Self> {
@@ -397,14 +460,14 @@ impl FileView {
             theme
         }));
 
-        let mut vl = LinearLayout::new(Orientation::Vertical);
-        let mut hl = LinearLayout::new(Orientation::Horizontal);
+        let mut vertical_layout = LinearLayout::new(Orientation::Vertical);
+        let mut horizontal_layout = LinearLayout::new(Orientation::Horizontal);
 
         // TODO(njskalski) add a separate theme to disable color inversion effect on edit.
 
         let title : &'static str = variant.get_title();
 
-        vl.add_child(ColorViewWrapper::new(
+        vertical_layout.add_child(ColorViewWrapper::new(
             Layer::new(TextView::new(title)),
             printer_to_theme.clone(),
         ));
@@ -420,7 +483,7 @@ impl FileView {
         dir_tree.set_on_collapse(get_dir_tree_on_collapse_switch_callback(false));
         dir_tree.set_on_select(dir_tree_on_select_callback);
 
-        hl.add_child(ColorViewWrapper::new(
+        horizontal_layout.add_child(ColorViewWrapper::new(
             BoxView::with_fixed_size((30, 15), dir_tree.with_id(DIR_TREE_VIEW_ID)),
             printer_to_theme.clone(),
         ));
@@ -428,64 +491,70 @@ impl FileView {
         let mut file_select : SelectView<Rc<LazyTreeNode>> = SelectView::new().v_align(VAlign::Top);
         // file_select.set_on_select(file_list_on_select);
         file_select.set_on_submit(get_file_list_on_submit(variant.is_open()));
-        hl.add_child(ColorViewWrapper::new(
+        horizontal_layout.add_child(ColorViewWrapper::new(
             BoxView::with_fixed_size((50, 15), file_select.with_id(FILE_LIST_VIEW_ID)),
             printer_to_theme.clone(),
         ));
 
-        vl.add_child(hl);
+        vertical_layout.add_child(horizontal_layout);
 
         let mut edit_view = EditView::new().filler(" ");
 
         match &variant {
-            FileViewVariant::OpenFile(_) => edit_view.disable(),
-            FileViewVariant::SaveAsFile(buffer_id, ..) => {
+            FileDialogVariant::OpenFile(_) => edit_view.disable(),
+            FileDialogVariant::SaveAsFile(buffer_id, ..) => {
                 edit_view.set_on_submit(on_file_edit_save_submit);
                 variant.get_file_op().clone().map(|file| edit_view.set_content(file));
-                vl.add_child(ColorViewWrapper::new(
+                vertical_layout.add_child(ColorViewWrapper::new(
                     (BoxView::with_fixed_size((80, 1), edit_view.with_id(EDIT_VIEW_ID))),
                     printer_to_theme.clone(),
                 ));
             }
         };
 
-        let file_view = FileView { variant : variant, channel : ch, mv : vl };
+        let file_view = FileDialog {
+            variant : variant,
+            channel : ch,
+            layout :  vertical_layout,
+            result :  None,
+            handle :  ViewHandle::new(),
+        };
 
-        IdView::<FileView>::new(FILE_VIEW_ID, file_view)
+        IdView::<FileDialog>::new(FILE_VIEW_ID, file_view)
     }
 }
 
 // TODO(njskalski) maybe just use ViewWrapper?
-impl View for FileView {
+impl View for FileDialog {
     fn draw(&self, printer : &Printer) {
-        self.mv.draw(&printer);
+        self.layout.draw(&printer);
     }
 
     fn call_on_any<'a>(&mut self, s : &Selector, cb : Box<FnMut(&mut Any) + 'a>) {
-        self.mv.call_on_any(s, cb); //this view is transparent
+        self.layout.call_on_any(s, cb); //this view is transparent
     }
 
     fn on_event(&mut self, event : Event) -> EventResult {
-        self.mv.on_event(event)
+        self.layout.on_event(event)
     }
 
     fn required_size(&mut self, constraint : Vec2) -> Vec2 {
-        self.mv.required_size(constraint)
+        self.layout.required_size(constraint)
     }
 
     fn needs_relayout(&self) -> bool {
-        self.mv.needs_relayout()
+        self.layout.needs_relayout()
     }
 
     fn layout(&mut self, size : Vec2) {
-        self.mv.layout(size)
+        self.layout.layout(size)
     }
 
     fn focus_view(&mut self, sel : &Selector) -> Result<(), ()> {
-        self.mv.focus_view(sel)
+        self.layout.focus_view(sel)
     }
 
     fn take_focus(&mut self, source : Direction) -> bool {
-        self.mv.take_focus(source)
+        self.layout.take_focus(source)
     }
 }

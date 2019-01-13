@@ -31,7 +31,7 @@ use settings::load_default_settings;
 use settings::Settings;
 
 use events::IEvent;
-use file_view::{self, *};
+use file_dialog::{self, *};
 use fuzzy_query_view::FuzzyQueryView;
 use sly_text_view::SlyTextView;
 use std::thread;
@@ -39,6 +39,7 @@ use utils;
 
 use events::IChannel;
 use lsp_client::LspClient;
+use sly_view::SlyView;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsStr;
@@ -52,16 +53,14 @@ use std::sync::Arc;
 use view_handle::ViewHandle;
 
 pub struct Interface {
-    state :              AppState,
-    settings :           Rc<Settings>,
-    channel :            (mpsc::Sender<IEvent>, mpsc::Receiver<IEvent>),
-    siv :                Cursive,
-    done :               bool,
-    file_bar_visible :   bool,
-    filedialog_visible : bool,
-    bufferlist_visible : bool,
-    active_editor :      ViewHandle,
-    lsp_clients :        Vec<LspClient>, //TODO(njskalski): temporary storage to avoid removal
+    state :         AppState,
+    settings :      Rc<Settings>,
+    channel :       (mpsc::Sender<IEvent>, mpsc::Receiver<IEvent>),
+    siv :           Cursive,
+    done :          bool,
+    file_dialog :   Option<ViewHandle>,
+    active_editor : ViewHandle,
+    lsp_clients :   Vec<LspClient>, //TODO(njskalski): temporary storage to avoid removal
 }
 
 impl Interface {
@@ -85,22 +84,19 @@ impl Interface {
 
         let buffer_observer = state.get_first_buffer().unwrap(); // TODO(njskalski): panics. Semantics unclear.
         let sly_text_view = SlyTextView::new(settings.clone(), buffer_observer, channel.0.clone());
+        let active_editor = sly_text_view.handle().clone();
 
-        let active_editor = sly_text_view.view_handle();
-
-        siv.add_fullscreen_layer(IdView::new(format!("sly{}", sly_text_view.uid()), sly_text_view));
+        siv.add_fullscreen_layer(sly_text_view.with_id(sly_text_view.siv_uid()));
 
         let mut i = Interface {
-            state :              state,
-            settings :           settings,
-            channel :            channel,
-            siv :                siv,
-            done :               false,
-            file_bar_visible :   false,
-            filedialog_visible : false,
-            bufferlist_visible : false,
-            active_editor :      active_editor,
-            lsp_clients :        Vec::new(),
+            state :         state,
+            settings :      settings,
+            channel :       channel,
+            siv :           siv,
+            done :          false,
+            file_dialog :   None,
+            active_editor : active_editor,
+            lsp_clients :   Vec::new(),
         };
 
         // let known_actions = vec!["show_everything_bar"];
@@ -123,11 +119,11 @@ impl Interface {
                         ch.send(IEvent::ShowBufferList).unwrap();
                     });
                 }
-                //                "save" => {
-                //                    i.siv.add_global_callback(event, move |_| {
-                //                        ch.send(IEvent::SaveBuffer).unwrap();
-                //                    });
-                //                }
+                "save" => {
+                    i.siv.add_global_callback(event, move |_| {
+                        ch.send(IEvent::SaveCurrentBuffer).unwrap();
+                    });
+                }
                 //                "save_as" => {
                 //                    i.siv.add_global_callback(event, move |_| {
                 //                        ch.send(IEvent::ShowSaveAs).unwrap();
@@ -178,12 +174,9 @@ impl Interface {
                     //TODO now I just send to active editor, ignoring view_handle
                     self.get_active_editor().buffer_obs().submit_edit_events_to_buffer(events);
                 }
-                //                IEvent::SaveBuffer => {
-                //                    self.save();
-                //                }
-                //                IEvent::ShowSaveAs => {
-                //                    self.show_save_as();
-                //                }
+                IEvent::SaveCurrentBuffer => {
+                    self.save_current_buffer();
+                }
                 IEvent::OpenFileDialog => {
                     self.show_open_file_dialog();
                 }
@@ -191,20 +184,6 @@ impl Interface {
                     self.state.schedule_file_for_load(file_path);
                     self.close_filedialog();
                 }
-                //                IEvent::SaveBufferAs(file_path) => {
-                //                    //                    match self.get_active_editor() {
-                //                    //                        Some(view_handle) => {
-                //                    //                            // TODO(njskalski) Create a
-                // separate buffer on                    // this?
-                // let buffer_state:                    // Rc<RefCell<BufferState>>
-                // = self.state.                    //
-                // get_buffer_for_screen(&view_handle).unwrap();                    
-                // // buffer_state.borrow_mut().save(Some(file_path));                        },
-                //                    //                        None => debug!("unable to
-                // SaveBufferAs - no buffer                    // found")
-                // }                    debug!("IEvent::SaveBufferAs not
-                // implemented");                    self.close_filedialog();
-                //                }
                 IEvent::ShowBufferList => {
                     self.show_buffer_list();
                 }
@@ -218,10 +197,11 @@ impl Interface {
         }
     }
 
-    pub fn run(&mut self) {
+    /// Main program method
+    pub fn main(&mut self) {
         while !self.done {
-            self.siv.step();
             self.process_events();
+            self.siv.step();
         }
     }
 
@@ -238,11 +218,12 @@ impl Interface {
     // TODO(njskalski) this assertion is temporary, in use only because the interface is built
     // agile, not pre-designed.
     fn assert_no_file_view(&mut self) {
-        assert!(self.siv.find_id::<FileView>(file_view::FILE_VIEW_ID).is_none());
+        assert!(self.siv.find_id::<FileDialog>(file_dialog::FILE_VIEW_ID).is_none());
     }
 
     fn show_save_as(&mut self) {
-        if self.filedialog_visible {
+        if self.file_dialog.is_some() {
+            debug!("show_save_as: not showing file_dialog, because it's already opened.");
             return;
         }
 
@@ -254,30 +235,32 @@ impl Interface {
             Some(path) => utils::path_string_to_pair(path.to_string_lossy().to_string()), /* TODO get rid of
                                                                                            * path_string_to_pair */
         };
-        self.show_file_dialog(FileViewVariant::SaveAsFile(id,folder_op, file_op));
+        self.show_file_dialog(FileDialogVariant::SaveAsFile(id, folder_op, file_op));
     }
 
     fn show_open_file_dialog(&mut self) {
-        if self.filedialog_visible {
+        if self.file_dialog.is_some() {
+            debug!("show_open_file_dialog: not showing file_dialog, because it's already opened.");
             return;
         }
 
-        self.show_file_dialog(FileViewVariant::OpenFile(None));
+        self.show_file_dialog(FileDialogVariant::OpenFile(None));
     }
 
-    fn show_file_dialog(&mut self, variant : FileViewVariant) {
-        if !self.filedialog_visible {
-            self.assert_no_file_view();
-            let is_save = variant.is_save();
-            let file_view = FileView::new(
-                self.get_event_sink(),
-                variant,
-                self.state.get_dir_tree(),
-                &self.settings,
-            );
-            self.siv.add_layer(IdView::new("filedialog", file_view));
-            self.filedialog_visible = true;
+    fn show_file_dialog(&mut self, variant : FileDialogVariant) {
+        if self.file_dialog.is_some() {
+            debug!("show_file_dialog: not showing file_dialog, because it's already opened.");
+            return;
         }
+
+        let is_save = variant.is_save();
+        let file_view = FileDialog::new(
+            self.get_event_sink(),
+            variant,
+            self.state.get_dir_tree(),
+            &self.settings,
+        );
+        self.siv.add_layer(IdView::new("filedialog", file_view));
     }
 
     fn close_filedialog(&mut self) {
@@ -331,14 +314,15 @@ impl Interface {
         self.lsp_clients.push(lsp.unwrap());
     }
 
-    fn save(&mut self) {
+    fn save_current_buffer(&mut self) {
         let path = self.get_active_editor().buffer_obs().get_path();
         if path.is_none() {
             self.show_save_as();
         } else {
             let editor = self.get_active_editor();
             let mut buffer = editor.buffer_obs().borrow_state();
-            buffer.save(None);
+            let buffer_id = buffer.id();
+            self.get_event_sink().send(IEvent::SaveBufferAs(buffer_id, path.unwrap()));
         }
     }
 }

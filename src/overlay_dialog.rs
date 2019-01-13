@@ -14,26 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-use std::fmt;
-use uid;
+use sly_view::SlyView;
+use std::error::Error;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct BufferId {
-    id : usize,
-}
-
-impl BufferId {
-    pub fn new() -> Self {
-        BufferId { id : uid::Id::<usize>::new().get() }
-    }
-
-    pub fn id(&self) -> usize {
-        self.id
-    }
-}
-
-impl fmt::Display for BufferId {
-    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "b{}", self.id)
-    }
+/// This trait will represent floating "windows" of interface.
+pub trait OverlayDialog<R, E>: SlyView
+where
+    E : Error,
+{
+    fn is_displayed(&self) -> bool;
+    fn is_finished(&self) -> bool;
+    fn get_result(&self) -> Option<Result<R, E>>;
+    fn cancel(&mut self);
 }

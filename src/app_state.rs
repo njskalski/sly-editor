@@ -58,6 +58,9 @@ use std::cell::Cell;
 use std::collections::VecDeque;
 use std::io::Error;
 use std::path::PathBuf;
+use std::sync::mpsc;
+use std::sync::mpsc::Receiver;
+use std::sync::mpsc::Sender;
 use view_handle::ViewHandle;
 
 pub struct AppState {

@@ -37,7 +37,7 @@ mod color_view_wrapper;
 mod content_provider;
 mod default_settings;
 mod events;
-mod file_view;
+mod file_dialog;
 mod fuzzy_index;
 mod fuzzy_index_trait;
 mod fuzzy_query_view;
@@ -45,10 +45,12 @@ mod fuzzy_view_item;
 mod interface;
 mod lazy_dir_tree;
 mod lsp_client;
+mod overlay_dialog;
 mod rich_content;
 mod settings;
 mod simple_fuzzy_index;
 mod sly_text_view;
+mod sly_view;
 mod utils;
 mod view_handle;
 
@@ -76,6 +78,7 @@ extern crate jsonrpc_core;
 
 #[macro_use]
 extern crate human_panic;
+extern crate serde;
 
 use app_state::AppState;
 use cpuprofiler::PROFILER;
@@ -193,7 +196,7 @@ fn main() {
     let app_state = AppState::new(directories, files);
 
     let mut interface = Interface::new(app_state);
-    interface.run();
+    interface.main();
     if profiling_enabled {
         PROFILER.lock().unwrap().stop().unwrap();
     };

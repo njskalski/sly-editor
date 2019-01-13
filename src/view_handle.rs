@@ -15,6 +15,7 @@ limitations under the License.
 */
 
 use cursive;
+use std::fmt;
 use uid;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -23,11 +24,17 @@ pub struct ViewHandle {
 }
 
 impl ViewHandle {
-    pub fn new(view_id : &uid::Id<usize>) -> Self {
-        ViewHandle { view_id : view_id.get() }
+    pub fn new() -> Self {
+        ViewHandle { view_id : uid::Id::<usize>::new().get() }
     }
 
     pub fn view_id(&self) -> usize {
         self.view_id
+    }
+}
+
+impl fmt::Display for ViewHandle {
+    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "vh{}", self.view_id)
     }
 }

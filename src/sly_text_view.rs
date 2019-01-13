@@ -51,6 +51,7 @@ use events::IEvent;
 use rich_content::{RichContent, RichLine};
 use ropey::Rope;
 use settings::Settings;
+use sly_view::SlyView;
 use std::borrow::BorrowMut;
 use std::cmp;
 use std::cmp::min;
@@ -88,7 +89,17 @@ pub struct SlyTextView {
     settings :              Rc<Settings>,
     clipboard_context :     clipboard::ClipboardContext,
     special_char_mappings : HashMap<char, char>,
-    uid :                   uid::Id<usize>,
+    handle :                ViewHandle,
+}
+
+impl SlyView for SlyTextView {
+    fn handle(&self) -> &ViewHandle {
+        &self.handle
+    }
+
+    fn siv_uid(&self) -> String {
+        format!("sly_text_view_{}", self.handle())
+    }
 }
 
 impl SlyTextView {
@@ -102,7 +113,7 @@ impl SlyTextView {
             settings :              settings,
             clipboard_context :     clipboard::ClipboardProvider::new().unwrap(),
             special_char_mappings : hashmap!['\n' => '\u{21B5}'],
-            uid :                   uid::Id::<usize>::new(),
+            handle :                ViewHandle::new(),
         }
     }
 
@@ -110,16 +121,8 @@ impl SlyTextView {
         &self.buffer
     }
 
-    pub fn uid(&self) -> &uid::Id<usize> {
-        &self.uid
-    }
-
-    pub fn view_handle(&self) -> ViewHandle {
-        ViewHandle::new(&self.uid)
-    }
-
     fn submit_events(&mut self, events : Vec<EditEvent>) {
-        self.channel.send(IEvent::BufferEditEvent(self.view_handle(), events)).unwrap()
+        self.channel.send(IEvent::BufferEditEvent(self.buffer.buffer_id(), events)).unwrap()
     }
 
     /// Returns the position of the cursor in the content string.

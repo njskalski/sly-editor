@@ -49,8 +49,8 @@ example: mutliple methods with same names from different files.
 It is not possible to add items after a fst::Map has been built.
 */
 pub struct FuzzyIndex {
-    index :       Arc<Map>, /* this is Map<String, u64>. It's Arc, because queries are ran in
-                             * worker threads. */
+    index : Arc<Map>, /* this is Map<String, u64>. It's Arc, because queries are ran in
+                       * worker threads. */
     items :       HashMap<u64, Vec<Rc<ViewItem>>>,
     items_sizes : Arc<HashMap<u64, usize>>, /* this field is used by workers to determine
                                              * whether they hit the limit
