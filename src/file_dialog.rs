@@ -183,10 +183,6 @@ impl SlyView for FileDialog {
     fn handle(&self) -> ViewHandle {
         self.handle.clone()
     }
-
-    fn siv_uid(&self) -> String {
-        format!("file_dialog_{}", self.handle())
-    }
 }
 
 type TreeViewType = TreeView<Rc<LazyTreeNode>>;
@@ -515,7 +511,7 @@ impl FileDialog {
 
         let file_view = FileDialog { variant, vertical_layout, result : None, handle };
 
-        IdView::new(file_view.siv_uid(), file_view)
+        IdView::new(file_view.handle(), file_view)
     }
 
     fn tree_view(&mut self) -> ViewRef<TreeViewType> {

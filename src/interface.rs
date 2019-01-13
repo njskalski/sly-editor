@@ -55,16 +55,16 @@ use std::sync::Arc;
 use view_handle::ViewHandle;
 
 pub struct Interface {
-    state :              AppState,
-    settings :           Rc<Settings>,
-    channel :            (mpsc::Sender<IEvent>, mpsc::Receiver<IEvent>),
-    siv :                Cursive,
-    active_editor :      ViewHandle,
-    done :               bool,
-    file_dialog_handle : Option<ViewHandle>,
-    file_bar_handle :    Option<ViewHandle>,
-    buffer_list_handle : Option<ViewHandle>,
-    lsp_clients :        Vec<LspClient>, //TODO(njskalski): temporary storage to avoid removal
+    state :                AppState,
+    settings :             Rc<Settings>,
+    channel :              (mpsc::Sender<IEvent>, mpsc::Receiver<IEvent>),
+    siv :                  Cursive,
+    active_editor_handle : ViewHandle,
+    done :                 bool,
+    file_dialog_handle :   Option<ViewHandle>,
+    file_bar_handle :      Option<ViewHandle>,
+    buffer_list_handle :   Option<ViewHandle>,
+    lsp_clients :          Vec<LspClient>, //TODO(njskalski): temporary storage to avoid removal
 }
 
 impl Interface {
@@ -84,15 +84,15 @@ impl Interface {
         let sly_text_view = SlyTextView::new(settings.clone(), buffer_observer, channel.0.clone());
         let active_editor = sly_text_view.handle().clone();
 
-        let sly_text_view_siv_uid = sly_text_view.siv_uid();
-        siv.add_fullscreen_layer(sly_text_view.with_id(sly_text_view_siv_uid));
+        let sly_text_view_handle = sly_text_view.handle();
+        siv.add_fullscreen_layer(sly_text_view.with_id(sly_text_view_handle));
 
         let mut i = Interface {
             state,
             settings,
             channel,
             siv,
-            active_editor,
+            active_editor_handle : active_editor,
             done : false,
             file_dialog_handle : None,
             file_bar_handle : None,
@@ -186,8 +186,8 @@ impl Interface {
     }
 
     fn active_editor(&mut self) -> ViewRef<SlyTextView> {
-        let id = format!("sly{}", self.active_editor.view_id());
-        let editor = self.siv.find_id(&id).unwrap() as views::ViewRef<SlyTextView>;
+        let editor = self.siv.find_id(&self.active_editor_handle.to_string()).unwrap()
+            as views::ViewRef<SlyTextView>;
         editor
     }
 

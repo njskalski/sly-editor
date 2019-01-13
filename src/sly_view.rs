@@ -23,15 +23,10 @@ use cursive::view::ViewWrapper;
 /// This is a common trait of all windows used in this program.
 pub trait SlyView {
     fn handle(&self) -> ViewHandle;
-    fn siv_uid(&self) -> String;
 }
 
 impl<V : SlyView + View> SlyView for cursive::views::IdView<V> {
     fn handle(&self) -> ViewHandle {
         (self as &IdView<V>).with_view(|v| v.handle()).unwrap()
-    }
-
-    fn siv_uid(&self) -> String {
-        (self as &IdView<V>).with_view(|v| v.siv_uid()).unwrap()
     }
 }

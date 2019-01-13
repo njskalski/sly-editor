@@ -87,10 +87,6 @@ impl SlyView for FuzzyQueryView {
     fn handle(&self) -> ViewHandle {
         self.handle.clone()
     }
-
-    fn siv_uid(&self) -> String {
-        format!("fqv{}", self.handle)
-    }
 }
 
 impl View for FuzzyQueryView {
@@ -364,7 +360,7 @@ impl FuzzyQueryView {
             handle :         ViewHandle::new(),
         };
 
-        IdView::new(res.siv_uid(), res)
+        IdView::new(res.handle(), res)
     }
 
     fn after_update_selection(&mut self) {

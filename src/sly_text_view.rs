@@ -97,10 +97,6 @@ impl SlyView for SlyTextView {
     fn handle(&self) -> ViewHandle {
         self.handle.clone()
     }
-
-    fn siv_uid(&self) -> String {
-        format!("sly{}", self.handle())
-    }
 }
 
 impl SlyTextView {
@@ -117,7 +113,7 @@ impl SlyTextView {
             handle :                ViewHandle::new(),
         };
 
-        IdView::new(view.siv_uid(), view)
+        IdView::new(view.handle(), view)
     }
 
     pub fn buffer_obs(&self) -> &BufferStateObserver {
