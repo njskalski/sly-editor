@@ -19,6 +19,13 @@ args:
   - files_and_directories:
       takes_value: true
       required: false
+  - git:
+      help: Include git-ignored files to file index.
+      short: g
+      long: git
+      multiple: false
+      takes_value: false
+      required: false
   - help:
       short: h
       long: help

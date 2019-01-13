@@ -133,19 +133,11 @@ fn main() {
         return;
     }
 
-    // TODO(njskalski) use proper input parsing library
-
-    let profiling_enabled : bool = {
-        let profile_directory_path = Path::new("./profiles");
-        if profile_directory_path.exists() && profile_directory_path.is_dir() {
-            true
-        } else {
-            false
-        }
-    };
+    let profiling_enabled: bool = matches.is_present("profiling");
+    let git_files_included: bool = matches.is_present("git");
 
     if profiling_enabled {
-        let profile_file : String = format!("./profiles/sly-{:}.profile", time::now().rfc3339());
+        let profile_file : String = format!("./sly-{:}.profile", time::now().rfc3339());
         let profile_path : &Path = Path::new(&profile_file);
         if !profile_path.exists() {
             //with timestamp in name this is probably never true
@@ -191,9 +183,9 @@ fn main() {
         }
     }
 
-    //    warn!("files {:?}", files);
+    debug!("dirs {:?} \n files {:?}\ngit_files_included = {}", &directories, &files, git_files_included);
 
-    let app_state = AppState::new(directories, files);
+    let app_state = AppState::new(directories, files, git_files_included == false);
 
     let mut interface = Interface::new(app_state);
     interface.main();

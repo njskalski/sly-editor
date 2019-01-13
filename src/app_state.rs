@@ -135,11 +135,14 @@ impl AppState {
         Ok(self.buffer_obs(&id).unwrap())
     }
 
-    pub fn new(directories : Vec<PathBuf>, files : Vec<PathBuf>) -> Self {
+    pub fn new(directories : Vec<PathBuf>, files : Vec<PathBuf>, enable_gitignore : bool) -> Self {
         let mut files_to_index : Vec<PathBuf> = files.to_owned();
+        debug!("enable_gitignore == {}", enable_gitignore);
         for dir in &directories {
-            build_file_index(&mut files_to_index, dir, false, None);
+            build_file_index(&mut files_to_index, dir, enable_gitignore, None);
         }
+
+        //        debug!("file index:\n{:?}", &files_to_index);
 
         let file_index_items = file_list_to_items(&files_to_index);
         let buffers_to_load : VecDeque<PathBuf> = files.iter().map(|x| x.clone()).collect();
@@ -152,10 +155,6 @@ impl AppState {
             get_first_buffer_guard : Cell::new(false),
             directories :            directories,
         }
-    }
-
-    fn empty() -> Self {
-        Self::new(Vec::new(), Vec::new())
     }
 
     pub fn directories(&self) -> &Vec<PathBuf> {
@@ -174,7 +173,7 @@ fn build_file_index(
     match fs::read_dir(dir) {
         Ok(read_dir) => {
             let gitignore_op : Option<gitignore::Gitignore> = if enable_gitignore {
-                let pathbuf = dir.join(Path::new("/.gitignore"));
+                let pathbuf = dir.join(Path::new(".gitignore"));
                 let gitignore_path = pathbuf.as_path();
                 if gitignore_path.exists() && gitignore_path.is_file() {
                     let (gi, error_op) = gitignore::Gitignore::new(&gitignore_path);
