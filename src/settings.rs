@@ -61,7 +61,7 @@ fn color_hex_to_rgb(hex : &str) -> Result<theme::Color, Error> {
         let go = u8::from_str_radix(&hex[3..5], 16);
         let bo = u8::from_str_radix(&hex[5..7], 16);
 
-        debug!("parsing color {:?} {:?} {:?}", ro, go, bo);
+//        debug!("parsing color {:?} {:?} {:?}", ro, go, bo);
         match (ro, go, bo) {
             (Ok(r), Ok(g), Ok(b)) => Ok(theme::Color::Rgb(r, g, b)),
             _ => Err(Error::new(ErrorKind::Other, format!("Error parsing color \"{:?}\".", hex))),

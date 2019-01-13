@@ -254,7 +254,7 @@ impl View for SlyTextView {
 
     fn required_size(&mut self, constraint : Vec2) -> Vec2 {
         self.last_view_size = Some(constraint);
-        debug!("got constraint {:?}", constraint);
+//        debug!("got constraint {:?}", constraint);
         constraint //now we just take whole available space
     }
 
