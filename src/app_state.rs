@@ -96,12 +96,14 @@ impl AppState {
         self.buffers_to_load.push_back(file_path);
     }
 
-    pub fn buffer(&self, id : &BufferId) -> BufferStateObserver {
-        BufferStateObserver::new(self.loaded_buffers.get(id).unwrap().clone())
+    pub fn buffer_obs(&self, id : &BufferId) -> Option<BufferStateObserver> {
+        self.loaded_buffers.get(id).map(|b| BufferStateObserver::new(b.clone()))
     }
 
-    pub fn save_buffer_as(&mut self, id : &BufferId, path : PathBuf) {
-        
+    pub fn save_buffer_as(&mut self, id : &BufferId, path : PathBuf) -> Result<(), io::Error> {
+        let buffer_ptr = self.loaded_buffers.get(id).unwrap();
+        let mut buffer = (**buffer_ptr).borrow_mut();
+        buffer.save(Some(path))
     }
 
     pub fn open_file(&mut self, path : PathBuf) -> Result<BufferId, io::Error> {
@@ -130,7 +132,7 @@ impl AppState {
         let id = (*buffer).borrow().id();
         self.loaded_buffers.insert(id.clone(), buffer);
 
-        Ok(self.buffer(&id))
+        Ok(self.buffer_obs(&id).unwrap())
     }
 
     pub fn new(directories : Vec<PathBuf>, files : Vec<PathBuf>) -> Self {

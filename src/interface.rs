@@ -37,6 +37,7 @@ use sly_text_view::SlyTextView;
 use std::thread;
 use utils;
 
+use buffer_id::BufferId;
 use core::borrow::BorrowMut;
 use events::IChannel;
 use lsp_client::LspClient;
@@ -53,7 +54,6 @@ use std::rc::{Rc, Weak};
 use std::sync::mpsc;
 use std::sync::Arc;
 use view_handle::ViewHandle;
-use buffer_id::BufferId;
 
 pub struct Interface {
     state :                AppState,
@@ -220,9 +220,9 @@ impl Interface {
     }
 
     fn num_open_dialogs(&self) -> usize {
-        (if self.file_dialog_handle.is_some() { 1 } else { 0 }) +
-            (if self.buffer_list_handle.is_some() { 1 } else { 0 }) +
-            (if self.file_bar_handle.is_some() {1 } else {0})
+        (if self.file_dialog_handle.is_some() { 1 } else { 0 })
+            + (if self.buffer_list_handle.is_some() { 1 } else { 0 })
+            + (if self.file_bar_handle.is_some() { 1 } else { 0 })
     }
 
     fn remove_window(&mut self, handle : &ViewHandle) {
@@ -241,12 +241,17 @@ impl Interface {
 
             if let Some(result) = file_dialog.get_result() {
                 match result {
-                    Ok(FileDialogResult::Cancel) => {},
-                    Ok(FileDialogResult::FileSave(buffer_id, path)) => self.state.save_buffer_as(&buffer_id, path),
+                    Ok(FileDialogResult::Cancel) => {}
+                    Ok(FileDialogResult::FileSave(buffer_id, path)) => {
+                        match self.state.save_buffer_as(&buffer_id, path) {
+                            Ok(()) => {},
+                            Err(e) => error!("file save failed, because \"{}\"", e)
+                        }
+                    }
                     Ok(FileDialogResult::FileOpen(path)) => {
                         let buf_id = self.state.open_file(path);
                         debug!("buffer_id {:?}", buf_id);
-                    },
+                    }
                     Err(e) => {
                         error!("opening file failed, because \"{}\"", e);
                     }
