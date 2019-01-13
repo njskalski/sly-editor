@@ -260,6 +260,9 @@ impl Interface {
             self.state.get_dir_tree(),
             &self.settings,
         );
+
+        self.file_dialog = Some(file_view.handle().clone());
+
         self.siv.add_layer(IdView::new("filedialog", file_view));
     }
 

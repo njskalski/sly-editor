@@ -38,3 +38,9 @@ impl fmt::Display for ViewHandle {
         write!(f, "vh{}", self.view_id)
     }
 }
+
+impl Into<String> for ViewHandle {
+    fn into(self) -> String {
+        format!("vh{}", self.view_id)
+    }
+}
