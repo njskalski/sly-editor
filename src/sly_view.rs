@@ -14,11 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-use view_handle::ViewHandle;
-use cursive::view::View;
 use core::borrow::BorrowMut;
-use cursive::views::IdView;
+use cursive::view::View;
 use cursive::view::ViewWrapper;
+use cursive::views::IdView;
+use view_handle::ViewHandle;
 
 /// This is a common trait of all windows used in this program.
 pub trait SlyView {

@@ -45,6 +45,7 @@ use cursive::theme::{ColorStyle, Effect};
 use cursive::utils::lines::simple::{prefix, simple_prefix, LinesIterator, Row};
 use cursive::vec::Vec2;
 use cursive::view::{View, ViewWrapper};
+use cursive::views::IdView;
 use cursive::{Printer, With, XY};
 use events::IChannel;
 use events::IEvent;
@@ -63,7 +64,6 @@ use unicode_segmentation;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 use view_handle::ViewHandle;
-use cursive::views::IdView;
 
 const INDEX_MARGIN : usize = 1;
 const PAGE_WIDTH : usize = 80;
@@ -100,7 +100,11 @@ impl SlyView for SlyTextView {
 }
 
 impl SlyTextView {
-    pub fn new(settings : Rc<Settings>, buffer : BufferStateObserver, channel : IChannel) -> IdView<Self> {
+    pub fn new(
+        settings : Rc<Settings>,
+        buffer : BufferStateObserver,
+        channel : IChannel,
+    ) -> IdView<Self> {
         let view = SlyTextView {
             channel :               channel,
             buffer :                buffer,
@@ -254,7 +258,7 @@ impl View for SlyTextView {
 
     fn required_size(&mut self, constraint : Vec2) -> Vec2 {
         self.last_view_size = Some(constraint);
-//        debug!("got constraint {:?}", constraint);
+        //        debug!("got constraint {:?}", constraint);
         constraint //now we just take whole available space
     }
 

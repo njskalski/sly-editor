@@ -244,8 +244,8 @@ impl Interface {
                     Ok(FileDialogResult::Cancel) => {}
                     Ok(FileDialogResult::FileSave(buffer_id, path)) => {
                         match self.state.save_buffer_as(&buffer_id, path) {
-                            Ok(()) => {},
-                            Err(e) => error!("file save failed, because \"{}\"", e)
+                            Ok(()) => {}
+                            Err(e) => error!("file save failed, because \"{}\"", e),
                         }
                     }
                     Ok(FileDialogResult::FileOpen(path)) => {

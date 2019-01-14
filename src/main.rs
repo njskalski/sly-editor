@@ -20,6 +20,9 @@ limitations under the License.
 #![allow(unused)]
 #![allow(bad_style)]
 
+// TODO(njskalski): when multiple directories are selected, one being an ancestor of another, they
+// should get "reduced" (so the ancestor's .gitignore is used for subdirectories).
+
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -118,7 +121,7 @@ fn get_file_list_from_dir(path : &Path) -> Vec<String> {
 }
 
 fn main() {
-//        setup_panic!();
+    //        setup_panic!();
     stderrlog::new().module(module_path!()).verbosity(5).init().unwrap();
 
     let yml = clap::load_yaml!("clap.yml");
@@ -133,8 +136,8 @@ fn main() {
         return;
     }
 
-    let profiling_enabled: bool = matches.is_present("profiling");
-    let git_files_included: bool = matches.is_present("git");
+    let profiling_enabled : bool = matches.is_present("profiling");
+    let git_files_included : bool = matches.is_present("git");
 
     if profiling_enabled {
         let profile_file : String = format!("./sly-{:}.profile", time::now().rfc3339());
@@ -183,7 +186,10 @@ fn main() {
         }
     }
 
-    debug!("dirs {:?} \n files {:?}\ngit_files_included = {}", &directories, &files, git_files_included);
+    debug!(
+        "dirs {:?} \n files {:?}\ngit_files_included = {}",
+        &directories, &files, git_files_included
+    );
 
     let app_state = AppState::new(directories, files, git_files_included == false);
 

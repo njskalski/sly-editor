@@ -56,11 +56,14 @@ use unicode_segmentation::UnicodeSegmentation as us;
 use events::IChannel;
 use events::IEvent;
 use fuzzy_view_item::*;
+use overlay_dialog::OverlayDialog;
 use sly_view::SlyView;
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::cmp;
 use std::collections::{HashMap, LinkedList};
+use std::error;
+use std::fmt;
 use std::marker::Sized;
 use std::sync::Arc;
 use view_handle::ViewHandle;
@@ -77,10 +80,53 @@ pub struct FuzzyQueryView {
     needs_relayout : Cell<bool>,
     selected :       usize,
     settings :       Rc<Settings>,
-    channel :        IChannel,
     items_cache :    RefCell<Option<Rc<Vec<Rc<ViewItem>>>>>,
     old_selection :  Option<Rc<ViewItem>>,
     handle :         ViewHandle,
+    result :         Option<Result<FuzzyQueryResult, FuzzyQueryError>>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum FuzzyQueryResult {
+    Cancel,
+    Selected(String),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct FuzzyQueryError;
+
+impl fmt::Display for FuzzyQueryError {
+    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "FuzzyQueryError (not defined)")
+    }
+}
+
+impl std::error::Error for FuzzyQueryError {
+    fn description(&self) -> &str {
+        "FuzzyQueryError (not defined)"
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        None
+    }
+}
+
+impl OverlayDialog<FuzzyQueryResult, FuzzyQueryError> for FuzzyQueryView {
+    fn is_displayed(&self) -> bool {
+        self.result.is_none()
+    }
+
+    fn is_finished(&self) -> bool {
+        self.result.is_some()
+    }
+
+    fn get_result(&self) -> Option<Result<FuzzyQueryResult, FuzzyQueryError>> {
+        self.result.clone()
+    }
+
+    fn cancel(&mut self) {
+        self.result = Some(Ok(FuzzyQueryResult::Cancel))
+    }
 }
 
 impl SlyView for FuzzyQueryView {
@@ -126,48 +172,53 @@ impl View for FuzzyQueryView {
     }
 
     fn on_event(&mut self, event : Event) -> EventResult {
+        let mut event_consumed = true;
         match event {
             Event::Char(c) => {
                 self.add_letter(c);
                 // debug!("hit {:?}", c);
-                EventResult::Consumed(None)
-            }
+            },
             Event::Key(Key::Backspace) => {
                 self.backspace();
                 // debug!("hit backspace");
-                EventResult::Consumed(None)
-            }
+            },
             Event::Key(Key::Up) => {
                 if self.selected > 0 {
                     self.selected -= 1;
                 }
                 self.after_update_selection();
-                EventResult::Consumed(None)
-            }
+//                EventResult::Consumed(None)
+            },
             Event::Key(Key::Down) => {
                 if self.selected + 1 < self.get_current_items().len() {
                     self.selected += 1;
                 }
                 self.after_update_selection();
-                EventResult::Consumed(None)
-            }
+            },
             Event::Key(Key::Enter) => {
                 let items = self.get_current_items();
                 if items.len() > 0 {
                     assert!(items.len() > self.selected);
-                    self.channel
-                        .send(IEvent::FuzzyQueryBarSelected(
-                            self.marker.clone(),
-                            items[self.selected].get_marker().clone(),
-                        ))
-                        .unwrap();
+
+                    // setting result
+                    let item = &items[self.selected];
+                    self.result = Some(Ok(FuzzyQueryResult::Selected(item.get_marker().clone())));
                 }
-                EventResult::Consumed(None)
-            }
+            },
+            Event::Key(Key::Esc) => {
+                // setting result to cancel
+                self.result = Some(Ok(FuzzyQueryResult::Cancel));
+            },
             _ => {
                 debug!("fuzzy got unhandled event {:?}", &event);
-                EventResult::Ignored
+                event_consumed = false;
             }
+        }
+
+        if event_consumed {
+            EventResult::Consumed(None)
+        } else {
+            EventResult::Ignored
         }
     }
 }
@@ -351,13 +402,13 @@ impl FuzzyQueryView {
             index :          index,
             settings :       settings,
             selected :       0,
-            channel :        channel,
             marker :         marker,
             items_cache :    RefCell::new(None),
             size :           None,
             needs_relayout : Cell::new(false),
             old_selection :  None,
             handle :         ViewHandle::new(),
+            result :         None,
         };
 
         IdView::new(res.handle(), res)

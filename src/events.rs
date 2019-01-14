@@ -37,7 +37,7 @@ pub enum IEvent {
     OpenFileDialog,
     SaveCurrentBuffer,
     FuzzyQueryBarSelected(String, String), /* marker (the word that search ran agains),
-                                      * selection (value) */
+                                            * selection (value) */
     CloseWindow,
 
     // Buffer edit events are now in the same queue, not sure yet if that's final.
