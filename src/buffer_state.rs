@@ -76,7 +76,7 @@ impl BufferState {
     }
 
     pub fn open(
-        file_path : PathBuf,
+        file_path : &Path,
         creation_policy : CreationPolicy,
     ) -> Result<Rc<RefCell<Self>>, io::Error> {
         debug!("reading file {:?}, creation_policy = {:?}", file_path, creation_policy);
@@ -99,7 +99,7 @@ impl BufferState {
 
         Ok(Rc::new(RefCell::new(BufferState {
             id :       BufferId::new(),
-            ss :       BufferStateS { path : Some(file_path) },
+            ss :       BufferStateS { path : Some(file_path.to_owned()) },
             modified : false,
             content :  RopeBasedContentProvider::new(Some(&mut reader)),
             mode :     BufferOpenMode::ReadWrite,

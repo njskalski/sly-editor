@@ -89,7 +89,7 @@ pub struct FuzzyQueryView {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum FuzzyQueryResult {
     Cancel,
-    Selected(String),
+    Selected(String, String), //Marker of FuzzyQueryView, Marker of Item.
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -177,24 +177,24 @@ impl View for FuzzyQueryView {
             Event::Char(c) => {
                 self.add_letter(c);
                 // debug!("hit {:?}", c);
-            },
+            }
             Event::Key(Key::Backspace) => {
                 self.backspace();
                 // debug!("hit backspace");
-            },
+            }
             Event::Key(Key::Up) => {
                 if self.selected > 0 {
                     self.selected -= 1;
                 }
                 self.after_update_selection();
-//                EventResult::Consumed(None)
-            },
+                //                EventResult::Consumed(None)
+            }
             Event::Key(Key::Down) => {
                 if self.selected + 1 < self.get_current_items().len() {
                     self.selected += 1;
                 }
                 self.after_update_selection();
-            },
+            }
             Event::Key(Key::Enter) => {
                 let items = self.get_current_items();
                 if items.len() > 0 {
@@ -202,13 +202,16 @@ impl View for FuzzyQueryView {
 
                     // setting result
                     let item = &items[self.selected];
-                    self.result = Some(Ok(FuzzyQueryResult::Selected(item.get_marker().clone())));
+                    self.result = Some(Ok(FuzzyQueryResult::Selected(
+                        self.marker.clone(),
+                        item.get_marker().clone(),
+                    )));
                 }
-            },
+            }
             Event::Key(Key::Esc) => {
                 // setting result to cancel
                 self.result = Some(Ok(FuzzyQueryResult::Cancel));
-            },
+            }
             _ => {
                 debug!("fuzzy got unhandled event {:?}", &event);
                 event_consumed = false;

@@ -54,6 +54,7 @@ use std::rc::{Rc, Weak};
 use std::sync::mpsc;
 use std::sync::Arc;
 use view_handle::ViewHandle;
+use fuzzy_query_view::FuzzyQueryResult;
 
 pub struct Interface {
     state :                AppState,
@@ -186,6 +187,73 @@ impl Interface {
         }
     }
 
+    /// consumes results of previous dialog choices.
+    fn process_dialogs(&mut self) {
+        if self.num_open_dialogs() > 1 {
+            panic!("unexpected situations - more than one dialog open.")
+        }
+
+        if self.file_dialog_handle.is_some() {
+            let mut file_dialog = self.file_dialog().unwrap();
+
+            if let Some(result) = file_dialog.get_result() {
+                match result {
+                    Ok(FileDialogResult::Cancel) => {},
+                    Ok(FileDialogResult::FileSave(buffer_id, path)) => {
+                        match self.state.save_buffer_as(&buffer_id, path) {
+                            Ok(()) => {}
+                            Err(e) => error!("file save failed, because \"{}\"", e),
+                        }
+                    },
+                    Ok(FileDialogResult::FileOpen(path)) => {
+                        let buf_id = self.open_and_or_focus_file(path);
+                        debug!("buffer_id {:?}", buf_id);
+                    },
+                    Err(e) => {
+                        error!("opening file failed, because \"{}\"", e);
+                    }
+                }
+
+                let handle = self.file_dialog_handle.take().unwrap();
+                self.remove_window(&handle);
+            }
+        }
+
+        if self.file_bar_handle.is_some() {
+            let mut file_bar = self.file_bar().unwrap();
+
+            if let Some(result) = file_bar.get_result() {
+                match result {
+                    Ok(FuzzyQueryResult::Cancel) => {},
+                    Ok(FuzzyQueryResult::Selected(_, item_marker)) => {
+                        debug!("selected file {:?}", &item_marker);
+                        self.open_and_or_focus_file(item_marker);
+                    },
+                    Err(e) => {
+                        error!("opening file failed, because \"{}\"", e);
+                    }
+                }
+                let handle = self.file_bar_handle.take().unwrap();
+                self.remove_window(&handle);
+            }
+        }
+
+
+        // TODO(njskalski): add processing of file_bar and fuzzy stuff.
+    }
+
+    fn open_and_or_focus_file<T>(&mut self, path : T) where T : Into<PathBuf> {
+        let path_buf: PathBuf = path.into();
+        match self.state.open_or_get_file(&path_buf) {
+            Ok(buffer_id) => {
+                debug!("focusing on buffer_id {} to display {:?}", buffer_id, &path_buf);
+            }
+            Err(e) => {
+                error!("Unable to open file {:?} for reason {}", &path_buf, e);
+            }
+        }
+    }
+
     fn active_editor(&mut self) -> ViewRef<SlyTextView> {
         let editor = self.siv.find_id(&self.active_editor_handle.to_string()).unwrap()
             as views::ViewRef<SlyTextView>;
@@ -215,7 +283,9 @@ impl Interface {
             self.process_dialogs();
 
             self.process_events();
-            self.siv.step();
+            if !self.done {
+                self.siv.step();
+            }
         }
     }
 
@@ -230,40 +300,7 @@ impl Interface {
         self.siv.pop_layer();
     }
 
-    /// consumes results of previous dialog choices.
-    fn process_dialogs(&mut self) {
-        if self.num_open_dialogs() > 1 {
-            panic!("unexpected situations - more than one dialog open.")
-        }
 
-        if self.file_dialog_handle.is_some() {
-            let mut file_dialog = self.file_dialog().unwrap();
-
-            if let Some(result) = file_dialog.get_result() {
-                match result {
-                    Ok(FileDialogResult::Cancel) => {}
-                    Ok(FileDialogResult::FileSave(buffer_id, path)) => {
-                        match self.state.save_buffer_as(&buffer_id, path) {
-                            Ok(()) => {}
-                            Err(e) => error!("file save failed, because \"{}\"", e),
-                        }
-                    }
-                    Ok(FileDialogResult::FileOpen(path)) => {
-                        let buf_id = self.state.open_file(path);
-                        debug!("buffer_id {:?}", buf_id);
-                    }
-                    Err(e) => {
-                        error!("opening file failed, because \"{}\"", e);
-                    }
-                }
-
-                let handle = self.file_dialog_handle.take().unwrap();
-                self.remove_window(&handle);
-            }
-        }
-
-        // TODO(njskalski): add processing of file_bar and fuzzy stuff.
-    }
 
     pub fn get_event_sink(&self) -> IChannel {
         self.channel.0.clone()

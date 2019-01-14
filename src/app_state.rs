@@ -79,8 +79,22 @@ pub struct AppState {
 
 impl AppState {
     /// Returns list of buffers. Rather stable.
-    pub fn get_buffers(&self) -> Vec<BufferStateObserver> {
-        self.loaded_buffers.iter().map(|b| BufferStateObserver::new(b.1.clone())).collect()
+    pub fn get_buffers(&self) -> Vec<BufferId> {
+        self.loaded_buffers.keys().map(|k| k.clone()).collect()
+    }
+
+    /// Returns list of BufferIds associated with given path.
+    /// Complexity: O(n), can be optimised later.
+    fn get_buffers_for_path(&self, lookup_path : &Path) -> Vec<BufferId> {
+        let mut result : Vec<BufferId> = Vec::new();
+        for (buffer_id, buffer_state) in &self.loaded_buffers {
+            if (**buffer_state).borrow().get_path().map(|state_path| state_path.eq(lookup_path))
+                == Some(true)
+            {
+                result.push(buffer_id.clone());
+            }
+        }
+        result
     }
 
     /// Returns file index. Rather stable.
@@ -106,9 +120,28 @@ impl AppState {
         buffer.save(Some(path))
     }
 
-    pub fn open_file(&mut self, path : PathBuf) -> Result<BufferId, io::Error> {
+    /// As of this time, it does not re-open file that is already opened, just returns buffer id
+    /// instead.
+    pub fn open_or_get_file(&mut self, path : &Path) -> Result<BufferId, io::Error> {
+        let buffers = self.get_buffers_for_path(path);
+        if buffers.is_empty() {
+            self.open_file(path)
+        } else {
+            if buffers.len() > 1 {
+                debug!(
+                    "Returning first of {} buffers corresponding to path {:?}",
+                    buffers.len(),
+                    &path
+                );
+            }
+            Ok(buffers.first().unwrap().clone())
+        }
+    }
+
+    /// Opens file, not checking if a file is opened in another buffer. Intentionally private.
+    fn open_file(&mut self, path : &Path) -> Result<BufferId, io::Error> {
         // TODO(njskalski): add delayed load (promise)
-        let buffer = BufferState::open(path, CreationPolicy::MustNot)?;
+        let buffer = BufferState::open(path, CreationPolicy::Must)?;
         let id = (*buffer).borrow().id();
         self.loaded_buffers.insert(id.clone(), buffer);
         Ok(id)
@@ -126,7 +159,7 @@ impl AppState {
             BufferState::new()
         } else {
             let file_path = self.buffers_to_load.pop_front().unwrap();
-            BufferState::open(file_path, CreationPolicy::Can)?
+            BufferState::open(&file_path, CreationPolicy::Can)?
         };
 
         let id = (*buffer).borrow().id();
