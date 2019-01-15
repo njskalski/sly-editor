@@ -68,7 +68,7 @@ pub struct Interface {
     channel :              (mpsc::Sender<IEvent>, mpsc::Receiver<IEvent>),
     siv :                  Cursive,
     active_editor_handle : ViewHandle,
-    all_editors :          HashMap<BufferId, SlyTextView>,
+    all_editors :          HashMap<BufferId, IdView<SlyTextView>>,
     path_to_buffer_id :    HashMap<PathBuf, BufferId>,
     done :                 bool,
     file_dialog_handle :   Option<ViewHandle>,
@@ -115,7 +115,7 @@ impl Interface {
         // let known_actions = vec!["show_everything_bar"];
         //TODO filter unknown actions
         for (event, action) in i.settings.get_keybindings("global") {
-            let ch = i.get_event_sink();
+            let ch = i.event_sink();
             match action.as_str() {
                 "show_file_bar" => {
                     i.siv.add_global_callback(event, move |_| {
@@ -161,9 +161,18 @@ impl Interface {
         i
     }
 
-    ///TODO continue here, add proper handling of errrors
+    //TODO(njskalski) add proper handling of errrors, it's a total mess now!
     fn create_editor_for_buffer_id(&mut self, buffer_id : &BufferId) -> Result<(), InterfaceError> {
+        {
+            let old_editor = self.all_editors.get(buffer_id);
+            if old_editor.is_some() {
+                panic!("attempt to re-create editor for buffer_id {}", buffer_id);
+            }
+        }
+
         let obs = self.state.buffer_obs(buffer_id).unwrap(); //TODO panics
+        let view = SlyTextView::new(self.settings.clone(), obs, self.event_sink());
+        self.all_editors.insert(buffer_id.clone(), view).expect("insertion failed");
 
         Ok(())
     }
@@ -266,6 +275,7 @@ impl Interface {
         }
     }
 
+    //TODO error handling!
     fn open_and_or_focus_file<T>(&mut self, path : T)
     where
         T : Into<PathBuf>,
@@ -273,18 +283,15 @@ impl Interface {
         let path_buf : PathBuf = path.into();
         let buffer_id_op = self.path_to_buffer_id.get(&path_buf).map(|x| x.clone());
 
-        if let Some(buffer_id) = buffer_id_op {
-            self.open_and_or_focus(&buffer_id);
-        } else {
-            match self.state.open_or_get_file(&path_buf) {
-                Ok(buffer_id) => {
-                    debug!("focusing on buffer_id {} to display {:?}", buffer_id, &path_buf);
-                }
-                Err(e) => {
-                    error!("Unable to open file {:?} for reason {}", &path_buf, e);
-                }
+        let buffer_id = match buffer_id_op {
+            Some(buffer_id) => buffer_id,
+            None => {
+                debug!("file {:?} not opened yet, opening.", &path_buf);
+                self.state.open_or_get_file(&path_buf).expect(&format!("Unable to open file {:?}", &path_buf))
             }
-        }
+        };
+
+        self.open_and_or_focus(&buffer_id);
     }
 
     fn active_editor(&mut self) -> ViewRef<SlyTextView> {
@@ -296,15 +303,15 @@ impl Interface {
     fn focus_buffer(&mut self, buffer_id : BufferId) {}
 
     fn file_dialog(&mut self) -> Option<ViewRef<FileDialog>> {
-        match_handle(&mut self.siv, &self.file_dialog_handle)
+        find_view_with_handle(&mut self.siv, &self.file_dialog_handle)
     }
 
     fn file_bar(&mut self) -> Option<ViewRef<FuzzyQueryView>> {
-        match_handle(&mut self.siv, &self.file_bar_handle)
+        find_view_with_handle(&mut self.siv, &self.file_bar_handle)
     }
 
     fn buffer_list(&mut self) -> Option<ViewRef<FuzzyQueryView>> {
-        match_handle(&mut self.siv, &self.buffer_list_handle)
+        find_view_with_handle(&mut self.siv, &self.buffer_list_handle)
     }
 
     fn cancel_floating_windows(&mut self) {
@@ -318,6 +325,7 @@ impl Interface {
             self.process_dialogs();
 
             self.process_events();
+
             if !self.done {
                 self.siv.step();
             }
@@ -335,7 +343,7 @@ impl Interface {
         self.siv.pop_layer();
     }
 
-    pub fn get_event_sink(&self) -> IChannel {
+    pub fn event_sink(&self) -> IChannel {
         self.channel.0.clone()
     }
 
@@ -373,7 +381,7 @@ impl Interface {
 
         let is_save = variant.is_save();
         let mut file_dialog = FileDialog::new(
-            self.get_event_sink(),
+            self.event_sink(),
             variant,
             self.state.get_dir_tree(),
             &self.settings,
@@ -392,7 +400,7 @@ impl Interface {
         let mut file_bar = FuzzyQueryView::new(
             self.state.get_file_index(),
             "filebar".to_string(),
-            self.get_event_sink(),
+            self.event_sink(),
             self.settings.clone(),
         );
 
@@ -407,7 +415,7 @@ impl Interface {
     fn enable_lsp(&mut self) {
         let lsp = LspClient::new(
             OsStr::new("rls"),
-            self.get_event_sink(),
+            self.event_sink(),
             Some(self.state.directories()),
         );
         self.lsp_clients.push(lsp.unwrap());
@@ -426,7 +434,7 @@ impl Interface {
     }
 }
 
-fn match_handle<V>(siv : &mut Cursive, handle_op : &Option<ViewHandle>) -> Option<ViewRef<V>>
+fn find_view_with_handle<V>(siv : &mut Cursive, handle_op : &Option<ViewHandle>) -> Option<ViewRef<V>>
 where
     V : SlyView + View,
 {

@@ -39,10 +39,10 @@ pub enum BufferOpenMode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CreationPolicy {
-    Must,
-    Can,
-    MustNot,
+pub enum ExistPolicy {
+    MustExist,
+    CanExist,
+    MustNotExist,
 }
 
 /// This struct represents serializable part of BufferState.
@@ -77,18 +77,18 @@ impl BufferState {
 
     pub fn open(
         file_path : &Path,
-        creation_policy : CreationPolicy,
+        creation_policy : ExistPolicy,
     ) -> Result<Rc<RefCell<Self>>, io::Error> {
         debug!("reading file {:?}, creation_policy = {:?}", file_path, creation_policy);
 
-        if !file_path.exists() && creation_policy == CreationPolicy::Must {
+        if !file_path.exists() && creation_policy == ExistPolicy::MustExist {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 format!("\"{:?}\" not found, and required", &file_path),
             ));
         }
 
-        if file_path.exists() && creation_policy == CreationPolicy::MustNot {
+        if file_path.exists() && creation_policy == ExistPolicy::MustNotExist {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 format!("\"{:?}\" found and required not to be there.", &file_path),
@@ -106,10 +106,6 @@ impl BufferState {
         })))
     }
 
-    //    pub fn set_view_handle(&mut self, view_handle : ViewHandle) {
-    //        self.view_handle = Some(view_handle);
-    //    }
-
     pub fn get_content(&self) -> &RopeBasedContentProvider {
         &self.content
     }
@@ -117,10 +113,6 @@ impl BufferState {
     pub fn get_content_mut(&mut self) -> &mut RopeBasedContentProvider {
         &mut self.content
     }
-
-    //    pub fn get_view_handle(&self) -> &Option<ViewHandle> {
-    //        &self.view_handle
-    //    }
 
     pub fn submit_edit_events(&mut self, events : Vec<EditEvent>) {
         self.content.submit_events(events);

@@ -51,7 +51,7 @@ use std::io::Write;
 use std::rc::Rc;
 
 use buffer_id::BufferId;
-use buffer_state::CreationPolicy;
+use buffer_state::ExistPolicy;
 use core::borrow::Borrow;
 use lazy_dir_tree::LazyTreeNode;
 use std::cell::Cell;
@@ -141,7 +141,7 @@ impl AppState {
     /// Opens file, not checking if a file is opened in another buffer. Intentionally private.
     fn open_file(&mut self, path : &Path) -> Result<BufferId, io::Error> {
         // TODO(njskalski): add delayed load (promise)
-        let buffer = BufferState::open(path, CreationPolicy::Must)?;
+        let buffer = BufferState::open(path, ExistPolicy::MustExist)?;
         let id = (*buffer).borrow().id();
         self.loaded_buffers.insert(id.clone(), buffer);
         Ok(id)
@@ -159,7 +159,7 @@ impl AppState {
             BufferState::new()
         } else {
             let file_path = self.buffers_to_load.pop_front().unwrap();
-            BufferState::open(&file_path, CreationPolicy::Can)?
+            BufferState::open(&file_path, ExistPolicy::CanExist)?
         };
 
         let id = (*buffer).borrow().id();
