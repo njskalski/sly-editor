@@ -40,11 +40,13 @@ use utils;
 use buffer_id::BufferId;
 use core::borrow::BorrowMut;
 use events::IChannel;
+use fuzzy_query_view::FuzzyQueryResult;
 use lsp_client::LspClient;
 use overlay_dialog::OverlayDialog;
 use sly_view::SlyView;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::error;
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::fmt;
@@ -54,7 +56,11 @@ use std::rc::{Rc, Weak};
 use std::sync::mpsc;
 use std::sync::Arc;
 use view_handle::ViewHandle;
-use fuzzy_query_view::FuzzyQueryResult;
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum InterfaceError {
+    Undefined,
+}
 
 pub struct Interface {
     state :                AppState,
@@ -62,6 +68,8 @@ pub struct Interface {
     channel :              (mpsc::Sender<IEvent>, mpsc::Receiver<IEvent>),
     siv :                  Cursive,
     active_editor_handle : ViewHandle,
+    all_editors :          HashMap<BufferId, SlyTextView>,
+    path_to_buffer_id :    HashMap<PathBuf, BufferId>,
     done :                 bool,
     file_dialog_handle :   Option<ViewHandle>,
     file_bar_handle :      Option<ViewHandle>,
@@ -90,16 +98,18 @@ impl Interface {
         siv.add_fullscreen_layer(sly_text_view.with_id(sly_text_view_handle));
 
         let mut i = Interface {
-            state,
-            settings,
-            channel,
-            siv,
+            state :                state,
+            settings :             settings,
+            channel :              channel,
+            siv :                  siv,
             active_editor_handle : active_editor,
-            done : false,
-            file_dialog_handle : None,
-            file_bar_handle : None,
-            buffer_list_handle : None,
-            lsp_clients : Vec::new(),
+            all_editors :          HashMap::new(),
+            path_to_buffer_id :    HashMap::new(),
+            done :                 false,
+            file_dialog_handle :   None,
+            file_bar_handle :      None,
+            buffer_list_handle :   None,
+            lsp_clients :          Vec::new(),
         };
 
         // let known_actions = vec!["show_everything_bar"];
@@ -151,6 +161,13 @@ impl Interface {
         i
     }
 
+    ///TODO continue here, add proper handling of errrors
+    fn create_editor_for_buffer_id(&mut self, buffer_id : &BufferId) -> Result<(), InterfaceError> {
+        let obs = self.state.buffer_obs(buffer_id).unwrap(); //TODO panics
+
+        Ok(())
+    }
+
     fn process_events(&mut self) {
         while let Ok(msg) = self.channel.1.try_recv() {
             debug!("processing event {:?}", msg);
@@ -198,17 +215,17 @@ impl Interface {
 
             if let Some(result) = file_dialog.get_result() {
                 match result {
-                    Ok(FileDialogResult::Cancel) => {},
+                    Ok(FileDialogResult::Cancel) => {}
                     Ok(FileDialogResult::FileSave(buffer_id, path)) => {
                         match self.state.save_buffer_as(&buffer_id, path) {
                             Ok(()) => {}
                             Err(e) => error!("file save failed, because \"{}\"", e),
                         }
-                    },
+                    }
                     Ok(FileDialogResult::FileOpen(path)) => {
                         let buf_id = self.open_and_or_focus_file(path);
                         debug!("buffer_id {:?}", buf_id);
-                    },
+                    }
                     Err(e) => {
                         error!("opening file failed, because \"{}\"", e);
                     }
@@ -224,11 +241,11 @@ impl Interface {
 
             if let Some(result) = file_bar.get_result() {
                 match result {
-                    Ok(FuzzyQueryResult::Cancel) => {},
+                    Ok(FuzzyQueryResult::Cancel) => {}
                     Ok(FuzzyQueryResult::Selected(_, item_marker)) => {
                         debug!("selected file {:?}", &item_marker);
                         self.open_and_or_focus_file(item_marker);
-                    },
+                    }
                     Err(e) => {
                         error!("opening file failed, because \"{}\"", e);
                     }
@@ -238,18 +255,34 @@ impl Interface {
             }
         }
 
-
         // TODO(njskalski): add processing of file_bar and fuzzy stuff.
     }
 
-    fn open_and_or_focus_file<T>(&mut self, path : T) where T : Into<PathBuf> {
-        let path_buf: PathBuf = path.into();
-        match self.state.open_or_get_file(&path_buf) {
-            Ok(buffer_id) => {
-                debug!("focusing on buffer_id {} to display {:?}", buffer_id, &path_buf);
-            }
-            Err(e) => {
-                error!("Unable to open file {:?} for reason {}", &path_buf, e);
+    fn open_and_or_focus(&mut self, buffer_id : &BufferId) {
+        if let Some(editor) = self.all_editors.get(buffer_id) {
+            self.active_editor_handle = editor.handle();
+        } else {
+
+        }
+    }
+
+    fn open_and_or_focus_file<T>(&mut self, path : T)
+    where
+        T : Into<PathBuf>,
+    {
+        let path_buf : PathBuf = path.into();
+        let buffer_id_op = self.path_to_buffer_id.get(&path_buf).map(|x| x.clone());
+
+        if let Some(buffer_id) = buffer_id_op {
+            self.open_and_or_focus(&buffer_id);
+        } else {
+            match self.state.open_or_get_file(&path_buf) {
+                Ok(buffer_id) => {
+                    debug!("focusing on buffer_id {} to display {:?}", buffer_id, &path_buf);
+                }
+                Err(e) => {
+                    error!("Unable to open file {:?} for reason {}", &path_buf, e);
+                }
             }
         }
     }
@@ -259,6 +292,8 @@ impl Interface {
             as views::ViewRef<SlyTextView>;
         editor
     }
+
+    fn focus_buffer(&mut self, buffer_id : BufferId) {}
 
     fn file_dialog(&mut self) -> Option<ViewRef<FileDialog>> {
         match_handle(&mut self.siv, &self.file_dialog_handle)
@@ -299,8 +334,6 @@ impl Interface {
         self.siv.focus_id(&handle.to_string());
         self.siv.pop_layer();
     }
-
-
 
     pub fn get_event_sink(&self) -> IChannel {
         self.channel.0.clone()
@@ -400,5 +433,21 @@ where
     match handle_op {
         Some(handle) => siv.find_id(&handle.to_string()),
         None => None,
+    }
+}
+
+impl fmt::Display for InterfaceError {
+    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "InterfaceError (not defined)")
+    }
+}
+
+impl std::error::Error for InterfaceError {
+    fn description(&self) -> &str {
+        "InterfaceError (not defined)"
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        None
     }
 }
