@@ -64,6 +64,7 @@ use unicode_segmentation;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 use view_handle::ViewHandle;
+use cursive::views::ViewRef;
 
 const INDEX_MARGIN : usize = 1;
 const PAGE_WIDTH : usize = 80;

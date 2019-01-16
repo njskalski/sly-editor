@@ -44,23 +44,33 @@ use fuzzy_query_view::FuzzyQueryResult;
 use lsp_client::LspClient;
 use overlay_dialog::OverlayDialog;
 use sly_view::SlyView;
+use std::any::Any;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::error;
+use std::error::Error;
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::fmt;
+use std::ops::DerefMut;
 use std::path::Path;
 use std::path::PathBuf;
 use std::rc::{Rc, Weak};
 use std::sync::mpsc;
 use std::sync::Arc;
 use view_handle::ViewHandle;
+use file_dialog::FileDialog;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum InterfaceError {
     Undefined,
 }
+
+/*
+At this moment I have not decided on whether interface holds premise before siv or other way around.
+So I expect every method in this object that updates handles to reflect these changes in siv field
+and other way around.
+*/
 
 pub struct Interface {
     state :                AppState,
@@ -68,7 +78,7 @@ pub struct Interface {
     channel :              (mpsc::Sender<IEvent>, mpsc::Receiver<IEvent>),
     siv :                  Cursive,
     active_editor_handle : ViewHandle,
-    all_editors :          HashMap<BufferId, IdView<SlyTextView>>,
+    inactive_editors :     HashMap<BufferId, IdView<SlyTextView>>,
     path_to_buffer_id :    HashMap<PathBuf, BufferId>,
     done :                 bool,
     file_dialog_handle :   Option<ViewHandle>,
@@ -94,8 +104,7 @@ impl Interface {
         let sly_text_view = SlyTextView::new(settings.clone(), buffer_observer, channel.0.clone());
         let active_editor = sly_text_view.handle().clone();
 
-        let sly_text_view_handle = sly_text_view.handle();
-        siv.add_fullscreen_layer(sly_text_view.with_id(sly_text_view_handle));
+        siv.add_fullscreen_layer(sly_text_view);
 
         let mut i = Interface {
             state :                state,
@@ -103,7 +112,7 @@ impl Interface {
             channel :              channel,
             siv :                  siv,
             active_editor_handle : active_editor,
-            all_editors :          HashMap::new(),
+            inactive_editors :     HashMap::new(),
             path_to_buffer_id :    HashMap::new(),
             done :                 false,
             file_dialog_handle :   None,
@@ -161,18 +170,48 @@ impl Interface {
         i
     }
 
-    //TODO(njskalski) add proper handling of errrors, it's a total mess now!
+    // TODO(njskalski): error handling, borrow instead of copy etc.
+    fn replace_current_editor_view(
+        &mut self,
+        new_editor : IdView<SlyTextView>,
+    ) -> IdView<SlyTextView> {
+        // removing old view
+        let handle = self.active_editor_handle.clone();
+        let old_view = self.remove_window::<SlyTextView>(&handle);
+
+        // inserting new view
+        self.active_editor_handle = new_editor.handle();
+        self.siv.screen_mut().add_layer(new_editor);
+
+        // returning old view
+        old_view.unwrap()
+    }
+
+    fn remove_window<T>(&mut self, handle : &ViewHandle) -> Option<IdView<T>> where T : SlyView + View {
+        let screen = self.siv.screen_mut();
+        let layer_pos = screen.find_layer_from_id(&handle.to_string())?;
+        screen.move_to_front(layer_pos);
+        // the line above modifies state. So now I prefer method to crash than return None.
+        let view_box : Box<View> = screen.pop_layer().unwrap();
+        let sly_view_box = view_box.as_boxed_any().downcast::<IdView<T>>().ok().unwrap();
+        let sly_view = *sly_view_box;
+        Some(sly_view)
+    }
+
+    // TODO(njskalski): add proper handling of errrors, it's a total mess now!
     fn create_editor_for_buffer_id(&mut self, buffer_id : &BufferId) -> Result<(), InterfaceError> {
         {
-            let old_editor = self.all_editors.get(buffer_id);
+            let old_editor = self.inactive_editors.get(buffer_id);
             if old_editor.is_some() {
                 panic!("attempt to re-create editor for buffer_id {}", buffer_id);
             }
         }
 
         let obs = self.state.buffer_obs(buffer_id).unwrap(); //TODO panics
-        let view = SlyTextView::new(self.settings.clone(), obs, self.event_sink());
-        self.all_editors.insert(buffer_id.clone(), view).expect("insertion failed");
+        let mut view = SlyTextView::new(self.settings.clone(), obs, self.event_sink());
+        if self.inactive_editors.insert(buffer_id.clone(), view).is_some() {
+            panic!("insertion failed, object already present");
+        }
 
         Ok(())
     }
@@ -241,7 +280,7 @@ impl Interface {
                 }
 
                 let handle = self.file_dialog_handle.take().unwrap();
-                self.remove_window(&handle);
+                self.remove_window::<FileDialog>(&handle);
             }
         }
 
@@ -260,19 +299,23 @@ impl Interface {
                     }
                 }
                 let handle = self.file_bar_handle.take().unwrap();
-                self.remove_window(&handle);
+                self.remove_window::<FuzzyQueryView>(&handle);
             }
         }
 
         // TODO(njskalski): add processing of file_bar and fuzzy stuff.
     }
 
+    /// This updates interface and SIV!
     fn open_and_or_focus(&mut self, buffer_id : &BufferId) {
-        if let Some(editor) = self.all_editors.get(buffer_id) {
-            self.active_editor_handle = editor.handle();
-        } else {
-
+        if !self.inactive_editors.contains_key(buffer_id) {
+            self.create_editor_for_buffer_id(buffer_id);
         }
+
+        let new_editor = self.inactive_editors.remove(buffer_id).unwrap();
+        let mut old_editor = self.replace_current_editor_view(new_editor);
+        let old_editor_buffer_id = old_editor.get_mut().buffer_obs().buffer_id().clone();
+        self.inactive_editors.insert(old_editor_buffer_id, old_editor);
     }
 
     //TODO error handling!
@@ -287,7 +330,9 @@ impl Interface {
             Some(buffer_id) => buffer_id,
             None => {
                 debug!("file {:?} not opened yet, opening.", &path_buf);
-                self.state.open_or_get_file(&path_buf).expect(&format!("Unable to open file {:?}", &path_buf))
+                self.state
+                    .open_or_get_file(&path_buf)
+                    .expect(&format!("Unable to open file {:?}", &path_buf))
             }
         };
 
@@ -338,11 +383,6 @@ impl Interface {
             + (if self.file_bar_handle.is_some() { 1 } else { 0 })
     }
 
-    fn remove_window(&mut self, handle : &ViewHandle) {
-        self.siv.focus_id(&handle.to_string());
-        self.siv.pop_layer();
-    }
-
     pub fn event_sink(&self) -> IChannel {
         self.channel.0.clone()
     }
@@ -380,12 +420,8 @@ impl Interface {
         }
 
         let is_save = variant.is_save();
-        let mut file_dialog = FileDialog::new(
-            self.event_sink(),
-            variant,
-            self.state.get_dir_tree(),
-            &self.settings,
-        );
+        let mut file_dialog =
+            FileDialog::new(self.event_sink(), variant, self.state.get_dir_tree(), &self.settings);
 
         self.file_dialog_handle = Some(file_dialog.get_mut().handle().clone());
         self.siv.add_layer(file_dialog);
@@ -413,11 +449,8 @@ impl Interface {
     }
 
     fn enable_lsp(&mut self) {
-        let lsp = LspClient::new(
-            OsStr::new("rls"),
-            self.event_sink(),
-            Some(self.state.directories()),
-        );
+        let lsp =
+            LspClient::new(OsStr::new("rls"), self.event_sink(), Some(self.state.directories()));
         self.lsp_clients.push(lsp.unwrap());
     }
 
@@ -434,7 +467,10 @@ impl Interface {
     }
 }
 
-fn find_view_with_handle<V>(siv : &mut Cursive, handle_op : &Option<ViewHandle>) -> Option<ViewRef<V>>
+fn find_view_with_handle<V>(
+    siv : &mut Cursive,
+    handle_op : &Option<ViewHandle>,
+) -> Option<ViewRef<V>>
 where
     V : SlyView + View,
 {
