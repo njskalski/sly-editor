@@ -37,7 +37,11 @@ use cursive::direction::*;
 use cursive::event::*;
 use cursive::theme::*;
 use cursive::vec::*;
+use cursive::view::View;
+use cursive::view::ViewWrapper;
 use cursive::view::*;
+use cursive::views::IdView;
+use cursive::views::ViewRef;
 use cursive::views::*;
 use cursive::*;
 use cursive_tree_view::*;
@@ -394,7 +398,7 @@ fn get_on_file_edit_save_submit(file_dialog_handle : ViewHandle) -> impl Fn(&mut
 }
 
 pub fn expand_tree(siv : &mut Cursive, path : &Path) {
-    let mut tree_view : ViewRef<TreeViewType> = siv.find_id(DIR_TREE_VIEW_ID).unwrap();
+    let mut tree_view = siv.find_id::<TreeViewType>(DIR_TREE_VIEW_ID).unwrap();
 
     let mut row_begin = 0;
     let mut row_end = tree_view.len();
@@ -480,7 +484,7 @@ impl FileDialog {
         dir_tree.set_on_select(get_dir_tree_on_select_callback(handle.clone()));
 
         horizontal_layout.add_child(ColorViewWrapper::new(
-            BoxView::with_fixed_size((30, 15), dir_tree.with_id(DIR_TREE_VIEW_ID)),
+            BoxView::with_fixed_size((30, 15), IdView::new(DIR_TREE_VIEW_ID, dir_tree)),
             printer_to_theme.clone(),
         ));
 

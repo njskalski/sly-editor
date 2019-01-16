@@ -22,15 +22,9 @@ regex = "1"
 cpuprofiler = "0.0.2"
 ignore = "0.4"
 enumset = "0.3"
-# static_assertions = "0.2.5"
-# either = "1.5.0"
 languageserver-types = "0.51"
 uid = "0.1.4"
-
 human-panic = "1"
-
-
-
 
 [dependencies.clap]
 version = "2.32"
@@ -43,6 +37,9 @@ features = ["extended_colors", "wide"]
 [dependencies.cursive]
 version = "0.10.0"
 #default-features = false
+#git = "https://github.com/Gyscos/Cursive.git"
+#tag = "0.10.0"
+#branch = "test_backend"
 features = ["termion-backend"]
 
 [dependencies.cursive_tree_view]
