@@ -61,6 +61,9 @@ use std::sync::Arc;
 use view_handle::ViewHandle;
 use file_dialog::FileDialog;
 
+const FILE_BAR_MARKER : &'static str = "file_bar";
+const BUFFER_LIST_MARKER : &'static str = "file_bar";
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum InterfaceError {
     Undefined,
@@ -303,6 +306,25 @@ impl Interface {
             }
         }
 
+        if self.buffer_list_handle.is_some() {
+            let mut buffer_list = self.buffer_list().unwrap();
+
+            if let Some(result) = buffer_list.get_result() {
+                match result {
+                    Ok(FuzzyQueryResult::Cancel) => {}
+                    Ok(FuzzyQueryResult::Selected(_, buffer_id_str)) => {
+                        debug!("selected buffer {}", &buffer_id_str);
+                        self.open_and_or_focus(&BufferId::from_string(&buffer_id_str).unwrap());
+                    }
+                    Err(e) => {
+                        error!("opening buffer failed, because \"{}\"", e);
+                    }
+                }
+                let handle = self.buffer_list_handle.take().unwrap();
+                self.remove_window::<FuzzyQueryView>(&handle); // TODO(njskalski): can cache here.
+            }
+        }
+
         // TODO(njskalski): add processing of file_bar and fuzzy stuff.
     }
 
@@ -435,7 +457,7 @@ impl Interface {
 
         let mut file_bar = FuzzyQueryView::new(
             self.state.get_file_index(),
-            "filebar".to_string(),
+            FILE_BAR_MARKER.to_string(),
             self.event_sink(),
             self.settings.clone(),
         );
@@ -445,8 +467,22 @@ impl Interface {
     }
 
     fn show_buffer_list(&mut self) {
-        warn!("buffer list not imlemented yet.");
+        if self.file_bar_handle.is_some() {
+            debug!("show_buffer_list: not showing file_bar, because it's already opened.");
+            return;
+        }
+
+        let mut buffer_list = FuzzyQueryView::new(
+            self.state.buffer_index(),
+            BUFFER_LIST_MARKER.to_string(),
+            self.event_sink(),
+            self.settings.clone(),
+        );
+
+        self.buffer_list_handle = Some(buffer_list.get_mut().handle().clone());
+        self.siv.add_layer(buffer_list);
     }
+
 
     fn enable_lsp(&mut self) {
         let lsp =

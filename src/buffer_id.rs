@@ -30,6 +30,10 @@ impl BufferId {
     pub fn id(&self) -> usize {
         self.id
     }
+
+    pub fn from_string(s : &str) -> Option<Self> {
+        s[1..].parse::<usize>().ok().map( |id| {BufferId{ id }})
+    }
 }
 
 impl fmt::Display for BufferId {
@@ -37,3 +41,4 @@ impl fmt::Display for BufferId {
         write!(f, "b{}", self.id)
     }
 }
+

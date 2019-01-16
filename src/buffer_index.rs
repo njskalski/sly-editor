@@ -26,24 +26,8 @@ pub struct BufferIndex {
 
 impl BufferIndex {
     pub fn new(buffers : Vec<BufferStateObserver>) -> Self {
-        let mut items : Vec<Rc<ViewItem>> = Vec::new();
-
-        for (i, buffer) in buffers.iter().enumerate() {
-            if buffer.get_filename().is_none() {
-                continue;
-            }
-            items.push(Rc::new(BufferIndex::buffer_to_item(buffer, i.to_string())))
-        }
-
+        let items = buffers.iter().map(|buffer| { Rc::new(buffer_to_item(buffer))}).collect();
         BufferIndex { buffers : buffers, items : items }
-    }
-
-    fn buffer_to_item(buffer : &BufferStateObserver, marker : String) -> ViewItem {
-        ViewItem::new(
-            buffer.get_filename().unwrap().to_string_lossy().to_string(),
-            buffer.get_path().map(|path| path.to_string_lossy().to_string()),
-            marker,
-        )
     }
 }
 
@@ -52,4 +36,20 @@ impl FuzzyIndexTrait for BufferIndex {
         //TODO(njskalski) ignoring limit now
         self.items.clone()
     }
+}
+
+fn buffer_to_item(buffer : &BufferStateObserver) -> ViewItem {
+
+    let header : String = match buffer.get_filename() {
+        Some(filename) => filename.to_string_lossy().to_string(),
+        None => "<unnamed>".to_string()
+    };
+
+    let marker = buffer.buffer_id().to_string();
+
+    ViewItem::new(
+        header,
+        buffer.get_path().map(|path| path.to_string_lossy().to_string()),
+        marker,
+    )
 }

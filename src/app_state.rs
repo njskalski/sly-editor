@@ -51,6 +51,7 @@ use std::io::Write;
 use std::rc::Rc;
 
 use buffer_id::BufferId;
+use buffer_index::BufferIndex;
 use buffer_state::ExistPolicy;
 use core::borrow::Borrow;
 use lazy_dir_tree::LazyTreeNode;
@@ -66,7 +67,7 @@ use view_handle::ViewHandle;
 pub struct AppState {
     buffers_to_load : VecDeque<PathBuf>,
 
-    index : Arc<RefCell<FuzzyIndex>>, /* because searches are mutating the cache TODO this can
+    file_index: Arc<RefCell<FuzzyIndex>>, /* because searches are mutating the cache TODO this can
                                        * be solved with
                                        * "interior mutability", as other caches in this
                                        * app */
@@ -78,6 +79,17 @@ pub struct AppState {
 }
 
 impl AppState {
+
+    /// Returns index of buffers to be used with FuzzyQueryView
+    pub fn buffer_index(&self) -> Arc<RefCell<BufferIndex>> {
+        // TODO(njskalski): add cache.
+
+        let observers : Vec<BufferStateObserver> =
+            self.loaded_buffers.values().map(|v| BufferStateObserver::new(v.clone())).collect();
+
+        Arc::new(RefCell::new(BufferIndex::new(observers)))
+    }
+
     /// Returns list of buffers. Rather stable.
     pub fn get_buffers(&self) -> Vec<BufferId> {
         self.loaded_buffers.keys().map(|k| k.clone()).collect()
@@ -99,7 +111,7 @@ impl AppState {
 
     /// Returns file index. Rather stable.
     pub fn get_file_index(&self) -> Arc<RefCell<FuzzyIndexTrait>> {
-        self.index.clone()
+        self.file_index.clone()
     }
 
     pub fn get_dir_tree(&self) -> Rc<LazyTreeNode> {
@@ -183,7 +195,7 @@ impl AppState {
         AppState {
             buffers_to_load :        buffers_to_load,
             loaded_buffers :         HashMap::new(),
-            index :                  Arc::new(RefCell::new(FuzzyIndex::new(file_index_items))),
+            file_index:                  Arc::new(RefCell::new(FuzzyIndex::new(file_index_items))),
             dir_and_files_tree :     Rc::new(LazyTreeNode::new(directories.clone(), files)),
             get_first_buffer_guard : Cell::new(false),
             directories :            directories,
