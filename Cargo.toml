@@ -35,15 +35,16 @@ version = "5.97.0"
 features = ["extended_colors", "wide"]
 
 [dependencies.cursive]
-version = "0.10.0"
-#default-features = false
-#git = "https://github.com/Gyscos/Cursive.git"
+#version = "0.10.0"
+default-features = false
+git = "https://github.com/njskalski/Cursive.git"
 #tag = "0.10.0"
-#branch = "test_backend"
+branch = "test_backend"
 features = ["termion-backend"]
 
 [dependencies.cursive_tree_view]
 # version = "0.2.1"
-git = "https://github.com/njskalski/cursive_tree_view"
+#git = "https://github.com/njskalski/cursive_tree_view"
+path = "/home/andrzej/r/cursive_tree_view"
 #default-features = false
 features = ["termion-backend"]

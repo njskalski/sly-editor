@@ -201,21 +201,21 @@ impl Settings {
 
         result
     }
-}
 
-pub fn load_default_settings() -> Settings {
-    let mut default_settings = get_default_settings();
-    load_settings(&mut default_settings.as_bytes()).expect("failed loading settings. Parse error?")
-}
+    pub fn load_default() -> Self {
+        let mut default_settings = get_default_settings();
+        Self::load(&mut default_settings.as_bytes()).expect("failed loading settings. Parse error?")
+    }
 
-pub fn load_settings(reader : &mut Read) -> Option<Settings> {
-    let settings_result = sj::from_reader(reader);
-    match settings_result {
-        Err(some_error) => {
-            debug!("{:?}", some_error);
-            log::logger().flush();
-            None
+    pub fn load(reader :&mut Read) -> Option<Self> {
+        let settings_result = sj::from_reader(reader);
+        match settings_result {
+            Err(some_error) => {
+                debug!("{:?}", some_error);
+                log::logger().flush();
+                None
+            }
+            Ok(s) => Some(Settings { tree : s, color_cache : RefCell::new(HashMap::new()) }),
         }
-        Ok(s) => Some(Settings { tree : s, color_cache : RefCell::new(HashMap::new()) }),
     }
 }

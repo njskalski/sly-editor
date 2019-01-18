@@ -21,16 +21,21 @@ limitations under the License.
 Layout:
 
 VerticalLayout:
-    - TextView (title)
-    - HorizontalLayout
+    - TextView (title) (80,1)
+    - HorizontalLayout (80, 15)
         - DirTree
         - FileSelect
-    - (optionally) EditView
+    - (optionally) EditView (80, 1)
 */
 
 const DIR_TREE_VIEW_ID : &'static str = "file_dialog_dir_tree_view";
 const FILE_LIST_VIEW_ID : &'static str = "file_dialog_file_list_view";
 const EDIT_VIEW_ID : &'static str = "file_dialog_edit_view";
+
+// TODO(njskalski): add any elasticity here. It's all paper calculated
+const DIR_TREE_VIEW_SIZE: Vec2 = XY::<usize> { x: 30, y: 15 };
+const FILE_LIST_VIEW_SIZE: Vec2 = XY::<usize> { x: 50, y: 15 };
+const EDIT_VIEW_SIZE: Vec2 = XY::<usize> { x: 80, y: 1 };
 
 use cursive::align::*;
 use cursive::direction::*;
@@ -483,8 +488,10 @@ impl FileDialog {
         dir_tree.set_on_collapse(get_dir_tree_on_collapse_switch_callback(handle.clone(), false));
         dir_tree.set_on_select(get_dir_tree_on_select_callback(handle.clone()));
 
+
+
         horizontal_layout.add_child(ColorViewWrapper::new(
-            BoxView::with_fixed_size((30, 15), IdView::new(DIR_TREE_VIEW_ID, dir_tree)),
+            BoxView::with_fixed_size(DIR_TREE_VIEW_SIZE, IdView::new(DIR_TREE_VIEW_ID, dir_tree)),
             printer_to_theme.clone(),
         ));
 
@@ -492,7 +499,7 @@ impl FileDialog {
         file_select.set_on_submit(get_file_list_on_submit(handle.clone(), variant.is_open()));
 
         horizontal_layout.add_child(ColorViewWrapper::new(
-            BoxView::with_fixed_size((50, 15), file_select.with_id(FILE_LIST_VIEW_ID)),
+            BoxView::with_fixed_size(FILE_LIST_VIEW_SIZE, file_select.with_id(FILE_LIST_VIEW_ID)),
             printer_to_theme.clone(),
         ));
 
@@ -506,7 +513,7 @@ impl FileDialog {
                 edit_view.set_on_submit(get_on_file_edit_save_submit(handle.clone()));
                 variant.get_file_op().clone().map(|file| edit_view.set_content(file));
                 vertical_layout.add_child(ColorViewWrapper::new(
-                    (BoxView::with_fixed_size((80, 1), edit_view.with_id(EDIT_VIEW_ID))),
+                    (BoxView::with_fixed_size(EDIT_VIEW_SIZE, edit_view.with_id(EDIT_VIEW_ID))),
                     printer_to_theme.clone(),
                 ));
             }
@@ -571,5 +578,21 @@ impl View for FileDialog {
 
     fn take_focus(&mut self, source : Direction) -> bool {
         self.vertical_layout.take_focus(source)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    use cursive::Cursive;
+
+    #[test]
+    fn first_test_ever() {
+
+//        let view = FileDialog::new()
+//
+//        let siv = Cursive::new()
+
     }
 }

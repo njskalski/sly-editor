@@ -26,8 +26,6 @@ use cursive::theme::{BorderStyle, Palette, Theme};
 use cursive::traits::*;
 use cursive::views::*;
 use cursive::*;
-use settings;
-use settings::load_default_settings;
 use settings::Settings;
 
 use events::IEvent;
@@ -93,7 +91,7 @@ pub struct Interface {
 impl Interface {
     pub fn new(mut state : AppState) -> Self {
         let mut siv = Cursive::default();
-        let settings = Rc::new(load_default_settings());
+        let settings = Rc::new(Settings::load_default());
 
         let palette = settings.get_palette();
 
