@@ -23,13 +23,13 @@ use std::fmt;
 // TODO(njskalski) add hotloading directories (but remember to keep tests working!)
 // TODO(njskalski) create fourth category for out-of-folders files (second argument of constructor).
 
-pub trait TreeNode : fmt::Debug + fmt::Display + Ord
+pub trait TreeNode<T> : fmt::Debug + fmt::Display + Ord where T : TreeNode<T>
 {
     fn is_file(&self) -> bool;
     fn is_dir(&self) -> bool;
     fn is_root(&self) -> bool;
 
-    fn children(&self) -> Vec<Rc<TreeNode>>;
+    fn children(&self) -> Vec<Rc<T>>;
     fn path(&self) -> Option<PathBuf>;
 }
 
