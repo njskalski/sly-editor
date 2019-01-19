@@ -53,6 +53,7 @@ use cursive_tree_view::*;
 
 use core::any::Any;
 use lazy_dir_tree::TreeNode;
+use lazy_dir_tree::TreeNodeRef;
 use std::borrow::BorrowMut;
 use std::boxed::Box;
 use std::cell::RefCell;
@@ -195,8 +196,8 @@ impl SlyView for FileDialog {
     }
 }
 
-type TreeViewType = TreeView<Rc<TreeNode>>;
-type SelectViewType = SelectView<Rc<TreeNode>>;
+type TreeViewType = TreeView<TreeNodeRef>;
+type SelectViewType = SelectView<TreeNodeRef>;
 
 fn get_dir_tree_on_collapse_switch_callback(
     file_dialog_handle : ViewHandle,
@@ -213,8 +214,8 @@ fn get_dir_tree_on_collapse_switch_callback(
         let item = (*tree_view).borrow_item(row).unwrap().clone();
 
         if is_collapsed == false {
-            let mut dir_vec : Vec<Rc<TreeNode>> = Vec::new();
-            let mut file_vec : Vec<Rc<TreeNode>> = Vec::new();
+            let mut dir_vec : Vec<TreeNodeRef> = Vec::new();
+            let mut file_vec : Vec<TreeNodeRef> = Vec::new();
 
 
             let children = item.children();
@@ -223,7 +224,7 @@ fn get_dir_tree_on_collapse_switch_callback(
                 return;
             }
 
-            for c in children {
+            for c in *children {
                 if c.is_file() {
                     file_vec.push(c);
                 } else {
@@ -398,7 +399,7 @@ impl FileDialog {
     pub fn new(
         ch : IChannel,
         variant : FileDialogVariant,
-        root : Rc<TreeNode>,
+        root : TreeNodeRef,
         settings : &Rc<Settings>,
     ) -> IdView<Self> {
         debug!("creating file view with variant {:?}", variant);

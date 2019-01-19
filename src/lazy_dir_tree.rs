@@ -18,22 +18,37 @@ use std::cmp::{Ord, Ordering, PartialEq, PartialOrd};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::fmt;
+use std::ops::Deref;
 
 // TODO(njskalski) add RefCell<Vec<LazyTreeNode>> cache, refresh "on file change"
 // TODO(njskalski) add hotloading directories (but remember to keep tests working!)
 // TODO(njskalski) create fourth category for out-of-folders files (second argument of constructor).
 
-pub trait TreeNode<T> : fmt::Debug + fmt::Display + Ord where T : TreeNode<T>
+pub type TreeNodeRef = Rc<Box<dyn TreeNode>>;
+type TreeNodeVec = Vec<TreeNodeRef>;
+
+type TreeQRef = Rc<Box<dyn TreeQode>>;
+type TreeQVec = Vec<TreeQRef>;
+
+pub trait TreeQode : std::fmt::Debug
+{
+    fn id(&self) -> usize;
+    fn children(&self) -> TreeQVec;
+}
+
+
+
+pub trait TreeNode : fmt::Debug + fmt::Display + std::cmp::Ord
 {
     fn is_file(&self) -> bool;
     fn is_dir(&self) -> bool;
     fn is_root(&self) -> bool;
 
-    fn children(&self) -> Vec<Rc<T>>;
+    fn children(&self) -> TreeNodeVec;
     fn path(&self) -> Option<PathBuf>;
 }
 
-#[derive(Debug, PartialOrd, Ord, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub enum LazyTreeNode {
     RootNode(Vec<Rc<LazyTreeNode>>),
     DirNode(Rc<PathBuf>),
