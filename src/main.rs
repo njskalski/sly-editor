@@ -46,7 +46,7 @@ mod fuzzy_index_trait;
 mod fuzzy_query_view;
 mod fuzzy_view_item;
 mod interface;
-mod lazy_dir_tree;
+mod dir_tree;
 mod lsp_client;
 mod overlay_dialog;
 mod rich_content;

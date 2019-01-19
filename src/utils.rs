@@ -19,7 +19,7 @@ limitations under the License.
 use std::path::Path;
 
 /// this method takes a string representing a path, returns pair of options describing
-/// folder path and filename. Does not check if file exists, so it cannot difrenetiate between
+/// folder path and filename. Does not check if file exists, so it cannot differentiate between
 /// files and directories, unless path ends with "/", in which case it is assumed it's a directory.
 pub fn path_string_to_pair(path_str : String) -> (Option<String>, Option<String>) {
     if path_str.ends_with('/') {

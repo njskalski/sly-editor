@@ -19,6 +19,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::fmt;
 use std::ops::Deref;
+use std::path::Path;
 
 // TODO(njskalski) add RefCell<Vec<LazyTreeNode>> cache, refresh "on file change"
 // TODO(njskalski) add hotloading directories (but remember to keep tests working!)
@@ -34,11 +35,13 @@ pub trait TreeNode : fmt::Debug + fmt::Display
     fn is_root(&self) -> bool;
 
     fn children(&self) -> TreeNodeVec;
-    fn path(&self) -> Option<PathBuf>;
+    fn path(&self) -> Option<&Path>;
     fn has_children(&self) -> bool;
+
+    fn as_ref(self) -> TreeNodeRef;
 }
 
-#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum LazyTreeNode {
     RootNode(Vec<Rc<LazyTreeNode>>),
     DirNode(Rc<PathBuf>),
@@ -52,12 +55,8 @@ impl LazyTreeNode {
             .map(|x| Rc::new(LazyTreeNode::DirNode(Rc::new(x))))
             .chain(files.into_iter().map(|x| Rc::new(LazyTreeNode::FileNode(Rc::new(x)))))
             .collect();
-        nodes.sort();
+//        nodes.sort();
         LazyTreeNode::RootNode(nodes)
-    }
-
-    pub fn as_ref(self) -> TreeNodeRef {
-        Rc::new(Box::new(self))
     }
 }
 
@@ -108,17 +107,21 @@ impl TreeNode for LazyTreeNode {
         }
     }
 
-    fn path(&self) -> Option<PathBuf> {
+    fn path(&self) -> Option<&Path> {
         match self {
             &LazyTreeNode::RootNode(_) => None,
-            &LazyTreeNode::DirNode(ref path) => Some((**path).clone()),
-            &LazyTreeNode::FileNode(ref path) => Some((**path).clone()),
+            &LazyTreeNode::DirNode(ref path) => Some(path),
+            &LazyTreeNode::FileNode(ref path) => Some(path),
         }
     }
 
     // TODO(njskalski): optimise
     fn has_children(&self) -> bool {
         !self.children().is_empty()
+    }
+
+    fn as_ref(self) -> TreeNodeRef {
+        Rc::new(Box::new(self))
     }
 }
 
@@ -134,4 +137,93 @@ impl fmt::Display for LazyTreeNode {
             }
         }
     }
+}
+
+pub mod tests {
+    use super::*;
+
+    #[derive(Debug, Clone)]
+    pub enum FakeTreeNode {
+        FakeRoot(TreeNodeVec),
+        FakeDir(PathBuf, TreeNodeVec),
+        FakeFile(PathBuf)
+    }
+
+    impl FakeTreeNode {
+
+    }
+
+    pub fn fake_root(children : TreeNodeVec) -> TreeNodeRef {
+        FakeTreeNode::FakeRoot(children).as_ref()
+    }
+
+    pub fn fake_dir(s : &str, children : TreeNodeVec) -> TreeNodeRef {
+        FakeTreeNode::FakeDir(s.into(), children).as_ref()
+    }
+
+    pub fn fake_file(s: &str) -> TreeNodeRef {
+        FakeTreeNode::FakeFile(s.into()).as_ref()
+    }
+
+    impl fmt::Display for FakeTreeNode {
+        fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
+            match self {
+                &FakeTreeNode::FakeRoot(_) => write!(f, "<root>"),
+                &FakeTreeNode::FakeDir(ref path, _) => {
+                    write!(f, "{}", path.file_name().unwrap().to_string_lossy())
+                }
+                &FakeTreeNode::FakeFile(ref path) => {
+                    write!(f, "{}", path.file_name().unwrap().to_string_lossy())
+                }
+            }
+        }
+    }
+
+    impl TreeNode for FakeTreeNode {
+        fn is_file(&self) -> bool {
+            match self {
+                &FakeTreeNode::FakeFile(_) => true,
+                _ => false
+            }
+        }
+
+        fn is_dir(&self) -> bool {
+            match self {
+                &FakeTreeNode::FakeDir(_, _) => true,
+                _ => false
+            }
+        }
+
+        fn is_root(&self) -> bool {
+            match self {
+                &FakeTreeNode::FakeRoot(_) => true,
+                _ => false
+            }
+        }
+
+        fn children(&self) -> Vec<Rc<Box<TreeNode>>> {
+            match self {
+                &FakeTreeNode::FakeRoot(ref v) => v.clone(),
+                &FakeTreeNode::FakeDir(_, ref v) => v.clone(),
+                &FakeTreeNode::FakeFile(_) => vec![],
+            }
+        }
+
+        fn path(&self) -> Option<&Path> {
+            match self {
+                &FakeTreeNode::FakeRoot(_) => None,
+                &FakeTreeNode::FakeDir(ref path, _) => Some(path),
+                &FakeTreeNode::FakeFile(ref path) => Some(path),
+            }
+        }
+
+        fn has_children(&self) -> bool {
+            !self.children().is_empty()
+        }
+
+        fn as_ref(self) -> TreeNodeRef {
+            Rc::new(Box::new(self))
+        }
+    }
+
 }

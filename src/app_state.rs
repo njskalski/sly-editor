@@ -54,7 +54,7 @@ use buffer_id::BufferId;
 use buffer_index::BufferIndex;
 use buffer_state::ExistPolicy;
 use core::borrow::Borrow;
-use lazy_dir_tree::LazyTreeNode;
+use dir_tree::LazyTreeNode;
 use std::cell::Cell;
 use std::collections::VecDeque;
 use std::io::Error;
@@ -63,7 +63,8 @@ use std::sync::mpsc;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::Sender;
 use view_handle::ViewHandle;
-use lazy_dir_tree::TreeNodeRef;
+use dir_tree::TreeNode;
+use dir_tree::TreeNodeRef;
 
 pub struct AppState {
     buffers_to_load : VecDeque<PathBuf>,

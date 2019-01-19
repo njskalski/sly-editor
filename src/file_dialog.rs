@@ -54,8 +54,8 @@ use cursive::*;
 use cursive_tree_view::*;
 
 use core::any::Any;
-use lazy_dir_tree::TreeNode;
-use lazy_dir_tree::TreeNodeRef;
+use dir_tree::TreeNode;
+use dir_tree::TreeNodeRef;
 use std::borrow::BorrowMut;
 use std::boxed::Box;
 use std::cell::RefCell;
@@ -75,7 +75,7 @@ use std::error;
 use std::fmt;
 use std::path::PathBuf;
 use view_handle::ViewHandle;
-use lazy_dir_tree::TreeNodeVec;
+use dir_tree::TreeNodeVec;
 //use lazy_dir_tree::LazyTreeNode;
 
 // TODO(njskalski) this view took longer than anticipated to implement, so I rushed to the end
@@ -313,7 +313,7 @@ fn get_file_list_on_submit(
             let mut file_view = get_file_dialog(siv, &file_dialog_handle);
 
             if item.is_file() {
-                file_view.result = Some(Ok(FileDialogResult::FileOpen(item.path().unwrap())));
+                file_view.result = Some(Ok(FileDialogResult::FileOpen(item.path().unwrap().to_owned())));
             } else {
                 panic!("Expected only FileNodes on file_list.");
             }
@@ -338,7 +338,7 @@ fn get_path_op(siv : &mut Cursive, file_dialog_handle : &ViewHandle) -> Option<P
         None
     } else {
         assert!(item.is_dir());
-        item.path()
+        item.path().map(|p| p.to_owned())
     }
 }
 
@@ -545,6 +545,8 @@ mod tests {
     use super::*;
     use cursive::Cursive;
     use std::sync::mpsc;
+    use dir_tree::tests::*;
+    use std::sync::mpsc::Receiver;
 
     /*
         <root>
@@ -558,27 +560,48 @@ mod tests {
             - directory2 (/home/bob)
                 - .file6.hidden
     */
-//    fn get_fake_filesystem() -> LazyTreeNode {
-//        LazyTreeNode::RootNode(vec![
-//            Rc::new(LazyTreeNode::DirNode(Rc::new(PathBuf::from("/home/laura")))),
-//
-//        ])
-//    }
+    fn get_fake_filesystem() -> TreeNodeRef {
+        fake_root(vec![
+            fake_dir("/home/laura", vec![]),
+                fake_dir("/home/laura/subdirectory2", vec![]),
+                fake_dir("/home/laura/subdirectory2", vec![
+                    fake_file("file1"),
+                    fake_file("file2.txt"),
+                    fake_file("file3.rs"),
+                ]),
+            fake_file("file4.ini"),
+            fake_dir("/home/bob", vec![
+                fake_file(".file6.hidden")
+            ]),
+        ])
+    }
 
-    fn get_basic_setup(variant : FileDialogVariant) {
+    struct BasicSetup {
+        pub settings : Rc<Settings>,
+        pub receiver : Receiver<IEvent>,
+        pub filesystem : TreeNodeRef,
+        pub dialog : IdView<FileDialog>,
+    }
+
+    fn basic_setup(variant : FileDialogVariant) -> BasicSetup {
         let settings = Rc::new(Settings::load_default());
         let (sender, receiver) = mpsc::channel::<IEvent>();
-//        let filesystem = Rc::new(get_fake_filesystem());
+        let filesystem = get_fake_filesystem();
+        let dialog = FileDialog::new(sender, variant, filesystem.clone(), &settings);
 
-//        let dialog = FileDialog::new(sender, variant, filesystem, &settings);
+        BasicSetup {
+            settings,
+            receiver,
+            filesystem,
+            dialog
+        }
     }
 
     #[test]
     fn first_test_ever() {
+        let mut s = basic_setup(FileDialogVariant::OpenFile(None));
+        let view = &s.dialog;
 
-//        let view = FileDialog::new()
-//
-//        let siv = Cursive::new()
-
+        
     }
 }
