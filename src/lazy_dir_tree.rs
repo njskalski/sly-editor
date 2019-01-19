@@ -25,20 +25,9 @@ use std::ops::Deref;
 // TODO(njskalski) create fourth category for out-of-folders files (second argument of constructor).
 
 pub type TreeNodeRef = Rc<Box<dyn TreeNode>>;
-type TreeNodeVec = Vec<TreeNodeRef>;
+pub type TreeNodeVec = Vec<TreeNodeRef>;
 
-type TreeQRef = Rc<Box<dyn TreeQode>>;
-type TreeQVec = Vec<TreeQRef>;
-
-pub trait TreeQode : std::fmt::Debug
-{
-    fn id(&self) -> usize;
-    fn children(&self) -> TreeQVec;
-}
-
-
-
-pub trait TreeNode : fmt::Debug + fmt::Display + std::cmp::Ord
+pub trait TreeNode : fmt::Debug + fmt::Display
 {
     fn is_file(&self) -> bool;
     fn is_dir(&self) -> bool;
@@ -46,6 +35,7 @@ pub trait TreeNode : fmt::Debug + fmt::Display + std::cmp::Ord
 
     fn children(&self) -> TreeNodeVec;
     fn path(&self) -> Option<PathBuf>;
+    fn has_children(&self) -> bool;
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
@@ -64,6 +54,10 @@ impl LazyTreeNode {
             .collect();
         nodes.sort();
         LazyTreeNode::RootNode(nodes)
+    }
+
+    pub fn as_ref(self) -> TreeNodeRef {
+        Rc::new(Box::new(self))
     }
 }
 
@@ -89,26 +83,26 @@ impl TreeNode for LazyTreeNode {
         }
     }
 
-    fn children(&self) -> Vec<Rc<LazyTreeNode>> {
+    fn children(&self) -> TreeNodeVec {
         match self {
             &LazyTreeNode::RootNode(ref children) => vec![],
             &LazyTreeNode::DirNode(ref path) => {
                 //                let path = Path::new(&**p);
-                let mut contents : Vec<LazyTreeNode> = Vec::new();
+                let mut contents : TreeNodeVec = Vec::new();
                 for dir_entry in path.read_dir().expect("read_dir call failed.") {
                     if let Ok(entry) = dir_entry {
                         if let Ok(meta) = entry.metadata() {
                             if
                             /* files_visible && */
                             meta.is_file() {
-                                contents.push(LazyTreeNode::FileNode(Rc::new(entry.path())));
+                                contents.push(LazyTreeNode::FileNode(Rc::new(entry.path())).as_ref());
                             } else if meta.is_dir() {
-                                contents.push(LazyTreeNode::DirNode(Rc::new(entry.path())));
+                                contents.push(LazyTreeNode::DirNode(Rc::new(entry.path())).as_ref());
                             }
                         }
                     }
                 }
-                contents.map(|x| Rc::new(x))
+                contents
             }
             &LazyTreeNode::FileNode(ref path) => vec![],
         }
@@ -120,6 +114,11 @@ impl TreeNode for LazyTreeNode {
             &LazyTreeNode::DirNode(ref path) => Some((**path).clone()),
             &LazyTreeNode::FileNode(ref path) => Some((**path).clone()),
         }
+    }
+
+    // TODO(njskalski): optimise
+    fn has_children(&self) -> bool {
+        !self.children().is_empty()
     }
 }
 

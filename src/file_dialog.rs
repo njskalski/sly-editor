@@ -28,6 +28,8 @@ VerticalLayout:
     - (optionally) EditView (80, 1)
 */
 
+
+
 const DIR_TREE_VIEW_ID : &'static str = "file_dialog_dir_tree_view";
 const FILE_LIST_VIEW_ID : &'static str = "file_dialog_file_list_view";
 const EDIT_VIEW_ID : &'static str = "file_dialog_edit_view";
@@ -73,6 +75,7 @@ use std::error;
 use std::fmt;
 use std::path::PathBuf;
 use view_handle::ViewHandle;
+use lazy_dir_tree::TreeNodeVec;
 //use lazy_dir_tree::LazyTreeNode;
 
 // TODO(njskalski) this view took longer than anticipated to implement, so I rushed to the end
@@ -224,7 +227,7 @@ fn get_dir_tree_on_collapse_switch_callback(
                 return;
             }
 
-            for c in *children {
+            for c in children {
                 if c.is_file() {
                     file_vec.push(c);
                 } else {
@@ -233,13 +236,13 @@ fn get_dir_tree_on_collapse_switch_callback(
                 }
             }
 
-            dir_vec.sort();
+//            dir_vec.sort();
             for dir in dir_vec.iter() {
                 tree_view.insert_container_item(dir.clone(), Placement::LastChild, row);
             }
 
             if files_visible {
-                file_vec.sort();
+//                file_vec.sort();
 
                 for file in file_vec.iter() {
                     tree_view.insert_item(file.clone(), Placement::LastChild, row);
@@ -270,7 +273,7 @@ fn get_dir_tree_on_select_callback(
         let mut view : ViewRef<TreeViewType> = file_dialog.tree_view();
         //the line below looks complicated, but it boils down to copying Rc<LazyTreeNode>, so view
         // borrow can end immediately.
-        let item = (*view).borrow_item(row).unwrap().clone();
+        let item: TreeNodeRef = (*view).borrow_item(row).unwrap().clone();
 
         let mut file_list_view : ViewRef<SelectViewType> = file_dialog.file_list_view();
         file_list_view.clear();
@@ -279,9 +282,14 @@ fn get_dir_tree_on_select_callback(
             return;
         }
 
-        let mut file_vec : Vec<Rc<TreeNode>> = item.get_children().iter().filter(|i| i.is_file()).collect();
+        let mut file_vec = TreeNodeVec::new();
+        for c in item.children() {
+            if c.is_file() {
+                file_vec.push(c);
+            }
+        }
 
-        file_vec.sort();
+//        file_vec.sort();
         for file in file_vec.iter() {
             file_list_view.add_item(file.to_string(), file.clone());
         }
@@ -295,8 +303,8 @@ fn get_file_dialog(siv : &mut Cursive, file_dialog_handle : &ViewHandle) -> View
 fn get_file_list_on_submit(
     file_dialog_handle : ViewHandle,
     is_file_open : bool,
-) -> impl Fn(&mut Cursive, &Rc<TreeNode>) -> () {
-    move |siv : &mut Cursive, item : &Rc<TreeNode>| {
+) -> impl Fn(&mut Cursive, &TreeNodeRef) -> () {
+    move |siv : &mut Cursive, item : &TreeNodeRef| {
         // TODO(njskalski): for some reason if the line below is uncommented (and shadowing ones
         // are disabled) the unwrap inside get_path_op fails. Investigate why.
         // let mut file_view : ViewRef<FileDialog> =

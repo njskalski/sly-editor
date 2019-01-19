@@ -63,6 +63,7 @@ use std::sync::mpsc;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::Sender;
 use view_handle::ViewHandle;
+use lazy_dir_tree::TreeNodeRef;
 
 pub struct AppState {
     buffers_to_load : VecDeque<PathBuf>,
@@ -71,7 +72,7 @@ pub struct AppState {
                                        * be solved with
                                        * "interior mutability", as other caches in this
                                        * app */
-    dir_and_files_tree :     Rc<LazyTreeNode>,
+    dir_and_files_tree :     TreeNodeRef,
     get_first_buffer_guard : Cell<bool>,
     directories :            Vec<PathBuf>, /* it's a straigthforward copy of arguments used
                                             * to guess "workspace" parameter for languageserver */
@@ -114,7 +115,7 @@ impl AppState {
         self.file_index.clone()
     }
 
-    pub fn get_dir_tree(&self) -> Rc<LazyTreeNode> {
+    pub fn get_dir_tree(&self) -> TreeNodeRef {
         self.dir_and_files_tree.clone()
     }
 
@@ -196,7 +197,7 @@ impl AppState {
             buffers_to_load :        buffers_to_load,
             loaded_buffers :         HashMap::new(),
             file_index:                  Arc::new(RefCell::new(FuzzyIndex::new(file_index_items))),
-            dir_and_files_tree :     Rc::new(LazyTreeNode::new(directories.clone(), files)),
+            dir_and_files_tree :     LazyTreeNode::new(directories.clone(), files).as_ref(),
             get_first_buffer_guard : Cell::new(false),
             directories :            directories,
         }

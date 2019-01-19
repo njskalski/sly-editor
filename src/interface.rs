@@ -88,6 +88,25 @@ pub struct Interface {
     lsp_clients :          Vec<LspClient>, //TODO(njskalski): temporary storage to avoid removal
 }
 
+fn find_view_with_handle<V>(
+    siv : &mut Cursive,
+    handle_op : &Option<ViewHandle>,
+) -> Option<ViewRef<V>>
+where
+    V : SlyView + View,
+{
+    match handle_op {
+        Some(handle) => siv.find_id(&handle.to_string()),
+        None => None,
+    }
+}
+
+impl fmt::Display for InterfaceError {
+    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "InterfaceError (not defined)")
+    }
+}
+
 impl Interface {
     pub fn new(mut state : AppState) -> Self {
         let mut siv = Cursive::default();
@@ -340,8 +359,8 @@ impl Interface {
 
     //TODO error handling!
     fn open_and_or_focus_file<T>(&mut self, path : T)
-    where
-        T : Into<PathBuf>,
+        where
+            T : Into<PathBuf>,
     {
         let path_buf : PathBuf = path.into();
         let buffer_id_op = self.path_to_buffer_id.get(&path_buf).map(|x| x.clone());
@@ -498,25 +517,6 @@ impl Interface {
             let buffer_id = buffer.id();
             debug!("save_current_buffer unimplemented ");
         }
-    }
-}
-
-fn find_view_with_handle<V>(
-    siv : &mut Cursive,
-    handle_op : &Option<ViewHandle>,
-) -> Option<ViewRef<V>>
-where
-    V : SlyView + View,
-{
-    match handle_op {
-        Some(handle) => siv.find_id(&handle.to_string()),
-        None => None,
-    }
-}
-
-impl fmt::Display for InterfaceError {
-    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "InterfaceError (not defined)")
     }
 }
 
