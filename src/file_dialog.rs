@@ -547,6 +547,7 @@ mod tests {
     use std::sync::mpsc;
     use dir_tree::tests::*;
     use std::sync::mpsc::Receiver;
+    use file_dialog::FileDialog;
 
     /*
         <root>
@@ -580,7 +581,8 @@ mod tests {
         pub settings : Rc<Settings>,
         pub receiver : Receiver<IEvent>,
         pub filesystem : TreeNodeRef,
-        pub dialog : IdView<FileDialog>,
+        pub view : ViewRef<FileDialog>,
+        pub siv : Cursive,
     }
 
     fn basic_setup(variant : FileDialogVariant) -> BasicSetup {
@@ -588,20 +590,27 @@ mod tests {
         let (sender, receiver) = mpsc::channel::<IEvent>();
         let filesystem = get_fake_filesystem();
         let dialog = FileDialog::new(sender, variant, filesystem.clone(), &settings);
+        let handle = dialog.handle();
+        let mut siv = Cursive::new(|| { backend::puppet::Backend::init() });
+        siv.add_layer(dialog);
+
+        let view : ViewRef<FileDialog> = siv.find_id(&handle.to_string()).unwrap();
 
         BasicSetup {
             settings,
             receiver,
             filesystem,
-            dialog
+            view,
+            siv
         }
     }
 
     #[test]
     fn first_test_ever() {
         let mut s = basic_setup(FileDialogVariant::OpenFile(None));
-        let view = &s.dialog;
 
-        
+        s.siv.step();
+
+        assert_eq!(s.view.is_displayed(), true);
     }
 }
