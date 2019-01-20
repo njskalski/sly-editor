@@ -73,15 +73,13 @@ extern crate unicode_width;
 #[macro_use]
 extern crate clap;
 extern crate uid;
-
 #[macro_use]
 extern crate languageserver_types;
-
 extern crate jsonrpc_core;
-
 #[macro_use]
 extern crate human_panic;
 extern crate serde;
+extern crate crossbeam_channel;
 
 use app_state::AppState;
 use cpuprofiler::PROFILER;

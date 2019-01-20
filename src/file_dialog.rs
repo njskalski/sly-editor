@@ -548,6 +548,11 @@ mod tests {
     use dir_tree::tests::*;
     use std::sync::mpsc::Receiver;
     use file_dialog::FileDialog;
+    use cursive::backend::puppet::observed::ObservedScreen;
+    use cursive::backend::puppet::observed_screen_view::ObservedScreenView;
+    use crossbeam_channel;
+    use cursive::backend::puppet::observed::ObservedCell;
+    use std::time::Duration;
 
     /*
         <root>
@@ -581,8 +586,61 @@ mod tests {
         pub settings : Rc<Settings>,
         pub receiver : Receiver<IEvent>,
         pub filesystem : TreeNodeRef,
-        pub view : ViewRef<FileDialog>,
+//        pub view : ViewRef<FileDialog>,
         pub siv : Cursive,
+        pub screen_sink : crossbeam_channel::Receiver<ObservedScreen>,
+        pub input : crossbeam_channel::Sender<Option<Event>>,
+    }
+
+    impl BasicSetup {
+        fn dump(&self) {
+            let mut siv = Cursive::default();
+            siv.step();
+            siv.add_layer(ObservedScreenView::new(self.screen_sink.recv().unwrap()));
+            siv.step();
+        }
+
+        fn draw_screen(&self, screen : &ObservedScreen) {
+            println!("captured screen:");
+
+            for y in 0..screen.size().y {
+                for x in 0..screen.size().x {
+                    let pos = Vec2::new(x,y);
+                    let cell_op : &Option<ObservedCell> = &screen[&pos];
+                    if cell_op.is_some() {
+                        let cell = cell_op.as_ref().unwrap();
+
+                        if cell.letter.is_continuation() {
+                            print!("c");
+                            continue;
+                        } else {
+                            let letter = cell.letter.unwrap();
+                            if letter == " " {
+                                print!(" ");
+                            } else {
+                                print!("{}", letter);
+                            }
+                        }
+
+                    } else {
+                        print!(".");
+                    }
+                }
+                println!();
+            }
+        }
+
+        fn dump_debug(&self) {
+
+//            let mut screen = self.screen_sink.recv().unwrap();
+//            self.draw_screen(&screen);
+//            screen = self.screen_sink.recv().unwrap();
+//            self.draw_screen(&screen);
+
+            while let Ok(screen) = self.screen_sink.recv_timeout(Duration::new(0,0)) {
+                self.draw_screen(&screen);
+            }
+        }
     }
 
     fn basic_setup(variant : FileDialogVariant) -> BasicSetup {
@@ -591,17 +649,27 @@ mod tests {
         let filesystem = get_fake_filesystem();
         let dialog = FileDialog::new(sender, variant, filesystem.clone(), &settings);
         let handle = dialog.handle();
-        let mut siv = Cursive::new(|| { backend::puppet::Backend::init() });
+
+        let backend = backend::puppet::Backend::init();
+        let sink = backend.stream();
+        let input = backend.input();
+
+        let mut siv = Cursive::new(|| { backend });
+//        let mut siv = Cursive::default();
         siv.add_layer(dialog);
 
-        let view : ViewRef<FileDialog> = siv.find_id(&handle.to_string()).unwrap();
+//        let view : ViewRef<FileDialog> = siv.find_id(&handle.to_string()).unwrap();
+
+        siv.focus_id(&handle.to_string());
 
         BasicSetup {
             settings,
             receiver,
             filesystem,
-            view,
-            siv
+//            view,
+            siv,
+            screen_sink : sink,
+            input
         }
     }
 
@@ -609,8 +677,19 @@ mod tests {
     fn first_test_ever() {
         let mut s = basic_setup(FileDialogVariant::OpenFile(None));
 
+        s.siv.quit(); // just to stop the loop.
+
+        s.input.send(Some(Event::Key(Key::Enter)));
+
+        s.siv.step();
+        s.input.send(Some(Event::Key(Key::Enter)));
+        s.siv.step();
+        s.input.send(Some(Event::Refresh));
         s.siv.step();
 
-        assert_eq!(s.view.is_displayed(), true);
+
+//        assert_eq!(s.view.is_displayed(), true);
+
+        s.dump_debug();
     }
 }
