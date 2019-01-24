@@ -45,7 +45,8 @@ features = ["termion-backend"]
 
 [dependencies.cursive_tree_view]
 # version = "0.2.1"
-#git = "https://github.com/njskalski/cursive_tree_view"
-path = "/home/andrzej/r/cursive_tree_view"
+git = "https://github.com/njskalski/cursive_tree_view"
+branch = "with_test_backend"
+#path = "/home/andrzej/r/cursive_tree_view"
 #default-features = false
 features = ["termion-backend"]
