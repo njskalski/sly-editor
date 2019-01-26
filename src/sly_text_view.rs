@@ -533,10 +533,78 @@ impl SlyTextView {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//
-//
-//
-// }
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+     use std::sync::mpsc;
+     use cursive::Cursive;
+     use cursive::backend::puppet::observed::ObservedScreen;
+     use buffer_state::BufferState;
+     use cursive::backend;
+     use std::sync::mpsc::Receiver;
+     use std::cell::RefCell;
+     use utils;
+
+     struct BasicSetup {
+         pub settings : Rc<Settings>,
+         pub receiver : Receiver<IEvent>,
+         pub siv : Cursive,
+         pub handle : ViewHandle,
+         pub observer : BufferStateObserver,
+         pub buffer : Rc<RefCell<BufferState>>,
+         pub screen_sink : crossbeam_channel::Receiver<ObservedScreen>,
+         pub input : crossbeam_channel::Sender<Option<Event>>,
+     }
+
+     fn basic_setup() -> BasicSetup {
+         let settings = Rc::new(Settings::load_default());
+         let (sender, receiver) = mpsc::channel::<IEvent>();
+//         let filesystem = get_fake_filesystem();
+//         let dialog = FileDialog::new(sender, variant, filesystem.clone(), &settings);
+
+         let buffer = BufferState::new();
+         let observer = BufferStateObserver::new(buffer.clone());
+         let sly_view = SlyTextView::new(settings.clone(), observer, sender);
+
+         let handle = sly_view.handle();
+
+         let backend = backend::puppet::Backend::init();
+         let sink = backend.stream();
+         let input = backend.input();
+
+         let mut siv = Cursive::new(|| { backend });
+         siv.add_fullscreen_layer(sly_view);
+
+         siv.focus_id(&handle.to_string());
+
+         BasicSetup {
+             settings,
+             receiver,
+             siv,
+             handle,
+             observer : BufferStateObserver::new(buffer.clone()),
+             buffer : buffer,
+             screen_sink : sink,
+             input
+         }
+     }
+
+     #[test]
+     fn first_test_ever() {
+         let mut s = basic_setup();
+
+         s.siv.quit(); // just to stop the loop.
+
+         s.input.send(Some(Event::Key(Key::Enter)));
+         s.siv.step();
+         s.input.send(Some(Event::Key(Key::Enter)));
+         s.siv.step();
+         s.input.send(Some(Event::Key(Key::Enter)));
+         s.siv.step();
+         s.input.send(Some(Event::Key(Key::Enter)));
+         s.siv.step();
+
+
+         utils::dump_screens(&mut s.screen_sink);
+     }
+ }

@@ -61,18 +61,27 @@ pub struct BufferState {
 }
 
 impl BufferState {
-    pub fn new() -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(BufferState {
+
+    fn raw() -> Self {
+        BufferState {
             id :       BufferId::new(),
             ss :       BufferStateS { path : None },
             modified : false,
             content :  RopeBasedContentProvider::new(None),
             mode :     BufferOpenMode::ReadWrite,
-        }))
+        }
+    }
+
+    pub fn new() -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(Self::raw()))
     }
 
     pub fn id(&self) -> BufferId {
         self.id.clone()
+    }
+
+    pub fn modified(&self) -> bool {
+        self.modified
     }
 
     pub fn open(
@@ -167,4 +176,20 @@ impl BufferState {
 
 fn path_to_reader(path : &Path) -> fs::File {
     fs::File::open(path).expect(&format!("file {:?} did not exist!", path))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn modified() {
+        let mut buffer = BufferState::raw();
+        assert_eq!(buffer.modified(), false);
+        buffer.submit_edit_events(vec![EditEvent::Insert {offset : 0, content : "x".to_owned()}]);
+        assert_eq!(buffer.modified(), true);
+
+    }
+
+
 }

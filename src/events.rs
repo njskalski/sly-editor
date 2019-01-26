@@ -38,6 +38,7 @@ pub enum IEvent {
     SaveCurrentBuffer,
     FuzzyQueryBarSelected(String, String), /* marker (the word that search ran agains),
                                             * selection (value) */
+    FuzzyQueryWorkerProduced,
     CloseWindow,
 
     // Buffer edit events are now in the same queue, not sure yet if that's final.

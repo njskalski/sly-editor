@@ -36,6 +36,8 @@ use std::sync::mpsc;
 use std::sync::mpsc::*;
 use std::sync::Arc;
 use std::thread;
+use events::IChannel;
+use events::IEvent;
 
 const MAX_CACHE_SIZE : usize = 30;
 pub const HARD_QUERY_LIMIT : usize = 50;
@@ -157,6 +159,7 @@ impl FuzzyIndex {
     }
 }
 
+/// To stop this task, just drop it.
 struct FuzzySearchTask {
     receiver : mpsc::Receiver<u64>,
     query :    String,
@@ -166,7 +169,7 @@ struct FuzzySearchTask {
 }
 
 impl FuzzySearchTask {
-    pub fn new(query : String, index : &FuzzyIndex, limit : usize) -> FuzzySearchTask {
+    pub fn new(query : String, index : &FuzzyIndex, limit : usize, ichannel : Option<IChannel>) -> FuzzySearchTask {
         let (sender, receiver) = channel::<u64>();
         let item_ids = Vec::new();
 
@@ -174,20 +177,30 @@ impl FuzzySearchTask {
         let query_copy = query.clone();
         let items_sizes_ref = index.items_sizes.clone();
 
+        debug!("spawnin thread");
         thread::spawn(move || {
-            debug!("1");
+            debug!("Regex ready");
             let regex = query_to_regex(&query_copy);
             let stream_builder : map::StreamBuilder<Regex> = index_ref_copy.search(regex);
             let mut stream = stream_builder.into_stream();
 
-            debug!("2");
-            let mut results : Vec<&ViewItem> = Vec::new();
+            debug!("starting search");
             let mut it : usize = 0;
             while let Some((header, key)) = stream.next() {
                 if sender.send(key).is_err() {
-                    debug!("unable to send key in FuzzySearchTask internal worker");
+                    debug!("Unable to send key in FuzzySearchTask internal worker. Closing.");
                     return;
                 }
+                ichannel.map(|s| s.send(IEvent::FuzzyQueryWorkerProduced).unwrap_or(||{return;}));
+
+                // submitting "ready for refresh"
+                match ichannel {
+                    Some(sender) => if sender.send(IEvent::FuzzyQueryWorkerProduced).is_err() {
+                        return;
+                    }
+                    _ => {}
+                };
+
                 it += items_sizes_ref[&key];
                 if it < limit {
                     it += 1;
@@ -195,7 +208,7 @@ impl FuzzySearchTask {
                     break;
                 }
             }
-            debug!("3");
+            debug!("Search ended.");
         });
 
         FuzzySearchTask {
