@@ -67,6 +67,17 @@ pub enum InterfaceError {
     Undefined,
 }
 
+struct InterfaceNotifier {
+    siv_cb_sink : crossbeam_channel::Sender<Box<CbFunc>>,
+
+}
+
+impl InterfaceNotifier {
+    pub fn refresh(&mut self) {
+        self.siv_cb_sink.send_timeout(||{}, )
+    }
+}
+
 /*
 At this moment I have not decided on whether interface holds premise before siv or other way around.
 So I expect every method in this object that updates handles to reflect these changes in siv field
@@ -108,6 +119,16 @@ impl fmt::Display for InterfaceError {
 }
 
 impl Interface {
+    pub fn inot(&self) -> InterfaceNotifier {
+
+        let x = self.siv.cb_sink().clone();
+
+
+        InterfaceNotifier {
+            siv_cb_sink : x
+        }
+    }
+
     pub fn new(mut state : AppState) -> Self {
         let mut siv = Cursive::default();
         let settings = Rc::new(Settings::load_default());
