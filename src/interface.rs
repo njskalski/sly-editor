@@ -58,6 +58,7 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use view_handle::ViewHandle;
 use file_dialog::FileDialog;
+use std::time::Duration;
 
 const FILE_BAR_MARKER : &'static str = "file_bar";
 const BUFFER_LIST_MARKER : &'static str = "file_bar";
@@ -67,14 +68,19 @@ pub enum InterfaceError {
     Undefined,
 }
 
+#[derive(Clone, Debug)]
 struct InterfaceNotifier {
     siv_cb_sink : crossbeam_channel::Sender<Box<CbFunc>>,
-
+    ichan : IChannel
 }
 
 impl InterfaceNotifier {
     pub fn refresh(&mut self) {
-        self.siv_cb_sink.send_timeout(||{}, )
+        self.siv_cb_sink.send_timeout(Box::new(|s: &mut Cursive| {}), Duration::new(0, 0));
+    }
+
+    pub fn sink(&self) -> &IChannel {
+        &self.ichan
     }
 }
 
@@ -120,12 +126,9 @@ impl fmt::Display for InterfaceError {
 
 impl Interface {
     pub fn inot(&self) -> InterfaceNotifier {
-
-        let x = self.siv.cb_sink().clone();
-
-
         InterfaceNotifier {
-            siv_cb_sink : x
+            siv_cb_sink : self.siv.cb_sink().clone(),
+            ichan : self.event_sink()
         }
     }
 
