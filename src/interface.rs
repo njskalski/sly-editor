@@ -36,8 +36,10 @@ use std::thread;
 use utils;
 
 use buffer_id::BufferId;
+use core::borrow::Borrow;
 use core::borrow::BorrowMut;
 use events::IChannel;
+use file_dialog::FileDialog;
 use fuzzy_query_view::FuzzyQueryResult;
 use lsp_client::LspClient;
 use overlay_dialog::OverlayDialog;
@@ -56,11 +58,13 @@ use std::path::PathBuf;
 use std::rc::{Rc, Weak};
 use std::sync::mpsc;
 use std::sync::Arc;
+use std::time::Duration;
 use view_handle::ViewHandle;
-use file_dialog::FileDialog;
+use std::sync;
+use std::sync::atomic::AtomicPtr;
 
-const FILE_BAR_MARKER : &'static str = "file_bar";
-const BUFFER_LIST_MARKER : &'static str = "file_bar";
+const FILE_BAR_MARKER: &'static str = "file_bar";
+const BUFFER_LIST_MARKER: &'static str = "file_bar";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum InterfaceError {
@@ -74,26 +78,23 @@ and other way around.
 */
 
 pub struct Interface {
-    state :                AppState,
-    settings :             Rc<Settings>,
-    channel :              (mpsc::Sender<IEvent>, mpsc::Receiver<IEvent>),
-    siv :                  Cursive,
-    active_editor_handle : ViewHandle,
-    inactive_editors :     HashMap<BufferId, IdView<SlyTextView>>,
-    path_to_buffer_id :    HashMap<PathBuf, BufferId>,
-    done :                 bool,
-    file_dialog_handle :   Option<ViewHandle>,
-    file_bar_handle :      Option<ViewHandle>,
-    buffer_list_handle :   Option<ViewHandle>,
-    lsp_clients :          Vec<LspClient>, //TODO(njskalski): temporary storage to avoid removal
+    state: AppState,
+    settings: Rc<Settings>,
+    channel: (mpsc::Sender<IEvent>, mpsc::Receiver<IEvent>),
+    siv: Cursive,
+    active_editor_handle: ViewHandle,
+    inactive_editors: HashMap<BufferId, IdView<SlyTextView>>,
+    path_to_buffer_id: HashMap<PathBuf, BufferId>,
+    done: bool,
+    file_dialog_handle: Option<ViewHandle>,
+    file_bar_handle: Option<ViewHandle>,
+    buffer_list_handle: Option<ViewHandle>,
+    lsp_clients: Vec<LspClient>, //TODO(njskalski): temporary storage to avoid removal
 }
 
-fn find_view_with_handle<V>(
-    siv : &mut Cursive,
-    handle_op : &Option<ViewHandle>,
-) -> Option<ViewRef<V>>
+fn find_view_with_handle<V>(siv: &mut Cursive, handle_op: &Option<ViewHandle>) -> Option<ViewRef<V>>
 where
-    V : SlyView + View,
+    V: SlyView + View,
 {
     match handle_op {
         Some(handle) => siv.find_id(&handle.to_string()),
@@ -102,20 +103,19 @@ where
 }
 
 impl fmt::Display for InterfaceError {
-    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "InterfaceError (not defined)")
     }
 }
 
 impl Interface {
-    pub fn new(mut state : AppState) -> Self {
+    pub fn new(mut state: AppState) -> Self {
         let mut siv = Cursive::default();
         let settings = Rc::new(Settings::load_default());
 
         let palette = settings.get_palette();
 
-        let theme : Theme =
-            Theme { shadow : false, borders : BorderStyle::Simple, palette : palette };
+        let theme: Theme = Theme { shadow: false, borders: BorderStyle::Simple, palette: palette };
 
         let channel = mpsc::channel();
         siv.set_theme(theme);
@@ -127,18 +127,18 @@ impl Interface {
         siv.add_fullscreen_layer(sly_text_view);
 
         let mut i = Interface {
-            state :                state,
-            settings :             settings,
-            channel :              channel,
-            siv :                  siv,
-            active_editor_handle : active_editor,
-            inactive_editors :     HashMap::new(),
-            path_to_buffer_id :    HashMap::new(),
-            done :                 false,
-            file_dialog_handle :   None,
-            file_bar_handle :      None,
-            buffer_list_handle :   None,
-            lsp_clients :          Vec::new(),
+            state: state,
+            settings: settings,
+            channel: channel,
+            siv: siv,
+            active_editor_handle: active_editor,
+            inactive_editors: HashMap::new(),
+            path_to_buffer_id: HashMap::new(),
+            done: false,
+            file_dialog_handle: None,
+            file_bar_handle: None,
+            buffer_list_handle: None,
+            lsp_clients: Vec::new(),
         };
 
         // let known_actions = vec!["show_everything_bar"];
@@ -193,7 +193,7 @@ impl Interface {
     // TODO(njskalski): error handling, borrow instead of copy etc.
     fn replace_current_editor_view(
         &mut self,
-        new_editor : IdView<SlyTextView>,
+        new_editor: IdView<SlyTextView>,
     ) -> IdView<SlyTextView> {
         // removing old view
         let handle = self.active_editor_handle.clone();
@@ -207,19 +207,22 @@ impl Interface {
         old_view.unwrap()
     }
 
-    fn remove_window<T>(&mut self, handle : &ViewHandle) -> Option<IdView<T>> where T : SlyView + View {
+    fn remove_window<T>(&mut self, handle: &ViewHandle) -> Option<IdView<T>>
+    where
+        T: SlyView + View,
+    {
         let screen = self.siv.screen_mut();
         let layer_pos = screen.find_layer_from_id(&handle.to_string())?;
         screen.move_to_front(layer_pos);
         // the line above modifies state. So now I prefer method to crash than return None.
-        let view_box : Box<View> = screen.pop_layer().unwrap();
+        let view_box: Box<View> = screen.pop_layer().unwrap();
         let sly_view_box = view_box.as_boxed_any().downcast::<IdView<T>>().ok().unwrap();
         let sly_view = *sly_view_box;
         Some(sly_view)
     }
 
     // TODO(njskalski): add proper handling of errrors, it's a total mess now!
-    fn create_editor_for_buffer_id(&mut self, buffer_id : &BufferId) -> Result<(), InterfaceError> {
+    fn create_editor_for_buffer_id(&mut self, buffer_id: &BufferId) -> Result<(), InterfaceError> {
         {
             let old_editor = self.inactive_editors.get(buffer_id);
             if old_editor.is_some() {
@@ -236,38 +239,44 @@ impl Interface {
         Ok(())
     }
 
+    /// Flushes event queue processing all events in one take. Does not block.
     fn process_events(&mut self) {
-        while let Ok(msg) = self.channel.1.try_recv() {
-            debug!("processing event {:?}", msg);
-            match msg {
-                IEvent::ShowFileBar => {
-                    self.show_file_bar();
-                }
-                IEvent::QuitSly => {
-                    self.done = true;
-                }
-                IEvent::CloseWindow => {
-                    self.cancel_floating_windows();
-                }
-                IEvent::BufferEditEvent(view_handle, events) => {
-                    //TODO now I just send to active editor, ignoring view_handle
-                    self.active_editor().buffer_obs().submit_edit_events_to_buffer(events);
-                }
-                IEvent::SaveCurrentBuffer => {
-                    self.save_current_buffer();
-                }
-                IEvent::OpenFileDialog => {
-                    self.show_open_file_dialog();
-                }
-                IEvent::ShowBufferList => {
-                    self.show_buffer_list();
-                }
-                IEvent::EnableLSP => {
-                    self.enable_lsp();
-                }
-                _ => {
-                    debug!("unhandled IEvent {:?}", &msg);
-                }
+        while let Ok(msg) = self.channel.1.try_recv() {}
+    }
+
+    fn process_event(&mut self, ievent: IEvent) {
+        debug!("processing event {:?}", &ievent);
+        match ievent {
+            IEvent::ShowFileBar => {
+                self.show_file_bar();
+            }
+            IEvent::QuitSly => {
+                self.done = true;
+            }
+            IEvent::CloseWindow => {
+                self.cancel_floating_windows();
+            }
+            IEvent::BufferEditEvent(view_handle, events) => {
+                //TODO now I just send to active editor, ignoring view_handle
+                self.active_editor().buffer_obs().submit_edit_events_to_buffer(events);
+            }
+            IEvent::SaveCurrentBuffer => {
+                self.save_current_buffer();
+            }
+            IEvent::OpenFileDialog => {
+                self.show_open_file_dialog();
+            }
+            IEvent::ShowBufferList => {
+                self.show_buffer_list();
+            }
+            IEvent::EnableLSP => {
+                self.enable_lsp();
+            }
+            IEvent::FuzzyQueryWorkerProduced(marker) => {
+                self.refresh();
+            }
+            _ => {
+                debug!("unhandled IEvent {:?}", &ievent);
             }
         }
     }
@@ -346,7 +355,7 @@ impl Interface {
     }
 
     /// This updates interface and SIV!
-    fn open_and_or_focus(&mut self, buffer_id : &BufferId) {
+    fn open_and_or_focus(&mut self, buffer_id: &BufferId) {
         if !self.inactive_editors.contains_key(buffer_id) {
             self.create_editor_for_buffer_id(buffer_id);
         }
@@ -358,11 +367,11 @@ impl Interface {
     }
 
     //TODO error handling!
-    fn open_and_or_focus_file<T>(&mut self, path : T)
-        where
-            T : Into<PathBuf>,
+    fn open_and_or_focus_file<T>(&mut self, path: T)
+    where
+        T: Into<PathBuf>,
     {
-        let path_buf : PathBuf = path.into();
+        let path_buf: PathBuf = path.into();
         let buffer_id_op = self.path_to_buffer_id.get(&path_buf).map(|x| x.clone());
 
         let buffer_id = match buffer_id_op {
@@ -384,7 +393,7 @@ impl Interface {
         editor
     }
 
-    fn focus_buffer(&mut self, buffer_id : BufferId) {}
+    fn focus_buffer(&mut self, buffer_id: BufferId) {}
 
     fn file_dialog(&mut self) -> Option<ViewRef<FileDialog>> {
         find_view_with_handle(&mut self.siv, &self.file_dialog_handle)
@@ -402,18 +411,70 @@ impl Interface {
         self.file_dialog().map(|mut file_dialog_ref| file_dialog_ref.borrow_mut().cancel());
     }
 
+    /// This makes Cursive blocking .step() call exit early with no errors.
+    pub fn refresh(&self) {
+        self.siv.cb_sink().send_timeout(Box::new(|s: &mut Cursive| {}), Duration::new(0, 0));
+    }
+
     /// Main program method
-    pub fn main(&mut self) {
-        while !self.done {
-            // first, let's finish whatever action have been started in a previous frame.
-            self.process_dialogs();
+    pub fn main(mut self) {
+        // there have to be two threads for interface. One will be waiting for Cursive step to end
+        // (on input or refresh) and another one able to force that wakeup.
 
-            self.process_events();
+//        let receiver = self.channel.1.borrow();
 
-            if !self.done {
-                self.siv.step();
-            }
-        }
+        let (sender, receiver) = mpsc::channel::<IEvent>();
+
+        let arc = Arc::new(sync::Mutex::new(AtomicPtr::new(&mut self)));
+
+        let arc1 = arc.clone();
+        let arc2 = arc1.clone();
+
+        let thread1 = thread::Builder::new()
+            .name("IEvent processor".to_owned())
+            .spawn(move || {
+                match receiver.recv() {
+                    Ok(ievent) => {
+                        match arc1.lock() {
+                            Ok(ref mut interface) => {
+                                interface.process_event(ievent);
+                                while let Ok(ievent) = receiver.try_recv() {
+                                    interface.process_event(ievent);
+                                }
+                                interface.refresh(); // wakes up thread two after processing all ievents.
+                            }
+                        }
+
+                    }
+                    Err(e) => {
+                        debug!("finishing ievent processor on {:?}", e);
+                    }
+                }
+            })
+            .unwrap();
+
+        let mut siv = self.siv.borrow_mut();
+
+        let thread2 = thread::Builder::new()
+            .name("Cursive processor".to_owned())
+            .spawn(move || {
+                loop {
+                    // first, let's finish whatever action have been started in a previous frame.
+                    match arc2.lock() {
+                        Ok(ref mut interface) => {
+                            interface.process_dialogs();
+                        }
+                    }
+
+                    if !siv.is_running() {
+                        siv.step(); //this blocks on input OR force refresh.
+                    };
+                }
+            })
+            .unwrap();
+
+        thread1.join();
+        thread2.join();
     }
 
     fn num_open_dialogs(&self) -> usize {
@@ -452,7 +513,7 @@ impl Interface {
         self.show_file_dialog(FileDialogVariant::OpenFile(None));
     }
 
-    fn show_file_dialog(&mut self, variant : FileDialogVariant) {
+    fn show_file_dialog(&mut self, variant: FileDialogVariant) {
         if self.file_dialog_handle.is_some() {
             debug!("show_file_dialog: not showing file_dialog, because it's already opened.");
             return;
@@ -499,7 +560,6 @@ impl Interface {
         self.buffer_list_handle = Some(buffer_list.get_mut().handle().clone());
         self.siv.add_layer(buffer_list);
     }
-
 
     fn enable_lsp(&mut self) {
         let lsp =

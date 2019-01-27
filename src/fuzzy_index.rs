@@ -169,7 +169,7 @@ struct FuzzySearchTask {
 }
 
 impl FuzzySearchTask {
-    pub fn new(query : String, index : &FuzzyIndex, limit : usize, ichannel : Option<IChannel>) -> FuzzySearchTask {
+    pub fn new(query : String, index : &FuzzyIndex, limit : usize) -> FuzzySearchTask {
         let (sender, receiver) = channel::<u64>();
         let item_ids = Vec::new();
 
@@ -191,15 +191,15 @@ impl FuzzySearchTask {
                     debug!("Unable to send key in FuzzySearchTask internal worker. Closing.");
                     return;
                 }
-                ichannel.map(|s| s.send(IEvent::FuzzyQueryWorkerProduced).unwrap_or(||{return;}));
-
-                // submitting "ready for refresh"
-                match ichannel {
-                    Some(sender) => if sender.send(IEvent::FuzzyQueryWorkerProduced).is_err() {
-                        return;
-                    }
-                    _ => {}
-                };
+//                ichannel.map(|s| s.send(IEvent::FuzzyQueryWorkerProduced).unwrap_or(||{return;}));
+//
+//                // submitting "ready for refresh"
+//                match ichannel {
+//                    Some(sender) => if sender.send(IEvent::FuzzyQueryWorkerProduced).is_err() {
+//                        return;
+//                    }
+//                    _ => {}
+//                };
 
                 it += items_sizes_ref[&key];
                 if it < limit {
