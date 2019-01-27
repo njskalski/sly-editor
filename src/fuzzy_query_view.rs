@@ -67,6 +67,7 @@ use std::fmt;
 use std::marker::Sized;
 use std::sync::Arc;
 use view_handle::ViewHandle;
+use interface::InterfaceNotifier;
 
 const WIDTH : usize = 100;
 
@@ -84,183 +85,38 @@ pub struct FuzzyQueryView {
     old_selection :  Option<Rc<ViewItem>>,
     handle :         ViewHandle,
     result :         Option<Result<FuzzyQueryResult, FuzzyQueryError>>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub enum FuzzyQueryResult {
-    Cancel,
-    Selected(String, String), //Marker of FuzzyQueryView, Marker of Item.
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct FuzzyQueryError;
-
-impl fmt::Display for FuzzyQueryError {
-    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "FuzzyQueryError (not defined)")
-    }
-}
-
-impl std::error::Error for FuzzyQueryError {
-    fn description(&self) -> &str {
-        "FuzzyQueryError (not defined)"
-    }
-
-    fn cause(&self) -> Option<&error::Error> {
-        None
-    }
-}
-
-impl OverlayDialog<FuzzyQueryResult, FuzzyQueryError> for FuzzyQueryView {
-    fn is_displayed(&self) -> bool {
-        self.result.is_none()
-    }
-
-    fn is_finished(&self) -> bool {
-        self.result.is_some()
-    }
-
-    fn get_result(&self) -> Option<Result<FuzzyQueryResult, FuzzyQueryError>> {
-        self.result.clone()
-    }
-
-    fn cancel(&mut self) {
-        self.result = Some(Ok(FuzzyQueryResult::Cancel))
-    }
-}
-
-impl SlyView for FuzzyQueryView {
-    fn handle(&self) -> ViewHandle {
-        self.handle.clone()
-    }
-}
-
-impl View for FuzzyQueryView {
-    fn layout(&mut self, size : Vec2) {
-        self.size = Some(size);
-        self.try_update_scrollbase();
-    }
-
-    fn draw(&self, printer : &Printer) {
-        //draw context
-        printer.print((2, 0), &format!("Context : {:?} \tquery: {:?}", &self.context, &self.query));
-
-        // debug!("size: {:?}", self.size);
-        // debug!("items: {:?}", self.get_current_items());
-
-        self.scrollbase.draw(&printer.offset((0, 1)), |printer, line| {
-            let items = self.get_current_items();
-            let (i, item_idx) = get_item_for_line(items.iter(), line).unwrap();
-            // debug!("i : {:?} s : {:?}", line, (i, item));
-            let selected = item_idx == self.selected;
-            self.draw_item(&items[item_idx], selected, line - i, printer);
-        });
-    }
-
-    fn needs_relayout(&self) -> bool {
-        self.needs_relayout.get()
-    }
-
-    fn required_size(&mut self, constraint : Vec2) -> Vec2 {
-        // one stands for header.
-        let height = 1 + match *self.items_cache.borrow() {
-            Some(ref items) => count_items_lines(items.iter()),
-            None => 0,
-        };
-
-        Vec2::new(cmp::min(WIDTH, constraint.x), cmp::min(height, constraint.y))
-    }
-
-    fn on_event(&mut self, event : Event) -> EventResult {
-        let mut event_consumed = true;
-        match event {
-            Event::Char(c) => {
-                self.add_letter(c);
-                // debug!("hit {:?}", c);
-            }
-            Event::Key(Key::Backspace) => {
-                self.backspace();
-                // debug!("hit backspace");
-            }
-            Event::Key(Key::Up) => {
-                if self.selected > 0 {
-                    self.selected -= 1;
-                }
-                self.after_update_selection();
-                //                EventResult::Consumed(None)
-            }
-            Event::Key(Key::Down) => {
-                if self.selected + 1 < self.get_current_items().len() {
-                    self.selected += 1;
-                }
-                self.after_update_selection();
-            }
-            Event::Key(Key::Enter) => {
-                let items = self.get_current_items();
-                if items.len() > 0 {
-                    assert!(items.len() > self.selected);
-
-                    // setting result
-                    let item = &items[self.selected];
-                    self.result = Some(Ok(FuzzyQueryResult::Selected(
-                        self.marker.clone(),
-                        item.get_marker().clone(),
-                    )));
-                }
-            }
-            Event::Key(Key::Esc) => {
-                // setting result to cancel
-                self.result = Some(Ok(FuzzyQueryResult::Cancel));
-            }
-            _ => {
-                debug!("fuzzy got unhandled event {:?}", &event);
-                event_consumed = false;
-            }
-        }
-
-        if event_consumed {
-            EventResult::Consumed(None)
-        } else {
-            EventResult::Ignored
-        }
-    }
-}
-
-//TODO tests
-fn count_items_lines<I, T>(items : I) -> usize
-where
-    T : AsRef<ViewItem>,
-    I : Iterator<Item = T>,
-{
-    items.fold(0, |acc, x| acc + x.as_ref().get_height_in_lines())
-}
-
-//TODO tests, early exit
-/// Returns Option<(number of lines preceeding items consumed, item_idx)>
-fn get_item_for_line<I, T>(mut items : I, line : usize) -> Option<(usize, usize)>
-where
-    T : AsRef<ViewItem>,
-    I : Iterator<Item = T>,
-{
-    let res : (usize, Option<usize>) =
-        items.enumerate().fold((0, None), |acc, (item_idx, item)| match acc {
-            (l, None) => {
-                if l <= line && line < l + item.as_ref().get_height_in_lines() {
-                    (l, Some(item_idx))
-                } else {
-                    (l + item.as_ref().get_height_in_lines(), None)
-                }
-            }
-            (l, Some(old_item_idx)) => (l, Some(old_item_idx)),
-        });
-
-    match res {
-        (line, None) => None,
-        (line, Some(item_idx)) => Some((line, item_idx)),
-    }
+    inot :           InterfaceNotifier,
 }
 
 impl FuzzyQueryView {
+    pub fn new(
+        index : Arc<RefCell<FuzzyIndexTrait>>,
+        marker : String,
+        channel : IChannel,
+        settings : Rc<Settings>,
+        inot : InterfaceNotifier,
+    ) -> IdView<Self> {
+        let res = FuzzyQueryView {
+            context :        "context".to_string(),
+            query :          String::new(),
+            scrollbase :     ScrollBase::new(),
+            index :          index,
+            settings :       settings,
+            selected :       0,
+            marker :         marker,
+            items_cache :    RefCell::new(None),
+            size :           None,
+            needs_relayout : Cell::new(false),
+            old_selection :  None,
+            handle :         ViewHandle::new(),
+            result :         None,
+            inot :           inot
+
+        };
+
+        IdView::new(res.handle(), res)
+    }
+
     fn clear_cache(&self) {
         (*self.items_cache.borrow_mut()) = None;
     }
@@ -360,7 +216,7 @@ impl FuzzyQueryView {
                     printer.print((0 + i, 0), " ");
                 });
             }
-        //end of drawing header
+            //end of drawing header
         } else {
             //drawing description
             //TODO lines below ignores the fact that now I temporarily imposed description lines
@@ -390,31 +246,6 @@ impl FuzzyQueryView {
                 ),
             };
         }
-    }
-
-    pub fn new(
-        index : Arc<RefCell<FuzzyIndexTrait>>,
-        marker : String,
-        channel : IChannel,
-        settings : Rc<Settings>,
-    ) -> IdView<Self> {
-        let res = FuzzyQueryView {
-            context :        "context".to_string(),
-            query :          String::new(),
-            scrollbase :     ScrollBase::new(),
-            index :          index,
-            settings :       settings,
-            selected :       0,
-            marker :         marker,
-            items_cache :    RefCell::new(None),
-            size :           None,
-            needs_relayout : Cell::new(false),
-            old_selection :  None,
-            handle :         ViewHandle::new(),
-            result :         None,
-        };
-
-        IdView::new(res.handle(), res)
     }
 
     fn after_update_selection(&mut self) {
@@ -462,5 +293,179 @@ impl FuzzyQueryView {
 
         self.after_query_ended(); //TODO remove this blocking
         self.try_update_scrollbase();
+    }
+}
+
+impl View for FuzzyQueryView {
+    fn layout(&mut self, size : Vec2) {
+        self.size = Some(size);
+        self.try_update_scrollbase();
+    }
+
+    fn draw(&self, printer : &Printer) {
+        //draw context
+        printer.print((2, 0), &format!("Context : {:?} \tquery: {:?}", &self.context, &self.query));
+
+        // debug!("size: {:?}", self.size);
+        // debug!("items: {:?}", self.get_current_items());
+
+        self.scrollbase.draw(&printer.offset((0, 1)), |printer, line| {
+            let items = self.get_current_items();
+            let (i, item_idx) = get_item_for_line(items.iter(), line).unwrap();
+            // debug!("i : {:?} s : {:?}", line, (i, item));
+            let selected = item_idx == self.selected;
+            self.draw_item(&items[item_idx], selected, line - i, printer);
+        });
+    }
+
+    fn needs_relayout(&self) -> bool {
+        self.needs_relayout.get()
+    }
+
+    fn required_size(&mut self, constraint : Vec2) -> Vec2 {
+        // one stands for header.
+        let height = 1 + match *self.items_cache.borrow() {
+            Some(ref items) => count_items_lines(items.iter()),
+            None => 0,
+        };
+
+        Vec2::new(cmp::min(WIDTH, constraint.x), cmp::min(height, constraint.y))
+    }
+
+    fn on_event(&mut self, event : Event) -> EventResult {
+        let mut event_consumed = true;
+        match event {
+            Event::Char(c) => {
+                self.add_letter(c);
+                // debug!("hit {:?}", c);
+            }
+            Event::Key(Key::Backspace) => {
+                self.backspace();
+                // debug!("hit backspace");
+            }
+            Event::Key(Key::Up) => {
+                if self.selected > 0 {
+                    self.selected -= 1;
+                }
+                self.after_update_selection();
+                //                EventResult::Consumed(None)
+            }
+            Event::Key(Key::Down) => {
+                if self.selected + 1 < self.get_current_items().len() {
+                    self.selected += 1;
+                }
+                self.after_update_selection();
+            }
+            Event::Key(Key::Enter) => {
+                let items = self.get_current_items();
+                if items.len() > 0 {
+                    assert!(items.len() > self.selected);
+
+                    // setting result
+                    let item = &items[self.selected];
+                    self.result = Some(Ok(FuzzyQueryResult::Selected(
+                        self.marker.clone(),
+                        item.get_marker().clone(),
+                    )));
+                }
+            }
+            Event::Key(Key::Esc) => {
+                // setting result to cancel
+                self.result = Some(Ok(FuzzyQueryResult::Cancel));
+            }
+            _ => {
+                debug!("fuzzy got unhandled event {:?}", &event);
+                event_consumed = false;
+            }
+        }
+
+        if event_consumed {
+            EventResult::Consumed(None)
+        } else {
+            EventResult::Ignored
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum FuzzyQueryResult {
+    Cancel,
+    Selected(String, String), //Marker of FuzzyQueryView, Marker of Item.
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct FuzzyQueryError;
+
+impl fmt::Display for FuzzyQueryError {
+    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "FuzzyQueryError (not defined)")
+    }
+}
+
+impl std::error::Error for FuzzyQueryError {
+    fn description(&self) -> &str {
+        "FuzzyQueryError (not defined)"
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        None
+    }
+}
+
+impl OverlayDialog<FuzzyQueryResult, FuzzyQueryError> for FuzzyQueryView {
+    fn is_displayed(&self) -> bool {
+        self.result.is_none()
+    }
+
+    fn is_finished(&self) -> bool {
+        self.result.is_some()
+    }
+
+    fn get_result(&self) -> Option<Result<FuzzyQueryResult, FuzzyQueryError>> {
+        self.result.clone()
+    }
+
+    fn cancel(&mut self) {
+        self.result = Some(Ok(FuzzyQueryResult::Cancel))
+    }
+}
+
+impl SlyView for FuzzyQueryView {
+    fn handle(&self) -> ViewHandle {
+        self.handle.clone()
+    }
+}
+
+//TODO tests
+fn count_items_lines<I, T>(items : I) -> usize
+    where
+        T : AsRef<ViewItem>,
+        I : Iterator<Item = T>,
+{
+    items.fold(0, |acc, x| acc + x.as_ref().get_height_in_lines())
+}
+
+//TODO tests, early exit
+/// Returns Option<(number of lines preceeding items consumed, item_idx)>
+fn get_item_for_line<I, T>(mut items : I, line : usize) -> Option<(usize, usize)>
+    where
+        T : AsRef<ViewItem>,
+        I : Iterator<Item = T>,
+{
+    let res : (usize, Option<usize>) =
+        items.enumerate().fold((0, None), |acc, (item_idx, item)| match acc {
+            (l, None) => {
+                if l <= line && line < l + item.as_ref().get_height_in_lines() {
+                    (l, Some(item_idx))
+                } else {
+                    (l + item.as_ref().get_height_in_lines(), None)
+                }
+            }
+            (l, Some(old_item_idx)) => (l, Some(old_item_idx)),
+        });
+
+    match res {
+        (line, None) => None,
+        (line, Some(item_idx)) => Some((line, item_idx)),
     }
 }
