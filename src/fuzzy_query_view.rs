@@ -144,18 +144,9 @@ impl FuzzyQueryView {
         )
     }
 
-    //blocking!
     fn get_current_items(&self) -> Rc<Vec<Rc<ViewItem>>> {
-        let mut refmut = self.items_cache.borrow_mut();
-        if refmut.is_none() {
-            *refmut = Some(Rc::new(
-                self.index.borrow_mut().get_results_for(&self.query, None, Some(self.inot.clone())),
-            ));
-            self.needs_relayout.set(true);
-        }
-
-        let rc : Rc<Vec<Rc<ViewItem>>> = refmut.as_ref().unwrap().clone();
-        rc
+        let res = self.index.borrow_mut().get_results_for(&self.query, None, Some(self.inot.clone()));
+        Rc::new(res)
     }
 
     fn get_item_colorstyle(&self, selected : bool, highlighted : bool) -> ColorStyle {
@@ -303,6 +294,7 @@ impl View for FuzzyQueryView {
     }
 
     fn draw(&self, printer : &Printer) {
+        debug!("fqv redraw");
         //draw context
         printer.print((2, 0), &format!("Context : {:?} \tquery: {:?}", &self.context, &self.query));
 
@@ -324,11 +316,7 @@ impl View for FuzzyQueryView {
 
     fn required_size(&mut self, constraint : Vec2) -> Vec2 {
         // one stands for header.
-        let height = 1 + match *self.items_cache.borrow() {
-            Some(ref items) => count_items_lines(items.iter()),
-            None => 0,
-        };
-
+        let height = 1 + count_items_lines(self.get_current_items().iter());
         Vec2::new(cmp::min(WIDTH, constraint.x), cmp::min(height, constraint.y))
     }
 

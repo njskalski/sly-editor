@@ -29,6 +29,8 @@ information.
 */
 
 pub trait FuzzyIndexTrait {
+    /// This method should not block.
+    //
     //TODO(njskalski) remove mut or write why it's impossible.
     fn get_results_for(
         &mut self,

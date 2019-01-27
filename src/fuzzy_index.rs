@@ -81,6 +81,7 @@ impl FuzzyIndexTrait for FuzzyIndex {
             }
         }
 
+        debug!("returning {} results for query {}", results.len(), query);
         results
     }
 }
@@ -184,6 +185,7 @@ impl FuzzyIndex {
     }
 }
 
+#[derive(Clone, Debug)]
 enum FuzzySearchTaskUpdate {
     Inot(InterfaceNotifier),
     NewLimit(usize),
@@ -219,12 +221,12 @@ impl FuzzySearchTask {
         let (update_stream_sender, update_stream_receiver) = channel::<FuzzySearchTaskUpdate>();
 
         thread::spawn(move || {
-            debug!("1");
+            debug!("worker {:}: created", &query_copy);
             let regex = query_to_regex(&query_copy);
             let stream_builder : map::StreamBuilder<Regex> = index_ref_copy.search(regex);
             let mut stream = stream_builder.into_stream();
 
-            debug!("2");
+            debug!("worker {:}: start search", &query_copy);
             let mut results : Vec<&ViewItem> = Vec::new();
             let mut it : usize = 0;
             while let Some((header, key)) = stream.next() {
@@ -235,6 +237,7 @@ impl FuzzySearchTask {
                 it += items_sizes_ref[&key];
 
                 while let Ok(update) = update_stream_receiver.try_recv() {
+                    debug!("worker {:}: got update {:?}", &query_copy, &update);
                     match update {
                         FuzzySearchTaskUpdate::NewLimit(new_limit) => {
                             if let Some(old_limit) = limit_op {
@@ -250,18 +253,22 @@ impl FuzzySearchTask {
                 }
 
                 if let Some(ref inot) = inot_op {
+                    debug!("worker {:}: refresh", &query_copy);
                     inot.refresh();
+                } else {
+                    debug!("worker {:}: no refresh", &query_copy);
                 }
 
                 if let Some(limit) = limit_op {
                     if it < limit {
                         it += 1;
                     } else {
+                        debug!("worker {:}: limit {:} reached.", &query_copy, &limit);
                         break;
                     }
                 }
             }
-            debug!("3");
+            debug!("finished");
         });
 
         FuzzySearchTask {
