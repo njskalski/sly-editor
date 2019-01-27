@@ -28,6 +28,8 @@ use std::iter::FromIterator;
 use fuzzy_index_trait::*;
 use fuzzy_view_item::*;
 
+use interface::InterfaceNotifier;
+use serde::de::Unexpected::Option as SerdeOption;
 use std::cell::*;
 use std::collections::HashMap;
 use std::collections::*;
@@ -60,14 +62,15 @@ pub struct FuzzyIndex {
     /// in cache immediately. Also, cache_order and cache sizes are not synchronized, as
     /// cache_order can contain duplicates in rare situations.
     cache_order : LinkedList<String>,
+    inot_op : Option<InterfaceNotifier>,
 }
 
 impl FuzzyIndexTrait for FuzzyIndex {
-    fn get_results_for(&mut self, query : &String, limit : usize) -> Vec<Rc<ViewItem>> {
+    fn get_results_for(&mut self, query : &String, limit_op : Option<usize>) -> Vec<Rc<ViewItem>> {
         let mut results : Vec<Rc<ViewItem>> = Vec::new();
 
         // this has no effect if we already had such task in progress.
-        self.start_search(query, limit);
+        self.start_search(query, limit_op, self.inot_op.clone());
         let task = self.cache.get(query).unwrap(); // unwrap always succeeds, see line above
 
         let result_ids = task.get_result_ids();
@@ -84,7 +87,7 @@ impl FuzzyIndexTrait for FuzzyIndex {
 }
 
 impl FuzzyIndex {
-    pub fn new(word_list : Vec<ViewItem>) -> FuzzyIndex {
+    pub fn new(word_list : Vec<ViewItem>, inot_op : Option<InterfaceNotifier>) -> FuzzyIndex {
         // TODO we can consume word_list here instead of calling ci.copy() below
         let mut items : HashMap<u64, Vec<Rc<ViewItem>>> = HashMap::new();
         let mut header_to_key : HashMap<String, u64> = HashMap::new();
@@ -120,26 +123,52 @@ impl FuzzyIndex {
             items_sizes : Arc::new(item_sizes),
             cache :       HashMap::new(),
             cache_order : LinkedList::new(),
+            inot_op :     inot_op,
         };
-        i.start_search(&"".to_string(), HARD_QUERY_LIMIT);
+        // we do not pass inot_op below, since we don't want to necessarily update interface on
+        // creation, but we do want our "" results to be available immediately.
+        i.start_search(&"".to_string(), None, None);
         i
     }
 
-    fn start_search(&mut self, query : &String, limit : usize) {
-        if self.cache.contains_key(query) {
-            if self.cache[query].get_limit() >= &limit {
-                // we got it.
-                return;
+    fn start_search(
+        &mut self,
+        query : &String,
+        limit_op : Option<usize>,
+        inotop : Option<InterfaceNotifier>,
+    ) {
+        // TODO(njskalski): while it is possible to update limit as query runs, resuming query is
+        // not implemented yet, so I just restart it now.
+        if let Some(ref mut runner) = self.cache.get(query) {
+            if let Some(ref inot) = inotop {
+                runner.update_inot(inot.clone());
+            }
+
+            if let Some(old_limit) = runner.limit() {
+                if let Some(new_limit) = limit_op {
+                    if old_limit >= new_limit {
+                        return; // Old limit bigger than new one, no need to restart.
+                    }
+                } else {
+                    // here should be limit update and resume of thread, but not implemented.
+                    // this scenario actually moves ahead with re-starting search.
+                }
             } else {
-                // not enough results.
-                self.cache.remove(query);
-                // linked list has no remove, so cache and cache_order can become desynchronized. I
-                // don't rely on them being in sync, so don't worry.
-                // self.cache_order.remove(&query);
+                return; // no limit in the old one? It's going to grab all. No need to restart.
             }
         }
 
-        let task : FuzzySearchTask = FuzzySearchTask::new(query.clone(), self, limit);
+        // We either have no cache or cache is not good enough.
+
+        if self.cache.contains_key(query) {
+            self.cache.remove(query);
+            // We *should* drop query from cache_order here, but we do not. Here is reason:
+            // linked list has no remove, so cache and cache_order can become desynchronized. I
+            // don't rely on them being in sync, so don't worry.
+            // self.cache_order.remove(&query)
+        }
+
+        let task : FuzzySearchTask = FuzzySearchTask::new(query.clone(), self, limit_op, inotop);
         self.cache.insert(query.clone(), task);
 
         if query.len() > 0 {
@@ -157,22 +186,39 @@ impl FuzzyIndex {
     }
 }
 
+enum FuzzySearchTaskUpdate {
+    Inot(InterfaceNotifier),
+    NewLimit(usize),
+}
+
+// TODO(njskalski): add resume (re-spawning thread) if limit is bigger.
 struct FuzzySearchTask {
-    receiver : mpsc::Receiver<u64>,
-    query :    String,
-    item_ids : RefCell<Vec<u64>>,
-    done :     Cell<bool>,
-    limit :    usize,
+    receiver :            mpsc::Receiver<u64>,
+    query :               String,
+    item_ids :            RefCell<Vec<u64>>,
+    done :                Cell<bool>,
+    limit_op :            Option<usize>,
+    update_stram_sender : Sender<FuzzySearchTaskUpdate>,
+    has_inot :            bool,
 }
 
 impl FuzzySearchTask {
-    pub fn new(query : String, index : &FuzzyIndex, limit : usize) -> FuzzySearchTask {
+    pub fn new(
+        query : String,
+        index : &FuzzyIndex,
+        mut limit_op : Option<usize>,
+        mut inot_op : Option<InterfaceNotifier>,
+    ) -> FuzzySearchTask {
         let (sender, receiver) = channel::<u64>();
         let item_ids = Vec::new();
+
+        let has_inot = inot_op.is_some();
 
         let index_ref_copy = index.index.clone();
         let query_copy = query.clone();
         let items_sizes_ref = index.items_sizes.clone();
+
+        let (update_stream_sender, update_stream_receiver) = channel::<FuzzySearchTaskUpdate>();
 
         thread::spawn(move || {
             debug!("1");
@@ -189,21 +235,45 @@ impl FuzzySearchTask {
                     return;
                 }
                 it += items_sizes_ref[&key];
-                if it < limit {
-                    it += 1;
-                } else {
-                    break;
+
+                while let Ok(update) = update_stream_receiver.try_recv() {
+                    match update {
+                        FuzzySearchTaskUpdate::NewLimit(new_limit) => {
+                            if let Some(old_limit) = limit_op {
+                                if old_limit < new_limit {
+                                    limit_op = Some(new_limit);
+                                }
+                            }
+                        }
+                        FuzzySearchTaskUpdate::Inot(inot) => {
+                            inot_op = Some(inot);
+                        }
+                    }
+                }
+
+                if let Some(inot) = inot_op {
+                    inot.refresh();
+                }
+
+                if let Some(limit) = limit_op {
+                    if it < limit {
+                        it += 1;
+                    } else {
+                        break;
+                    }
                 }
             }
             debug!("3");
         });
 
         FuzzySearchTask {
-            receiver : receiver,
-            item_ids : RefCell::new(item_ids),
-            done :     Cell::new(false),
-            query :    query,
-            limit :    limit,
+            receiver :            receiver,
+            item_ids :            RefCell::new(item_ids),
+            done :                Cell::new(false),
+            query :               query,
+            limit_op :            limit_op,
+            update_stram_sender : update_stream_sender,
+            has_inot :            has_inot,
         }
     }
 
@@ -225,6 +295,17 @@ impl FuzzySearchTask {
         self.item_ids.borrow()
     }
 
+    /// If runner is done, results in noop.
+    //
+    // TODO(njskalski): store inot for case of restart
+    pub fn update_inot(&self, inot : InterfaceNotifier) {
+        self.update_stram_sender.send(FuzzySearchTaskUpdate::Inot(inot)); // ignoring result.
+    }
+
+    pub fn has_inot(&self) -> bool {
+        self.has_inot
+    }
+
     pub fn is_done(&self) -> bool {
         self.done.get()
     }
@@ -233,8 +314,8 @@ impl FuzzySearchTask {
         &self.query
     }
 
-    pub fn get_limit(&self) -> &usize {
-        &self.limit
+    pub fn limit(&self) -> &Option<usize> {
+        &self.limit_op
     }
 }
 

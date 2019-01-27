@@ -532,7 +532,7 @@ pub struct InterfaceNotifier {
 }
 
 impl InterfaceNotifier {
-    pub fn refresh(&mut self) {
+    pub fn refresh(&self) {
         self.siv_cb_sink.send_timeout(Box::new(|s: &mut Cursive| {}), Duration::new(0, 0));
     }
 

@@ -29,5 +29,5 @@ information.
 
 pub trait FuzzyIndexTrait {
     //TODO(njskalski) remove mut or write why it's impossible.
-    fn get_results_for(&mut self, query : &String, limit : usize) -> Vec<Rc<ViewItem>>;
+    fn get_results_for(&mut self, query : &String, limit_op : Option<usize>) -> Vec<Rc<ViewItem>>;
 }
