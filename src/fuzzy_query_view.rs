@@ -23,15 +23,7 @@ description. Example: search line is filename, description is it's location. (do
 - context header (done, but requires styling)
 */
 
-// TODO(njskalski) profile and remove unnecessary copies. (actually profiling never pointed to this
-// part of code so far) TODO(njskalski) parallelism is disabled right now. Need to update cursive to
-// enable it.
-
-// (CONCURRENCY) we are calling get_current_items twice here, not sure if the
-// results are going to be the same, and I rely on them being in the same order. Clearly
-// a possible error. Update: this seems to be resolved, as fst::Map supposedly returns results in
-// alphabetic order. Also, I introduced chache via interior mutability (so it can be cleared in
-// non-mut method "draw"), so number of calls has been reduced to one per draw-input cycle.
+// TODO(njskalski): add keys remapping.
 
 const DEBUG : bool = false;
 
