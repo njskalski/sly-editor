@@ -16,7 +16,19 @@ limitations under the License.
 
 // this is a collection of functions I expect to use in multiple places
 
+use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::path::Path;
+use std::path::PathBuf;
+
+#[macro_export]
+macro_rules! hashmap {
+    ($( $key: expr => $val: expr ),*) => {{
+         let mut map = ::std::collections::HashMap::new();
+         $( map.insert($key, $val); )*
+         map
+    }}
+}
 
 /// this method takes a string representing a path, returns pair of options describing
 /// folder path and filename. Does not check if file exists, so it cannot differentiate between
@@ -40,6 +52,29 @@ pub fn path_string_to_pair(path_str : String) -> (Option<String>, Option<String>
     }
 }
 
+lazy_static! {
+    static ref EXT_TO_LANG_MAP : HashMap<&'static str, &'static str> = hashmap![
+        "rs" => "rust",
+        "toml" => "toml",
+        "json" => "json",
+        "cpp" => "c++",
+        "cxx" => "c++",
+        "hpp" => "c++",
+        "hxx" => "c++",
+        "c" => "c",
+        "h" => "c",
+        "ini" => "ini" // in this macro, trailing comma is going to break compilation.
+    ];
+}
+
+// TODO(njskalski): upgrade in 1.0
+pub fn guess_format(path : &Path) -> Option<&'static str> {
+    let extension = path.extension().and_then(OsStr::to_str);
+
+    let x = extension.and_then(|ext| EXT_TO_LANG_MAP.get(ext)).map(|x| *x);
+    x
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -57,4 +92,12 @@ mod tests {
             (Some("/bin/tmp".to_string()), None)
         );
     }
+
+    #[test]
+    fn guess_format_test() {
+        assert_eq!(guess_format(&PathBuf::new("/home/someone/rust.rs").as_path()), Some("rust"));
+        assert_eq!(guess_format(&PathBuf::new("/home/someone/Cargo.toml").as_path()), Some("toml"));
+        assert_eq!(guess_format(&PathBuf::new("/home/someone/some.json").as_path()), Some("json"));
+    }
+
 }

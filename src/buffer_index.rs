@@ -46,8 +46,8 @@ impl FuzzyIndexTrait for BufferIndex {
 fn buffer_to_item(buffer : &BufferStateObserver) -> ViewItem {
 
     let header : String = match buffer.get_filename() {
-        Some(filename) => filename.to_string_lossy().to_string(),
-        None => "<unnamed>".to_string()
+        Some(filename) => format!("{}{}", filename.to_string_lossy(), if buffer.modified() { " *"} else { ""}),
+        None => format!("<unnamed> {}{}", buffer.buffer_id(), if buffer.modified() { " *"} else { ""})
     };
 
     let marker = buffer.buffer_id().to_string();

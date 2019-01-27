@@ -26,6 +26,7 @@ languageserver-types = "0.51"
 uid = "0.1.4"
 human-panic = "1"
 crossbeam-channel = "0.3"
+lazy_static = "1.2"
 
 [dependencies.clap]
 version = "2.32"

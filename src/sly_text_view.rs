@@ -70,14 +70,6 @@ use view_handle::ViewHandle;
 const INDEX_MARGIN : usize = 1;
 const PAGE_WIDTH : usize = 80;
 
-macro_rules! hashmap {
-    ($( $key: expr => $val: expr ),*) => {{
-         let mut map = ::std::collections::HashMap::new();
-         $( map.insert($key, $val); )*
-         map
-    }}
-}
-
 //Cursor: offset in CHARS and "preferred column" (probably cached y coordinate, don't remember).
 type Cursor = (usize, Option<usize>);
 

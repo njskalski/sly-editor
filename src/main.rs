@@ -31,6 +31,11 @@ extern crate cursive_tree_view;
 #[macro_use]
 extern crate serde_derive;
 
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+mod utils;
+
 mod app_state;
 mod buffer_id;
 mod buffer_index;
@@ -54,7 +59,6 @@ mod settings;
 mod simple_fuzzy_index;
 mod sly_text_view;
 mod sly_view;
-mod utils;
 mod view_handle;
 
 extern crate clipboard;
@@ -80,6 +84,7 @@ extern crate jsonrpc_core;
 extern crate human_panic;
 extern crate serde;
 extern crate crossbeam_channel;
+
 
 use app_state::AppState;
 use cpuprofiler::PROFILER;

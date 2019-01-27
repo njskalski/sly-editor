@@ -71,6 +71,10 @@ impl BufferState {
         }))
     }
 
+    pub fn modified(&self) -> bool {
+        self.modified
+    }
+
     pub fn id(&self) -> BufferId {
         self.id.clone()
     }

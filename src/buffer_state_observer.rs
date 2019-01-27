@@ -43,6 +43,10 @@ impl BufferStateObserver {
         BufferStateObserver { buffer_id, buffer_state }
     }
 
+    pub fn modified(&self) -> bool {
+        self.borrow_state().modified()
+    }
+
     pub fn buffer_id(&self) -> BufferId {
         self.buffer_id.clone()
     }
