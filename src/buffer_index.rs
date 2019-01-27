@@ -19,6 +19,7 @@ use fuzzy_index_trait::FuzzyIndexTrait;
 use fuzzy_view_item::*;
 use std::rc::Rc;
 use std::cmp;
+use interface::InterfaceNotifier;
 
 pub struct BufferIndex {
     buffers : Vec<BufferStateObserver>,
@@ -33,7 +34,7 @@ impl BufferIndex {
 }
 
 impl FuzzyIndexTrait for BufferIndex {
-    fn get_results_for(&mut self, query : &String, limit_op : Option<usize>) -> Vec<Rc<ViewItem>> {
+    fn get_results_for(&mut self, query : &String, limit_op : Option<usize>, _ : Option<InterfaceNotifier>) -> Vec<Rc<ViewItem>> {
         if let Some(limit) = limit_op {
             self.items[..cmp::min(limit, self.items.len())].to_vec()
         } else {

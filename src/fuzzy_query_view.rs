@@ -149,7 +149,7 @@ impl FuzzyQueryView {
         let mut refmut = self.items_cache.borrow_mut();
         if refmut.is_none() {
             *refmut = Some(Rc::new(
-                self.index.borrow_mut().get_results_for(&self.query, HARD_QUERY_LIMIT),
+                self.index.borrow_mut().get_results_for(&self.query, None, Some(self.inot.clone())),
             ));
             self.needs_relayout.set(true);
         }

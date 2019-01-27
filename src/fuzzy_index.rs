@@ -62,15 +62,14 @@ pub struct FuzzyIndex {
     /// in cache immediately. Also, cache_order and cache sizes are not synchronized, as
     /// cache_order can contain duplicates in rare situations.
     cache_order : LinkedList<String>,
-    inot_op : Option<InterfaceNotifier>,
 }
 
 impl FuzzyIndexTrait for FuzzyIndex {
-    fn get_results_for(&mut self, query : &String, limit_op : Option<usize>) -> Vec<Rc<ViewItem>> {
+    fn get_results_for(&mut self, query : &String, limit_op : Option<usize>, inot_op : Option<InterfaceNotifier>) -> Vec<Rc<ViewItem>> {
         let mut results : Vec<Rc<ViewItem>> = Vec::new();
 
         // this has no effect if we already had such task in progress.
-        self.start_search(query, limit_op, self.inot_op.clone());
+        self.start_search(query, limit_op, inot_op);
         let task = self.cache.get(query).unwrap(); // unwrap always succeeds, see line above
 
         let result_ids = task.get_result_ids();
@@ -87,7 +86,7 @@ impl FuzzyIndexTrait for FuzzyIndex {
 }
 
 impl FuzzyIndex {
-    pub fn new(word_list : Vec<ViewItem>, inot_op : Option<InterfaceNotifier>) -> FuzzyIndex {
+    pub fn new(word_list : Vec<ViewItem>) -> FuzzyIndex {
         // TODO we can consume word_list here instead of calling ci.copy() below
         let mut items : HashMap<u64, Vec<Rc<ViewItem>>> = HashMap::new();
         let mut header_to_key : HashMap<String, u64> = HashMap::new();
@@ -123,7 +122,6 @@ impl FuzzyIndex {
             items_sizes : Arc::new(item_sizes),
             cache :       HashMap::new(),
             cache_order : LinkedList::new(),
-            inot_op :     inot_op,
         };
         // we do not pass inot_op below, since we don't want to necessarily update interface on
         // creation, but we do want our "" results to be available immediately.
@@ -135,17 +133,17 @@ impl FuzzyIndex {
         &mut self,
         query : &String,
         limit_op : Option<usize>,
-        inotop : Option<InterfaceNotifier>,
+        inot_op : Option<InterfaceNotifier>,
     ) {
         // TODO(njskalski): while it is possible to update limit as query runs, resuming query is
         // not implemented yet, so I just restart it now.
         if let Some(ref mut runner) = self.cache.get(query) {
-            if let Some(ref inot) = inotop {
+            if let Some(ref inot) = inot_op {
                 runner.update_inot(inot.clone());
             }
 
             if let Some(old_limit) = runner.limit() {
-                if let Some(new_limit) = limit_op {
+                if let Some(ref new_limit) = limit_op {
                     if old_limit >= new_limit {
                         return; // Old limit bigger than new one, no need to restart.
                     }
@@ -168,7 +166,7 @@ impl FuzzyIndex {
             // self.cache_order.remove(&query)
         }
 
-        let task : FuzzySearchTask = FuzzySearchTask::new(query.clone(), self, limit_op, inotop);
+        let task : FuzzySearchTask = FuzzySearchTask::new(query.clone(), self, limit_op, inot_op);
         self.cache.insert(query.clone(), task);
 
         if query.len() > 0 {
@@ -251,7 +249,7 @@ impl FuzzySearchTask {
                     }
                 }
 
-                if let Some(inot) = inot_op {
+                if let Some(ref inot) = inot_op {
                     inot.refresh();
                 }
 

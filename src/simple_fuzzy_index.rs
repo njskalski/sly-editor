@@ -19,6 +19,7 @@ use fuzzy_view_item::*;
 use regex;
 use std::iter::FromIterator;
 use std::rc::Rc;
+use interface::InterfaceNotifier;
 
 pub struct SimpleIndex {
     items : Vec<Rc<ViewItem>>,
@@ -31,13 +32,19 @@ impl SimpleIndex {
 }
 
 impl FuzzyIndexTrait for SimpleIndex {
-    fn get_results_for(&mut self, query : &String, limit : usize) -> Vec<Rc<ViewItem>> {
+    fn get_results_for(&mut self, query : &String, limit_op : Option<usize>, _ : Option<InterfaceNotifier>) -> Vec<Rc<ViewItem>> {
         let re : regex::Regex = query_to_regex(query);
         let mut res : Vec<Rc<ViewItem>> = Vec::new();
 
         for ref item in &self.items {
             if re.is_match(&item.get_header()) {
                 res.push((*item).clone());
+
+                if let Some(limit) = limit_op {
+                    if res.len() == limit {
+                        break;
+                    }
+                }
             }
         }
 
