@@ -61,12 +61,12 @@ pub struct BufferState {
 }
 
 impl BufferState {
-    pub fn new() -> Rc<RefCell<Self>> {
+    pub fn new(autohighlight : bool) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(BufferState {
             id :       BufferId::new(),
             ss :       BufferStateS { path : None },
             modified : false,
-            content :  RopeBasedContentProvider::new(None),
+            content :  RopeBasedContentProvider::new(None, autohighlight),
             mode :     BufferOpenMode::ReadWrite,
         }))
     }
@@ -82,6 +82,7 @@ impl BufferState {
     pub fn open(
         file_path : &Path,
         creation_policy : ExistPolicy,
+        autohighlight : bool
     ) -> Result<Rc<RefCell<Self>>, io::Error> {
         debug!("reading file {:?}, creation_policy = {:?}", file_path, creation_policy);
 
@@ -105,7 +106,7 @@ impl BufferState {
             id :       BufferId::new(),
             ss :       BufferStateS { path : Some(file_path.to_owned()) },
             modified : false,
-            content :  RopeBasedContentProvider::new(Some(&mut reader)),
+            content :  RopeBasedContentProvider::new(Some(&mut reader), autohighlight),
             mode :     BufferOpenMode::ReadWrite,
         })))
     }

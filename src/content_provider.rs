@@ -64,7 +64,8 @@ pub struct RopeBasedContentProvider {
     current : usize,
     // Contract: we do not version rich content. It doesn't make sense: redrawing screen
     // has a similar complexity to syntax highlighting, provided it's implemented properly.
-    rich_content : Option<RichContent>,
+    rich_content :  Option<RichContent>,
+    autohighlight : bool,
 }
 
 // Applies events to RopeBasedContent producing new one, and returning *number of lines common* to
@@ -112,11 +113,12 @@ fn apply_events(c : &RopeBasedContent, events : &Vec<EditEvent>) -> (RopeBasedCo
 }
 
 impl RopeBasedContentProvider {
-    pub fn new(reader_op : Option<&mut Read>) -> Self {
+    pub fn new(reader_op : Option<&mut Read>, autohighlight : bool) -> Self {
         RopeBasedContentProvider {
-            history :      vec![RopeBasedContent::new(reader_op)],
-            current :      0,
-            rich_content : None,
+            history :       vec![RopeBasedContent::new(reader_op)],
+            current :       0,
+            rich_content :  None,
+            autohighlight : autohighlight,
         }
     }
 

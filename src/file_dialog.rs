@@ -76,6 +76,7 @@ use std::fmt;
 use std::path::PathBuf;
 use view_handle::ViewHandle;
 use dir_tree::TreeNodeVec;
+use std::cell::Ref;
 //use lazy_dir_tree::LazyTreeNode;
 
 // TODO(njskalski) this view took longer than anticipated to implement, so I rushed to the end
@@ -408,7 +409,7 @@ impl FileDialog {
         ch : IChannel,
         variant : FileDialogVariant,
         root : TreeNodeRef,
-        settings : &Rc<Settings>,
+        settings : Ref<Settings>,
     ) -> IdView<Self> {
         debug!("creating file view with variant {:?}", variant);
 

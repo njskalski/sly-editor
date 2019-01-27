@@ -73,6 +73,7 @@ lazy_static! {
         "hxx" => "c++",
         "c" => "c",
         "h" => "c",
+        "go" => "go",
         "ini" => "ini" // in this macro, trailing comma is going to break compilation.
     ];
 }

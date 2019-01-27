@@ -59,9 +59,10 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::Duration;
 use view_handle::ViewHandle;
+use std::cell::Ref;
 
-const FILE_BAR_MARKER: &'static str = "file_bar";
-const BUFFER_LIST_MARKER: &'static str = "file_bar";
+const FILE_BAR_MARKER : &'static str = "file_bar";
+const BUFFER_LIST_MARKER : &'static str = "file_bar";
 
 /*
 At this moment I have not decided on whether interface holds premise before siv or other way around.
@@ -70,23 +71,25 @@ and other way around.
 */
 
 pub struct Interface {
-    state: AppState,
-    settings: Rc<Settings>,
-    channel: (mpsc::Sender<IEvent>, mpsc::Receiver<IEvent>),
-    siv: Cursive,
-    active_editor_handle: ViewHandle,
-    inactive_editors: HashMap<BufferId, IdView<SlyTextView>>,
-    path_to_buffer_id: HashMap<PathBuf, BufferId>,
-    done: bool,
-    file_dialog_handle: Option<ViewHandle>,
-    file_bar_handle: Option<ViewHandle>,
-    buffer_list_handle: Option<ViewHandle>,
-    lsp_clients: Vec<LspClient>, //TODO(njskalski): temporary storage to avoid removal
+    state :                AppState,
+    channel :              (mpsc::Sender<IEvent>, mpsc::Receiver<IEvent>),
+    siv :                  Cursive,
+    active_editor_handle : ViewHandle,
+    inactive_editors :     HashMap<BufferId, IdView<SlyTextView>>,
+    path_to_buffer_id :    HashMap<PathBuf, BufferId>,
+    done :                 bool,
+    file_dialog_handle :   Option<ViewHandle>,
+    file_bar_handle :      Option<ViewHandle>,
+    buffer_list_handle :   Option<ViewHandle>,
+    lsp_clients :          Vec<LspClient>, //TODO(njskalski): temporary storage to avoid removal
 }
 
-fn find_view_with_handle<V>(siv: &mut Cursive, handle_op: &Option<ViewHandle>) -> Option<ViewRef<V>>
+fn find_view_with_handle<V>(
+    siv : &mut Cursive,
+    handle_op : &Option<ViewHandle>,
+) -> Option<ViewRef<V>>
 where
-    V: SlyView + View,
+    V : SlyView + View,
 {
     match handle_op {
         Some(handle) => siv.find_id(&handle.to_string()),
@@ -95,51 +98,54 @@ where
 }
 
 impl fmt::Display for InterfaceError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
         write!(f, "InterfaceError (not defined)")
     }
 }
 
 impl Interface {
     pub fn inot(&self) -> InterfaceNotifier {
-        InterfaceNotifier { siv_cb_sink: self.siv.cb_sink().clone(), ichan: self.event_sink() }
+        InterfaceNotifier {
+            siv_cb_sink : self.siv.cb_sink().clone(),
+            ichan :       self.event_sink(),
+        }
     }
 
-    pub fn new(mut state: AppState) -> Self {
+    pub fn new(mut state : AppState) -> Self {
         let mut siv = Cursive::default();
-        let settings = Rc::new(Settings::load_default());
 
-        let palette = settings.get_palette();
+        let palette = state.settings_ref().get_palette();
 
-        let theme: Theme = Theme { shadow: false, borders: BorderStyle::Simple, palette: palette };
+        let theme : Theme =
+            Theme { shadow : false, borders : BorderStyle::Simple, palette : palette };
 
         let channel = mpsc::channel();
         siv.set_theme(theme);
 
         let buffer_observer = state.get_first_buffer().unwrap(); // TODO(njskalski): panics. Semantics unclear.
-        let sly_text_view = SlyTextView::new(settings.clone(), buffer_observer, channel.0.clone());
+        let sly_text_view = SlyTextView::new(state.settings_rc().clone(), buffer_observer, channel.0.clone());
         let active_editor = sly_text_view.handle().clone();
 
         siv.add_fullscreen_layer(sly_text_view);
 
         let mut i = Interface {
-            state: state,
-            settings: settings,
-            channel: channel,
-            siv: siv,
-            active_editor_handle: active_editor,
-            inactive_editors: HashMap::new(),
-            path_to_buffer_id: HashMap::new(),
-            done: false,
-            file_dialog_handle: None,
-            file_bar_handle: None,
-            buffer_list_handle: None,
-            lsp_clients: Vec::new(),
+            state :                state,
+            channel :              channel,
+            siv :                  siv,
+            active_editor_handle : active_editor,
+            inactive_editors :     HashMap::new(),
+            path_to_buffer_id :    HashMap::new(),
+            done :                 false,
+            file_dialog_handle :   None,
+            file_bar_handle :      None,
+            buffer_list_handle :   None,
+            lsp_clients :          Vec::new(),
         };
 
         // let known_actions = vec!["show_everything_bar"];
         //TODO filter unknown actions
-        for (event, action) in i.settings.get_keybindings("global") {
+        let keybindings = i.settings_ref().get_keybindings("global");
+        for (event, action) in keybindings {
             let ch = i.event_sink();
             match action.as_str() {
                 "show_file_bar" => {
@@ -189,7 +195,7 @@ impl Interface {
     // TODO(njskalski): error handling, borrow instead of copy etc.
     fn replace_current_editor_view(
         &mut self,
-        new_editor: IdView<SlyTextView>,
+        new_editor : IdView<SlyTextView>,
     ) -> IdView<SlyTextView> {
         // removing old view
         let handle = self.active_editor_handle.clone();
@@ -203,22 +209,22 @@ impl Interface {
         old_view.unwrap()
     }
 
-    fn remove_window<T>(&mut self, handle: &ViewHandle) -> Option<IdView<T>>
+    fn remove_window<T>(&mut self, handle : &ViewHandle) -> Option<IdView<T>>
     where
-        T: SlyView + View,
+        T : SlyView + View,
     {
         let screen = self.siv.screen_mut();
         let layer_pos = screen.find_layer_from_id(&handle.to_string())?;
         screen.move_to_front(layer_pos);
         // the line above modifies state. So now I prefer method to crash than return None.
-        let view_box: Box<View> = screen.pop_layer().unwrap();
+        let view_box : Box<View> = screen.pop_layer().unwrap();
         let sly_view_box = view_box.as_boxed_any().downcast::<IdView<T>>().ok().unwrap();
         let sly_view = *sly_view_box;
         Some(sly_view)
     }
 
     // TODO(njskalski): add proper handling of errrors, it's a total mess now!
-    fn create_editor_for_buffer_id(&mut self, buffer_id: &BufferId) -> Result<(), InterfaceError> {
+    fn create_editor_for_buffer_id(&mut self, buffer_id : &BufferId) -> Result<(), InterfaceError> {
         {
             let old_editor = self.inactive_editors.get(buffer_id);
             if old_editor.is_some() {
@@ -227,7 +233,7 @@ impl Interface {
         }
 
         let obs = self.state.buffer_obs(buffer_id).unwrap(); //TODO panics
-        let mut view = SlyTextView::new(self.settings.clone(), obs, self.event_sink());
+        let mut view = SlyTextView::new(self.settings_rc().clone(), obs, self.event_sink());
         if self.inactive_editors.insert(buffer_id.clone(), view).is_some() {
             panic!("insertion failed, object already present");
         }
@@ -345,7 +351,7 @@ impl Interface {
     }
 
     /// This updates interface and SIV!
-    fn open_and_or_focus(&mut self, buffer_id: &BufferId) {
+    fn open_and_or_focus(&mut self, buffer_id : &BufferId) {
         if !self.inactive_editors.contains_key(buffer_id) {
             self.create_editor_for_buffer_id(buffer_id);
         }
@@ -357,11 +363,11 @@ impl Interface {
     }
 
     //TODO error handling!
-    fn open_and_or_focus_file<T>(&mut self, path: T)
+    fn open_and_or_focus_file<T>(&mut self, path : T)
     where
-        T: Into<PathBuf>,
+        T : Into<PathBuf>,
     {
-        let path_buf: PathBuf = path.into();
+        let path_buf : PathBuf = path.into();
         let buffer_id_op = self.path_to_buffer_id.get(&path_buf).map(|x| x.clone());
 
         let buffer_id = match buffer_id_op {
@@ -383,7 +389,7 @@ impl Interface {
         editor
     }
 
-    fn focus_buffer(&mut self, buffer_id: BufferId) {}
+    fn focus_buffer(&mut self, buffer_id : BufferId) {}
 
     fn file_dialog(&mut self) -> Option<ViewRef<FileDialog>> {
         find_view_with_handle(&mut self.siv, &self.file_dialog_handle)
@@ -451,7 +457,7 @@ impl Interface {
         self.show_file_dialog(FileDialogVariant::OpenFile(None));
     }
 
-    fn show_file_dialog(&mut self, variant: FileDialogVariant) {
+    fn show_file_dialog(&mut self, variant : FileDialogVariant) {
         if self.file_dialog_handle.is_some() {
             debug!("show_file_dialog: not showing file_dialog, because it's already opened.");
             return;
@@ -459,7 +465,7 @@ impl Interface {
 
         let is_save = variant.is_save();
         let mut file_dialog =
-            FileDialog::new(self.event_sink(), variant, self.state.get_dir_tree(), &self.settings);
+            FileDialog::new(self.event_sink(), variant, self.state.get_dir_tree(), self.settings_ref());
 
         self.file_dialog_handle = Some(file_dialog.get_mut().handle().clone());
         self.siv.add_layer(file_dialog);
@@ -475,7 +481,7 @@ impl Interface {
             self.state.get_file_index(),
             FILE_BAR_MARKER.to_string(),
             self.event_sink(),
-            self.settings.clone(),
+            self.settings_rc().clone(),
             self.inot(),
         );
 
@@ -493,7 +499,7 @@ impl Interface {
             self.state.buffer_index(),
             BUFFER_LIST_MARKER.to_string(),
             self.event_sink(),
-            self.settings.clone(),
+            self.settings_rc().clone(),
             self.inot(),
         );
 
@@ -518,6 +524,14 @@ impl Interface {
             debug!("save_current_buffer unimplemented ");
         }
     }
+
+    fn settings_rc(&self) -> &Rc<RefCell<Settings>> {
+        &self.state.settings_rc()
+    }
+
+    fn settings_ref(&self) -> Ref<Settings> {
+        self.state.settings_ref()
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -527,13 +541,13 @@ pub enum InterfaceError {
 
 #[derive(Clone, Debug)]
 pub struct InterfaceNotifier {
-    siv_cb_sink: crossbeam_channel::Sender<Box<CbFunc>>,
-    ichan: IChannel,
+    siv_cb_sink : crossbeam_channel::Sender<Box<CbFunc>>,
+    ichan :       IChannel,
 }
 
 impl InterfaceNotifier {
     pub fn refresh(&self) {
-        self.siv_cb_sink.send_timeout(Box::new(|s: &mut Cursive| {}), Duration::new(0, 0));
+        self.siv_cb_sink.send_timeout(Box::new(|s : &mut Cursive| {}), Duration::new(0, 0));
     }
 
     pub fn sink(&self) -> &IChannel {

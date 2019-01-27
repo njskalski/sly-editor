@@ -70,8 +70,9 @@ fn color_hex_to_rgb(hex : &str) -> Result<theme::Color, Error> {
 }
 
 pub struct Settings {
-    tree :        sj::Value,
-    color_cache : RefCell<HashMap<&'static str, cursive::theme::Color>>,
+    tree :              sj::Value,
+    color_cache :       RefCell<HashMap<&'static str, cursive::theme::Color>>,
+    auto_highlighting : bool,
 }
 
 impl Settings {
@@ -98,6 +99,10 @@ impl Settings {
         self.color_cache.borrow_mut().insert(selector, color);
 
         color
+    }
+
+    pub fn auto_highlighting_enabled(&self) -> bool {
+        self.auto_highlighting
     }
 
     // TODO(njskalski) I decided not to use Cursive's palette mechanism, because most views will be
@@ -207,16 +212,38 @@ impl Settings {
         Self::load(&mut default_settings.as_bytes()).expect("failed loading settings. Parse error?")
     }
 
-    pub fn load(reader :&mut Read) -> Option<Self> {
-        let settings_result = sj::from_reader(reader);
-        match settings_result {
+    pub fn load(reader : &mut Read) -> Option<Self> {
+        let settings_result = sj::from_reader::<_, sj::Value>(reader);
+
+        let tree : Option<sj::Value> = match settings_result {
             Err(some_error) => {
                 debug!("{:?}", some_error);
                 log::logger().flush();
                 None
             }
-            Ok(s) => Some(Settings { tree : s, color_cache : RefCell::new(HashMap::new()) }),
+            Ok(s) => Some(s),
+        };
+
+        if tree.is_none() {
+            return None;
         }
+        let tree = tree.unwrap();
+
+        let auto_highlighting = tree
+            .get("performance")
+            .and_then(|node| node.get("auto_highlighting"))
+            .and_then(|node| node.as_bool());
+
+        if auto_highlighting.is_none() {
+            return None;
+        };
+        let auto_highlighting = auto_highlighting.unwrap();
+
+        Some(Settings {
+            tree :              tree,
+            color_cache :       RefCell::new(HashMap::new()),
+            auto_highlighting : auto_highlighting,
+        })
     }
 }
 

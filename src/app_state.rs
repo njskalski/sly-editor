@@ -57,6 +57,9 @@ use buffer_index::BufferIndex;
 use buffer_state::ExistPolicy;
 use core::borrow::Borrow;
 use dir_tree::LazyTreeNode;
+use dir_tree::TreeNode;
+use dir_tree::TreeNodeRef;
+use settings::Settings;
 use std::cell::Cell;
 use std::collections::VecDeque;
 use std::io::Error;
@@ -65,25 +68,22 @@ use std::sync::mpsc;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::Sender;
 use view_handle::ViewHandle;
-use dir_tree::TreeNode;
-use dir_tree::TreeNodeRef;
 
 pub struct AppState {
     buffers_to_load : VecDeque<PathBuf>,
-
-    file_index: Arc<RefCell<FuzzyIndex>>, /* because searches are mutating the cache TODO this can
-                                       * be solved with
-                                       * "interior mutability", as other caches in this
-                                       * app */
+    file_index :      Arc<RefCell<FuzzyIndex>>,
+    /* because searches are mutating the cache TODO this can be solved with "interior
+     * mutability", as other caches in this app */
     dir_and_files_tree :     TreeNodeRef,
     get_first_buffer_guard : Cell<bool>,
-    directories :            Vec<PathBuf>, /* it's a straigthforward copy of arguments used
-                                            * to guess "workspace" parameter for languageserver */
+    directories :            Vec<PathBuf>,
+    /* it's a straigthforward copy of arguments used to guess "workspace" parameter for
+     * languageserver */
     loaded_buffers : HashMap<BufferId, Rc<RefCell<BufferState>>>,
+    settings :       Rc<RefCell<Settings>>,
 }
 
 impl AppState {
-
     /// Returns index of buffers to be used with FuzzyQueryView
     pub fn buffer_index(&self) -> Arc<RefCell<BufferIndex>> {
         // TODO(njskalski): add cache.
@@ -157,7 +157,8 @@ impl AppState {
     /// Opens file, not checking if a file is opened in another buffer. Intentionally private.
     fn open_file(&mut self, path : &Path) -> Result<BufferId, io::Error> {
         // TODO(njskalski): add delayed load (promise)
-        let buffer = BufferState::open(path, ExistPolicy::MustExist)?;
+        let autohighlight : bool = self.settings_ref().auto_highlighting_enabled();
+        let buffer = BufferState::open(path, ExistPolicy::MustExist, autohighlight)?;
         let id = (*buffer).borrow().id();
         self.loaded_buffers.insert(id.clone(), buffer);
         Ok(id)
@@ -170,12 +171,14 @@ impl AppState {
         }
         self.get_first_buffer_guard.set(true);
 
+        let autohighlight : bool = self.settings_ref().auto_highlighting_enabled();
+
         let buffer : Rc<RefCell<BufferState>> = if self.buffers_to_load.is_empty() {
             /// if there is no buffer to load, we create an unnamed one.
-            BufferState::new()
+            BufferState::new(autohighlight)
         } else {
             let file_path = self.buffers_to_load.pop_front().unwrap();
-            BufferState::open(&file_path, ExistPolicy::CanExist)?
+            BufferState::open(&file_path, ExistPolicy::CanExist, autohighlight)?
         };
 
         let id = (*buffer).borrow().id();
@@ -196,18 +199,29 @@ impl AppState {
         let file_index_items = file_list_to_items(&files_to_index);
         let buffers_to_load : VecDeque<PathBuf> = files.iter().map(|x| x.clone()).collect();
 
+        let settings = Rc::new(RefCell::new(Settings::load_default()));
+
         AppState {
             buffers_to_load :        buffers_to_load,
             loaded_buffers :         HashMap::new(),
-            file_index:                  Arc::new(RefCell::new(FuzzyIndex::new(file_index_items))),
+            file_index :             Arc::new(RefCell::new(FuzzyIndex::new(file_index_items))),
             dir_and_files_tree :     LazyTreeNode::new(directories.clone(), files).as_ref(),
             get_first_buffer_guard : Cell::new(false),
             directories :            directories,
+            settings :               settings,
         }
     }
 
     pub fn directories(&self) -> &Vec<PathBuf> {
         &self.directories
+    }
+
+    pub fn settings_rc(&self) -> &Rc<RefCell<Settings>> {
+        &self.settings
+    }
+
+    pub fn settings_ref(&self) -> Ref<Settings> {
+        (*self.settings).borrow()
     }
 }
 

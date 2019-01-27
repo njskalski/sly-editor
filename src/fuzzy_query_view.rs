@@ -42,7 +42,6 @@ use cursive::view::{ScrollBase, View};
 use cursive::views::*;
 use cursive::{Cursive, Printer};
 
-use fuzzy_index::HARD_QUERY_LIMIT;
 use fuzzy_index_trait::FuzzyIndexTrait;
 use settings::Settings;
 use unicode_segmentation::UnicodeSegmentation as us;
@@ -62,6 +61,7 @@ use std::fmt;
 use std::marker::Sized;
 use std::sync::Arc;
 use view_handle::ViewHandle;
+use std::cell::Ref;
 
 const WIDTH : usize = 100;
 
@@ -74,7 +74,7 @@ pub struct FuzzyQueryView {
     size :           Option<Vec2>,
     needs_relayout : Cell<bool>,
     selected :       usize,
-    settings :       Rc<Settings>,
+    settings :       Rc<RefCell<Settings>>,
     items_cache :    RefCell<Option<Rc<Vec<Rc<ViewItem>>>>>,
     old_selection :  Option<Rc<ViewItem>>,
     handle :         ViewHandle,
@@ -87,7 +87,7 @@ impl FuzzyQueryView {
         index : Arc<RefCell<FuzzyIndexTrait>>,
         marker : String,
         channel : IChannel,
-        settings : Rc<Settings>,
+        settings : Rc<RefCell<Settings>>,
         inot : InterfaceNotifier,
     ) -> IdView<Self> {
         let res = FuzzyQueryView {
@@ -143,8 +143,12 @@ impl FuzzyQueryView {
         Rc::new(res)
     }
 
+    fn settings_ref(&self) -> Ref<Settings> {
+        self.settings.borrow()
+    }
+
     fn get_item_colorstyle(&self, selected : bool, highlighted : bool) -> ColorStyle {
-        self.settings.get_colorstyle(
+        self.settings_ref().get_colorstyle(
             if highlighted {
                 "theme/fuzzy_view/highlighted_text_color"
             } else {

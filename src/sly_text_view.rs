@@ -15,7 +15,6 @@ limitations under the License.
 */
 
 // missing to MVP:
-// - syntax highlighting
 // - selection and copy to clipboard (paste already works)
 // - underlining the symbols that offer navigation options (Language Protocol)
 // - status bar (row, column, readonly/rw mode, whether modified, whether out-of-sync)
@@ -66,6 +65,8 @@ use unicode_segmentation;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 use view_handle::ViewHandle;
+use std::cell::RefCell;
+use std::cell::Ref;
 
 const INDEX_MARGIN : usize = 1;
 const PAGE_WIDTH : usize = 80;
@@ -81,7 +82,7 @@ pub struct SlyTextView {
     cursors :               Vec<Cursor>, // offset in CHARS, preferred column
     position :              Vec2,        // position of upper left corner of view in file
     last_view_size :        Option<Vec2>, //not sure if using properly
-    settings :              Rc<Settings>,
+    settings :              Rc<RefCell<Settings>>,
     clipboard_context :     clipboard::ClipboardContext,
     special_char_mappings : HashMap<char, char>,
     handle :                ViewHandle,
@@ -95,7 +96,7 @@ impl SlyView for SlyTextView {
 
 impl SlyTextView {
     pub fn new(
-        settings : Rc<Settings>,
+        settings : Rc<RefCell<Settings>>,
         buffer : BufferStateObserver,
         channel : IChannel,
     ) -> IdView<Self> {
@@ -112,6 +113,10 @@ impl SlyTextView {
         };
 
         IdView::new(view.handle(), view)
+    }
+
+    fn settings_ref(&self) -> Ref<Settings> {
+        self.settings.borrow()
     }
 
     pub fn buffer_obs(&self) -> &BufferStateObserver {
@@ -131,6 +136,11 @@ impl SlyTextView {
         let mut content = self.buffer.borrow_mut_content();
         let rich_content_enabled = content.is_rich_content_enabled();
         content.set_rich_content_enabled(!rich_content_enabled);
+    }
+
+    fn set_syntax_highlighting(&mut self, enabled : bool) {
+        let mut content = self.buffer.borrow_mut_content();
+        content.set_rich_content_enabled(enabled);
     }
 }
 
@@ -257,7 +267,7 @@ impl View for SlyTextView {
     }
 
     fn on_event(&mut self, event : Event) -> EventResult {
-        let text_keybindings = &self.settings.get_keybindings("text");
+        let text_keybindings = self.settings_ref().get_keybindings("text");
         if text_keybindings.contains_key(&event) {
             let action : &String = &text_keybindings[&event];
 
@@ -285,7 +295,7 @@ impl View for SlyTextView {
             }
         }
 
-        let text_view_keybindings = &self.settings.get_keybindings("text_view");
+        let text_view_keybindings = self.settings_ref().get_keybindings("text_view");
         if text_view_keybindings.contains_key(&event) {
             let action : &String = &text_view_keybindings[&event];
 
