@@ -25,6 +25,8 @@ limitations under the License.
 // - plugin states are to be lost in first versions
 // - I am heading to MVP.
 
+const DEBUG : bool = false;
+
 use ignore::gitignore;
 use serde_json;
 use std::env;
@@ -142,7 +144,7 @@ impl AppState {
             self.open_file(path)
         } else {
             if buffers.len() > 1 {
-                debug!(
+                ifdebug!(
                     "Returning first of {} buffers corresponding to path {:?}",
                     buffers.len(),
                     &path

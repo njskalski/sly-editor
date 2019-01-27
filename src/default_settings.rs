@@ -44,6 +44,9 @@ const default_settings_string : &'static str = r####"
     "file_bar" : {
     }
   },
+  "performance" : {
+    "auto_highlighting" : true
+  },
   "theme" : {
     "text_view" : {
       "background_color" : "#1d1d1d",

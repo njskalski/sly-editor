@@ -33,6 +33,8 @@ description. Example: search line is filename, description is it's location. (do
 // alphabetic order. Also, I introduced chache via interior mutability (so it can be cleared in
 // non-mut method "draw"), so number of calls has been reduced to one per draw-input cycle.
 
+const DEBUG : bool = false;
+
 use cursive::view::Selector;
 use std::any::Any;
 type BoxedCallback<'a> = Box<for<'b> FnMut(&'b mut Any) + 'a>;
@@ -56,6 +58,7 @@ use unicode_segmentation::UnicodeSegmentation as us;
 use events::IChannel;
 use events::IEvent;
 use fuzzy_view_item::*;
+use interface::InterfaceNotifier;
 use overlay_dialog::OverlayDialog;
 use sly_view::SlyView;
 use std::cell::Cell;
@@ -67,7 +70,6 @@ use std::fmt;
 use std::marker::Sized;
 use std::sync::Arc;
 use view_handle::ViewHandle;
-use interface::InterfaceNotifier;
 
 const WIDTH : usize = 100;
 
@@ -110,8 +112,7 @@ impl FuzzyQueryView {
             old_selection :  None,
             handle :         ViewHandle::new(),
             result :         None,
-            inot :           inot
-
+            inot :           inot,
         };
 
         IdView::new(res.handle(), res)
@@ -145,7 +146,8 @@ impl FuzzyQueryView {
     }
 
     fn get_current_items(&self) -> Rc<Vec<Rc<ViewItem>>> {
-        let res = self.index.borrow_mut().get_results_for(&self.query, None, Some(self.inot.clone()));
+        let res =
+            self.index.borrow_mut().get_results_for(&self.query, None, Some(self.inot.clone()));
         Rc::new(res)
     }
 
@@ -207,7 +209,7 @@ impl FuzzyQueryView {
                     printer.print((0 + i, 0), " ");
                 });
             }
-            //end of drawing header
+        //end of drawing header
         } else {
             //drawing description
             //TODO lines below ignores the fact that now I temporarily imposed description lines
@@ -294,7 +296,7 @@ impl View for FuzzyQueryView {
     }
 
     fn draw(&self, printer : &Printer) {
-        debug!("fqv redraw");
+        ifdebug!("fqv redraw");
         //draw context
         printer.print((2, 0), &format!("Context : {:?} \tquery: {:?}", &self.context, &self.query));
 
@@ -342,6 +344,19 @@ impl View for FuzzyQueryView {
                 if self.selected + 1 < self.get_current_items().len() {
                     self.selected += 1;
                 }
+                self.after_update_selection();
+            }
+            Event::Key(Key::PageUp) => {
+                if self.selected > 0 {
+                    self.selected -= cmp::min(self.selected, (self.size.unwrap().y - 1));
+                }
+                self.after_update_selection();
+            }
+            Event::Key(Key::PageDown) => {
+                self.selected = cmp::min(
+                    self.get_current_items().len() - 1,
+                    self.selected + (self.size.unwrap().y - 1),
+                );
                 self.after_update_selection();
             }
             Event::Key(Key::Enter) => {
@@ -426,9 +441,9 @@ impl SlyView for FuzzyQueryView {
 
 //TODO tests
 fn count_items_lines<I, T>(items : I) -> usize
-    where
-        T : AsRef<ViewItem>,
-        I : Iterator<Item = T>,
+where
+    T : AsRef<ViewItem>,
+    I : Iterator<Item = T>,
 {
     items.fold(0, |acc, x| acc + x.as_ref().get_height_in_lines())
 }
@@ -436,9 +451,9 @@ fn count_items_lines<I, T>(items : I) -> usize
 //TODO tests, early exit
 /// Returns Option<(number of lines preceeding items consumed, item_idx)>
 fn get_item_for_line<I, T>(mut items : I, line : usize) -> Option<(usize, usize)>
-    where
-        T : AsRef<ViewItem>,
-        I : Iterator<Item = T>,
+where
+    T : AsRef<ViewItem>,
+    I : Iterator<Item = T>,
 {
     let res : (usize, Option<usize>) =
         items.enumerate().fold((0, None), |acc, (item_idx, item)| match acc {

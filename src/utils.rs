@@ -30,6 +30,16 @@ macro_rules! hashmap {
     }}
 }
 
+#[macro_export]
+macro_rules! ifdebug {
+    ($($arg:tt)*) => {{
+        if DEBUG {
+            debug!($($arg)*);
+        }
+    }}
+}
+
+
 /// this method takes a string representing a path, returns pair of options describing
 /// folder path and filename. Does not check if file exists, so it cannot differentiate between
 /// files and directories, unless path ends with "/", in which case it is assumed it's a directory.
@@ -95,9 +105,9 @@ mod tests {
 
     #[test]
     fn guess_format_test() {
-        assert_eq!(guess_format(&PathBuf::new("/home/someone/rust.rs").as_path()), Some("rust"));
-        assert_eq!(guess_format(&PathBuf::new("/home/someone/Cargo.toml").as_path()), Some("toml"));
-        assert_eq!(guess_format(&PathBuf::new("/home/someone/some.json").as_path()), Some("json"));
+        assert_eq!(guess_format(Path::new("/home/someone/rust.rs")), Some("rust"));
+        assert_eq!(guess_format(Path::new("/home/someone/Cargo.toml")), Some("toml"));
+        assert_eq!(guess_format(Path::new("/home/someone/some.json")), Some("json"));
     }
 
 }

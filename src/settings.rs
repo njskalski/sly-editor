@@ -219,3 +219,14 @@ impl Settings {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn default_settings_parses() {
+        let settins = Settings::load_default();
+    }
+}
