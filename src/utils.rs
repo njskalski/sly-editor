@@ -20,6 +20,8 @@ use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::Path;
 use std::path::PathBuf;
+use rich_content::HighlightSettings;
+use std::rc::Rc;
 
 #[macro_export]
 macro_rules! hashmap {
@@ -62,28 +64,35 @@ pub fn path_string_to_pair(path_str : String) -> (Option<String>, Option<String>
     }
 }
 
-lazy_static! {
-    static ref EXT_TO_LANG_MAP : HashMap<&'static str, &'static str> = hashmap![
-        "rs" => "rust",
-        "toml" => "toml",
-        "json" => "json",
-        "cpp" => "c++",
-        "cxx" => "c++",
-        "hpp" => "c++",
-        "hxx" => "c++",
-        "c" => "c",
-        "h" => "c",
-        "go" => "go",
-        "ini" => "ini" // in this macro, trailing comma is going to break compilation.
-    ];
-}
+//lazy_static! {
+//    static ref EXT_TO_LANG_MAP : HashMap<&'static str, &'static str> = hashmap![
+//        "rs" => "rust",
+//        "toml" => "toml",
+//        "json" => "json",
+//        "cpp" => "c++",
+//        "cxx" => "c++",
+//        "hpp" => "c++",
+//        "hxx" => "c++",
+//        "c" => "c",
+//        "h" => "c",
+//        "go" => "go",
+//        "ini" => "ini" // in this macro, trailing comma is going to break compilation.
+//    ];
+//}
+//
+//// TODO(njskalski): upgrade in 1.0
+//pub fn guess_format(path : &Path) -> Option<&'static str> {
+//    let extension = path.extension().and_then(OsStr::to_str);
+//
+//    let x = extension.and_then(|ext| EXT_TO_LANG_MAP.get(ext)).map(|x| *x);
+//    x
+//}
 
-// TODO(njskalski): upgrade in 1.0
-pub fn guess_format(path : &Path) -> Option<&'static str> {
-    let extension = path.extension().and_then(OsStr::to_str);
-
-    let x = extension.and_then(|ext| EXT_TO_LANG_MAP.get(ext)).map(|x| *x);
-    x
+// TODO(njskalski): this should be somewhere else, but I have no brainpower to plan it now.
+pub fn highlight_settings_from_path(path : &Path) -> Option<Rc<HighlightSettings>> {
+    let ext = path.extension()?.to_string_lossy();
+    let settings = HighlightSettings::new(&ext)?;
+    Some(Rc::new(settings))
 }
 
 #[cfg(test)]
@@ -104,11 +113,11 @@ mod tests {
         );
     }
 
-    #[test]
-    fn guess_format_test() {
-        assert_eq!(guess_format(Path::new("/home/someone/rust.rs")), Some("rust"));
-        assert_eq!(guess_format(Path::new("/home/someone/Cargo.toml")), Some("toml"));
-        assert_eq!(guess_format(Path::new("/home/someone/some.json")), Some("json"));
-    }
+//    #[test]
+//    fn guess_format_test() {
+//        assert_eq!(guess_format(Path::new("/home/someone/rust.rs")), Some("rust"));
+//        assert_eq!(guess_format(Path::new("/home/someone/Cargo.toml")), Some("toml"));
+//        assert_eq!(guess_format(Path::new("/home/someone/some.json")), Some("json"));
+//    }
 
 }

@@ -31,6 +31,7 @@ use std::rc::Rc;
 use buffer_id::BufferId;
 use buffer_state_observer::BufferStateObserver;
 use std::borrow::Borrow;
+use utils::highlight_settings_from_path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BufferOpenMode {
@@ -53,21 +54,21 @@ pub struct BufferStateS {
 }
 
 pub struct BufferState {
-    id :       BufferId,
-    ss :       BufferStateS,
-    modified : bool,
-    mode :     BufferOpenMode,
-    content :  RopeBasedContentProvider,
+    id :           BufferId,
+    ss :           BufferStateS,
+    modified :     bool,
+    mode :         BufferOpenMode,
+    content :      RopeBasedContentProvider,
 }
 
 impl BufferState {
-    pub fn new(autohighlight : bool) -> Rc<RefCell<Self>> {
+    pub fn new() -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(BufferState {
-            id :       BufferId::new(),
-            ss :       BufferStateS { path : None },
-            modified : false,
-            content :  RopeBasedContentProvider::new(None, autohighlight),
-            mode :     BufferOpenMode::ReadWrite,
+            id :           BufferId::new(),
+            ss :           BufferStateS { path : None },
+            modified :     false,
+            content :      RopeBasedContentProvider::new(None, None),
+            mode :         BufferOpenMode::ReadWrite,
         }))
     }
 
@@ -82,7 +83,6 @@ impl BufferState {
     pub fn open(
         file_path : &Path,
         creation_policy : ExistPolicy,
-        autohighlight : bool
     ) -> Result<Rc<RefCell<Self>>, io::Error> {
         debug!("reading file {:?}, creation_policy = {:?}", file_path, creation_policy);
 
@@ -101,13 +101,14 @@ impl BufferState {
         }
 
         let mut reader : fs::File = path_to_reader(&file_path);
+        let highlight_settings_op = highlight_settings_from_path(file_path);
 
         Ok(Rc::new(RefCell::new(BufferState {
-            id :       BufferId::new(),
-            ss :       BufferStateS { path : Some(file_path.to_owned()) },
-            modified : false,
-            content :  RopeBasedContentProvider::new(Some(&mut reader), autohighlight),
-            mode :     BufferOpenMode::ReadWrite,
+            id :           BufferId::new(),
+            ss :           BufferStateS { path : Some(file_path.to_owned()) },
+            modified :     false,
+            content :      RopeBasedContentProvider::new(Some(&mut reader), highlight_settings_op),
+            mode :         BufferOpenMode::ReadWrite,
         })))
     }
 

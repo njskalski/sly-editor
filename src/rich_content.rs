@@ -99,14 +99,18 @@ pub struct HighlightSettings {
 
 //TODO move const strings to settings parameters.
 impl HighlightSettings {
-    pub fn new() -> Self {
+    pub fn new(extension : &str) -> Option<Self> {
         let syntax_set = SyntaxSet::load_defaults_newlines().clone();
         let ts = &ThemeSet::load_defaults();
 
-        let syntax = syntax_set.find_syntax_by_extension("rs").unwrap().clone();
+        let syntax = syntax_set.find_syntax_by_extension(extension)?.clone();
         let theme = ts.themes["base16-ocean.dark"].clone();
 
-        HighlightSettings { theme, syntax, syntax_set }
+        Some(HighlightSettings {
+            theme :      theme,
+            syntax :     syntax,
+            syntax_set : syntax_set,
+        })
     }
 }
 

@@ -64,8 +64,8 @@ pub struct RopeBasedContentProvider {
     current : usize,
     // Contract: we do not version rich content. It doesn't make sense: redrawing screen
     // has a similar complexity to syntax highlighting, provided it's implemented properly.
-    rich_content :  Option<RichContent>,
-    autohighlight : bool,
+    rich_content :          Option<RichContent>,
+    highlight_settings_op : Option<Rc<HighlightSettings>>,
 }
 
 // Applies events to RopeBasedContent producing new one, and returning *number of lines common* to
@@ -113,26 +113,31 @@ fn apply_events(c : &RopeBasedContent, events : &Vec<EditEvent>) -> (RopeBasedCo
 }
 
 impl RopeBasedContentProvider {
-    pub fn new(reader_op : Option<&mut Read>, autohighlight : bool) -> Self {
+    pub fn new(
+        reader_op : Option<&mut Read>,
+        highlight_settings_op : Option<Rc<HighlightSettings>>,
+    ) -> Self {
         RopeBasedContentProvider {
-            history :       vec![RopeBasedContent::new(reader_op)],
-            current :       0,
-            rich_content :  None,
-            autohighlight : autohighlight,
+            history :               vec![RopeBasedContent::new(reader_op)],
+            current :               0,
+            rich_content :          None,
+            highlight_settings_op : highlight_settings_op,
         }
     }
 
-    pub fn set_rich_content_enabled(&mut self, enabled : bool) {
+    /// Returns whether the content is enabled or not.
+    // TODO(njskalski): break down for enabled and available.
+    pub fn set_rich_content_enabled(&mut self, enabled : bool) -> bool {
         if !enabled {
-            self.rich_content = None
+            self.rich_content = None;
+            false
         } else {
-            self.rich_content = Some(RichContent::new(
-                // TODO(njskalski): this needs decoupling (obviously) from here.
-                Rc::new(HighlightSettings::new()),
-                // This costs O(1), but if content provider changes, it needs
-                // update.
-                self.get_lines().clone(),
-            ))
+            // This costs O(1), but if content provider changes, it needs
+            // update.
+            self.rich_content = self
+                .highlight_settings_op.as_ref()
+                .map(|s| RichContent::new(s.clone(), self.get_lines().clone()));
+            self.rich_content.is_some()
         }
     }
 

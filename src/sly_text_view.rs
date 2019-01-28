@@ -55,6 +55,8 @@ use ropey::Rope;
 use settings::Settings;
 use sly_view::SlyView;
 use std::borrow::BorrowMut;
+use std::cell::Ref;
+use std::cell::RefCell;
 use std::cmp;
 use std::cmp::min;
 use std::collections::HashMap;
@@ -65,8 +67,6 @@ use unicode_segmentation;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 use view_handle::ViewHandle;
-use std::cell::RefCell;
-use std::cell::Ref;
 
 const INDEX_MARGIN : usize = 1;
 const PAGE_WIDTH : usize = 80;
@@ -100,7 +100,7 @@ impl SlyTextView {
         buffer : BufferStateObserver,
         channel : IChannel,
     ) -> IdView<Self> {
-        let view = SlyTextView {
+        let mut view = SlyTextView {
             channel :               channel,
             buffer :                buffer,
             cursors :               vec![(0, None)],
@@ -111,6 +111,10 @@ impl SlyTextView {
             special_char_mappings : hashmap!['\n' => '\u{21B5}'],
             handle :                ViewHandle::new(),
         };
+
+        if view.settings_ref().auto_highlighting_enabled() && !view.syntax_highlighting_on() {
+            view.set_syntax_highlighting(true);
+        }
 
         IdView::new(view.handle(), view)
     }
@@ -132,15 +136,14 @@ impl SlyTextView {
         &self.cursors
     }
 
-    fn toggle_syntax_highlight(&mut self) {
-        let mut content = self.buffer.borrow_mut_content();
-        let rich_content_enabled = content.is_rich_content_enabled();
-        content.set_rich_content_enabled(!rich_content_enabled);
+    pub fn syntax_highlighting_on(&self) -> bool {
+        self.buffer.borrow_content().is_rich_content_enabled()
     }
 
-    fn set_syntax_highlighting(&mut self, enabled : bool) {
+    /// Returns value syntax highlighting is set to. May be different than requested.
+    pub fn set_syntax_highlighting(&mut self, enabled : bool) -> bool {
         let mut content = self.buffer.borrow_mut_content();
-        content.set_rich_content_enabled(enabled);
+        content.set_rich_content_enabled(enabled)
     }
 }
 
@@ -303,7 +306,11 @@ impl View for SlyTextView {
             match action.as_str() {
                 "toggle_syntax_highlighting" => {
                     debug!("toggle syntax highlight");
-                    self.toggle_syntax_highlight();
+                    let old_value = self.syntax_highlighting_on();
+                    let new_value = self.set_syntax_highlighting(!old_value);
+                    if old_value == false && new_value == false {
+                        debug!("syntax highlighting unavailable"); // TODO(njskalski): add some msg.
+                    }
                 }
                 _ => consumed = false,
             };
