@@ -1,3 +1,4 @@
 libx11-xcb-dev
 libncurses5-dev
 libgoogle-perftools-dev
+libncursesw5-dev
