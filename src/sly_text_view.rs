@@ -86,6 +86,7 @@ pub struct SlyTextView {
     clipboard_context :     clipboard::ClipboardContext,
     special_char_mappings : HashMap<char, char>,
     handle :                ViewHandle,
+    syntax_highlighting :   bool, //local override of global setting.
 }
 
 impl SlyView for SlyTextView {
@@ -100,6 +101,8 @@ impl SlyTextView {
         buffer : BufferStateObserver,
         channel : IChannel,
     ) -> IdView<Self> {
+        let syntax_highlighting : bool = settings.borrow().auto_highlighting_enabled();
+
         let mut view = SlyTextView {
             channel :               channel,
             buffer :                buffer,
@@ -110,9 +113,10 @@ impl SlyTextView {
             clipboard_context :     clipboard::ClipboardProvider::new().unwrap(),
             special_char_mappings : hashmap!['\n' => '\u{21B5}'],
             handle :                ViewHandle::new(),
+            syntax_highlighting :   syntax_highlighting,
         };
 
-        if view.settings_ref().auto_highlighting_enabled() && !view.syntax_highlighting_on() {
+        if syntax_highlighting && !view.syntax_highlighting_on() {
             view.set_syntax_highlighting(true);
         }
 
@@ -137,13 +141,19 @@ impl SlyTextView {
     }
 
     pub fn syntax_highlighting_on(&self) -> bool {
-        self.buffer.borrow_content().is_rich_content_enabled()
+        self.syntax_highlighting && self.buffer.borrow_content().is_rich_content_enabled()
     }
 
     /// Returns value syntax highlighting is set to. May be different than requested.
     pub fn set_syntax_highlighting(&mut self, enabled : bool) -> bool {
-        let mut content = self.buffer.borrow_mut_content();
-        content.set_rich_content_enabled(enabled)
+        if enabled {
+            self.syntax_highlighting = true;
+            let mut content = self.buffer.borrow_mut_content();
+            content.set_rich_content_enabled(true)
+        } else {
+            self.syntax_highlighting = false;
+            false
+        }
     }
 }
 
