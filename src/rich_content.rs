@@ -48,7 +48,7 @@ use syntect::highlighting::{
 };
 use syntect::parsing::{ParseState, ScopeStack, SyntaxReference, SyntaxSet};
 
-const PARSING_MILESTONE : usize = 80;
+const PARSING_MILESTONE : usize = 10;
 
 #[derive(Debug)]
 pub struct RichLine {
@@ -203,6 +203,8 @@ impl RichContent {
     fn get_cache_idx(&self, line_no : usize) -> Option<usize> {
         let parse_cache : Ref<Vec<ParseCacheRecord>> = self.parse_cache.borrow();
 
+        debug!("parse cache len = {}", parse_cache.len());
+
         if !parse_cache.is_empty() {
             let cache : Option<usize> =
                 match parse_cache.binary_search_by(|rec| rec.line_to_parse.cmp(&line_no)) {
@@ -225,6 +227,7 @@ impl RichContent {
     /// ParseCacheRecord.line_to_parse > line_no (*strictly higher* guaranteed).
     pub fn get_cache(&self, line_no : usize) -> Option<ParseCacheRecord> {
         let idx_op = self.get_cache_idx(line_no);
+        debug!("idx_op : {:?}", &idx_op);
         idx_op.and_then(|x| self.parse_cache.borrow().get(x).map(|cache| cache.clone()))
     }
 
@@ -346,3 +349,4 @@ impl<'a> ExactSizeIterator for RichLinesIterator<'a> {
 fn simplify_style(style : &Style) -> Color {
     Color::Rgb(style.foreground.r, style.foreground.g, style.foreground.b)
 }
+

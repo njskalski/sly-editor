@@ -73,21 +73,25 @@ pub struct Settings {
     tree :              sj::Value,
     color_cache :       RefCell<HashMap<&'static str, cursive::theme::Color>>,
     auto_highlighting : bool,
+    file_index_limit :  usize,
 }
 
 impl Settings {
+    fn get_value(&self, selector : &'static str) -> Option<&sj::Value> {
+        let mut ptr : Option<&sj::Value> = Some(&self.tree);
+        for lane in selector.split('/') {
+            ptr = ptr.map(|subtree| &subtree[lane]);
+        }
+        ptr
+    }
+
     pub fn get_color(&self, selector : &'static str) -> cursive::theme::Color {
         match self.color_cache.borrow().get(selector) {
             Some(color) => return color.clone(),
             None => (),
         }
 
-        let mut ptr : Option<&sj::Value> = Some(&self.tree);
-        for lane in selector.split('/') {
-            ptr = ptr.map(|subtree| &subtree[lane]);
-        }
-
-        let color = match ptr {
+        let color = match self.get_value(selector) {
             Some(&sj::Value::String(ref color_string)) => color_hex_to_rgb(color_string.as_str())
                 .expect(&format!("failed parsing color {:?} : {:?}", selector, color_string)),
             anything_else => panic!(
@@ -130,6 +134,10 @@ impl Settings {
             front : cursive::theme::ColorType::Color(self.get_color(front_selector)),
             back :  cursive::theme::ColorType::Color(self.get_color(background_selector)),
         }
+    }
+
+    pub fn file_index_limit(&self) -> usize {
+        self.file_index_limit
     }
 
     pub fn get_keybindings(&self, context : &str) -> KeybindingsType {
@@ -239,10 +247,17 @@ impl Settings {
         };
         let auto_highlighting = auto_highlighting.unwrap();
 
+        let file_index_limit = tree
+            .get("performance")
+            .and_then(|node| node.get("max_files_indexed"))
+            .and_then(|node| node.as_u64())
+            .unwrap() as usize;
+
         Some(Settings {
             tree :              tree,
             color_cache :       RefCell::new(HashMap::new()),
             auto_highlighting : auto_highlighting,
+            file_index_limit : file_index_limit
         })
     }
 }

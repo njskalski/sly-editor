@@ -69,6 +69,8 @@ use std::sync::mpsc::Receiver;
 use std::sync::mpsc::Sender;
 use view_handle::ViewHandle;
 
+use std::borrow::*;
+
 pub struct AppState {
     buffers_to_load : VecDeque<PathBuf>,
     file_index :      Arc<RefCell<FuzzyIndex>>,
@@ -186,10 +188,15 @@ impl AppState {
     }
 
     pub fn new(directories : Vec<PathBuf>, files : Vec<PathBuf>, enable_gitignore : bool) -> Self {
+        let settings = Settings::load_default();
+
         let mut files_to_index : Vec<PathBuf> = files.to_owned();
         debug!("enable_gitignore == {}", enable_gitignore);
+
+        let file_index_limit = settings.file_index_limit();
+
         for dir in &directories {
-            build_file_index(&mut files_to_index, dir, enable_gitignore, None);
+            build_file_index(&mut files_to_index, dir, enable_gitignore, None, file_index_limit);
         }
 
         //        debug!("file index:\n{:?}", &files_to_index);
@@ -197,7 +204,7 @@ impl AppState {
         let file_index_items = file_list_to_items(&files_to_index);
         let buffers_to_load : VecDeque<PathBuf> = files.iter().map(|x| x.clone()).collect();
 
-        let settings = Rc::new(RefCell::new(Settings::load_default()));
+
 
         AppState {
             buffers_to_load :        buffers_to_load,
@@ -206,7 +213,7 @@ impl AppState {
             dir_and_files_tree :     LazyTreeNode::new(directories.clone(), files).as_ref(),
             get_first_buffer_guard : Cell::new(false),
             directories :            directories,
-            settings :               settings,
+            settings :               Rc::new(RefCell::new(settings)),
         }
     }
 
@@ -230,7 +237,12 @@ fn build_file_index(
     dir : &Path,
     enable_gitignore : bool,
     gi_op : Option<&gitignore::Gitignore>,
+    file_index_limit : usize
 ) {
+    if index.len() >= file_index_limit {
+        return;
+    }
+
     match fs::read_dir(dir) {
         Ok(read_dir) => {
             let gitignore_op : Option<gitignore::Gitignore> = if enable_gitignore {
@@ -253,6 +265,11 @@ fn build_file_index(
             };
 
             for entry_res in read_dir {
+
+                if index.len() >= file_index_limit {
+                    break;
+                }
+
                 match entry_res {
                     Ok(entry) => {
                         let path_buf = entry.path();
@@ -285,6 +302,7 @@ fn build_file_index(
                                 &path,
                                 enable_gitignore,
                                 most_recent_gitignore,
+                                file_index_limit
                             );
                         }
                     }

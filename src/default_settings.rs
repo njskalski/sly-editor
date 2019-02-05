@@ -45,7 +45,8 @@ const default_settings_string : &'static str = r####"
     }
   },
   "performance" : {
-    "auto_highlighting" : true
+    "auto_highlighting" : true,
+    "max_files_indexed" : 1000
   },
   "theme" : {
     "text_view" : {
