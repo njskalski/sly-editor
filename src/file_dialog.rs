@@ -149,12 +149,12 @@ impl FileDialog {
         self.variant.get_buffer_id_op()
     }
 
-//    fn size(&self) -> Vec2 {
-//        Vec2::new(
-//            DIR_TREE_VIEW_SIZE.x + FILE_LIST_VIEW_SIZE.x,
-//            FILE_LIST_VIEW_SIZE.y + EDIT_VIEW_SIZE.y,
-//        )
-//    }
+    //    fn size(&self) -> Vec2 {
+    //        Vec2::new(
+    //            DIR_TREE_VIEW_SIZE.x + FILE_LIST_VIEW_SIZE.x,
+    //            FILE_LIST_VIEW_SIZE.y + EDIT_VIEW_SIZE.y,
+    //        )
+    //    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -677,7 +677,7 @@ mod tests {
         let dialog = FileDialog::new(sender, variant, filesystem.clone(), settings.clone());
         let handle = dialog.handle();
 
-        let size = Vec2::new(80,16); // TODO(njskalski): un-hardcode it.
+        let size = Vec2::new(80, 16); // TODO(njskalski): un-hardcode it.
 
         let backend = backend::puppet::Backend::init(Some(size));
         let sink = backend.stream();
@@ -741,19 +741,33 @@ mod tests {
 
         {
             let screen = s.last_screen().unwrap();
-            let hits = screen.find_occurences("▸ <root>");
-            let hit = hits.first().unwrap();
+            assert_eq!(screen.find_occurences("▸ <root>").len(), 1);
         }
 
         s.hit_keystroke(Key::Enter);
         s.hit_keystroke(Key::Enter);
 
-//        {
-//            let screen = s.last_screen().unwrap();
-//            let hits = screen.find_occurences("▸ <root>");
-//            let hit = hits.first().unwrap();
-//        }
+        {
+            let screen = s.last_screen().unwrap();
+            assert_eq!(screen.find_occurences("▸ <root>").len(), 0);
+            assert_eq!(screen.find_occurences("▾ <root>").len(), 1);
+        }
 
-        s.dump_debug();
+        {
+            let screen = s.last_screen().unwrap();
+            let hits = screen.find_occurences("▸");
+            assert_eq!(hits.len(), 4);
+
+            let subnodes: Vec<String> = hits
+                .iter()
+                .map(|hit| hit.expanded_line(0, 20).to_string().trim().to_owned())
+                .collect();
+
+            let expected = vec!["▸ laura", "▸ subdirectory2", "▸ subdirectory2", "▸ bob"];
+
+            assert_eq!(subnodes, expected);
+        }
+
+//        s.dump_debug();
     }
 }
