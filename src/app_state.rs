@@ -213,7 +213,7 @@ impl AppState {
             dir_and_files_tree :     LazyTreeNode::new(directories.clone(), files).as_ref(),
             get_first_buffer_guard : Cell::new(false),
             directories :            directories,
-            settings :               Rc::new(RefCell::new(settings)),
+            settings :               Rc::new(RefCell::new(settings))
         }
     }
 

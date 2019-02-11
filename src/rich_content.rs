@@ -350,3 +350,11 @@ fn simplify_style(style : &Style) -> Color {
     Color::Rgb(style.foreground.r, style.foreground.g, style.foreground.b)
 }
 
+pub mod tests {
+    use super::*;
+
+    fn basic_setup() {
+
+    }
+
+}

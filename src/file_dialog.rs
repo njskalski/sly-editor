@@ -28,11 +28,9 @@ VerticalLayout:
     - (optionally) EditView (80, 1)
 */
 
-
-
-const DIR_TREE_VIEW_ID : &'static str = "file_dialog_dir_tree_view";
-const FILE_LIST_VIEW_ID : &'static str = "file_dialog_file_list_view";
-const EDIT_VIEW_ID : &'static str = "file_dialog_edit_view";
+const DIR_TREE_VIEW_ID: &'static str = "file_dialog_dir_tree_view";
+const FILE_LIST_VIEW_ID: &'static str = "file_dialog_file_list_view";
+const EDIT_VIEW_ID: &'static str = "file_dialog_edit_view";
 
 // TODO(njskalski): add any elasticity here. It's all paper calculated
 const DIR_TREE_VIEW_SIZE: Vec2 = XY::<usize> { x: 30, y: 15 };
@@ -67,16 +65,18 @@ use std::env;
 use std::path::Path;
 
 use buffer_id::BufferId;
+use dir_tree::TreeNodeVec;
 use events::IChannel;
 use events::IEvent;
 use overlay_dialog::OverlayDialog;
 use sly_view::SlyView;
+use std::borrow::Borrow;
+use std::cell::Ref;
 use std::error;
 use std::fmt;
+use std::ops::Deref;
 use std::path::PathBuf;
 use view_handle::ViewHandle;
-use dir_tree::TreeNodeVec;
-use std::cell::Ref;
 //use lazy_dir_tree::LazyTreeNode;
 
 // TODO(njskalski) this view took longer than anticipated to implement, so I rushed to the end
@@ -138,16 +138,23 @@ impl FileDialogVariant {
 }
 
 pub struct FileDialog {
-    variant :         FileDialogVariant,
-    vertical_layout : LinearLayout,
-    result :          Option<Result<FileDialogResult, FileDialogError>>,
-    handle :          ViewHandle,
+    variant: FileDialogVariant,
+    vertical_layout: LinearLayout,
+    result: Option<Result<FileDialogResult, FileDialogError>>,
+    handle: ViewHandle,
 }
 
 impl FileDialog {
     fn get_buffer_id_op(&self) -> Option<BufferId> {
         self.variant.get_buffer_id_op()
     }
+
+//    fn size(&self) -> Vec2 {
+//        Vec2::new(
+//            DIR_TREE_VIEW_SIZE.x + FILE_LIST_VIEW_SIZE.x,
+//            FILE_LIST_VIEW_SIZE.y + EDIT_VIEW_SIZE.y,
+//        )
+//    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -161,7 +168,7 @@ pub enum FileDialogResult {
 pub struct FileDialogError;
 
 impl fmt::Display for FileDialogError {
-    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "FileDialogError (not defined)")
     }
 }
@@ -204,23 +211,22 @@ type TreeViewType = TreeView<TreeNodeRef>;
 type SelectViewType = SelectView<TreeNodeRef>;
 
 fn get_dir_tree_on_collapse_switch_callback(
-    file_dialog_handle : ViewHandle,
-    files_visible : bool,
+    file_dialog_handle: ViewHandle,
+    files_visible: bool,
 ) -> impl Fn(&mut Cursive, usize, bool, usize) -> () {
-    move |siv : &mut Cursive, row : usize, is_collapsed : bool, children : usize| {
+    move |siv: &mut Cursive, row: usize, is_collapsed: bool, children: usize| {
         // debug!("dir tree on collapse callback at {:}, ic = {:}. children = {:}", row,
         // is_collapsed, children);
 
         let mut file_dialog = get_file_dialog(siv, &file_dialog_handle);
-        let mut tree_view : ViewRef<TreeViewType> = file_dialog.tree_view();
+        let mut tree_view: ViewRef<TreeViewType> = file_dialog.tree_view();
         //the line below looks complicated, but it boils down to copying Rc<LazyTreeNode>, so view
         // borrow can end immediately.
         let item = (*tree_view).borrow_item(row).unwrap().clone();
 
         if is_collapsed == false {
-            let mut dir_vec : Vec<TreeNodeRef> = Vec::new();
-            let mut file_vec : Vec<TreeNodeRef> = Vec::new();
-
+            let mut dir_vec: Vec<TreeNodeRef> = Vec::new();
+            let mut file_vec: Vec<TreeNodeRef> = Vec::new();
 
             let children = item.children();
 
@@ -237,19 +243,18 @@ fn get_dir_tree_on_collapse_switch_callback(
                 }
             }
 
-//            dir_vec.sort();
+            //            dir_vec.sort();
             for dir in dir_vec.iter() {
                 tree_view.insert_container_item(dir.clone(), Placement::LastChild, row);
             }
 
             if files_visible {
-//                file_vec.sort();
+                //                file_vec.sort();
 
                 for file in file_vec.iter() {
                     tree_view.insert_item(file.clone(), Placement::LastChild, row);
                 }
             }
-
         } else {
             // TODO(njskalski) - possible bug in cursive_tree_view: removal of these set_collapsed
             // calls leads to cursive_tree_view::draw crash. It seems like there is an
@@ -265,18 +270,16 @@ fn get_dir_tree_on_collapse_switch_callback(
 }
 
 //TODO(njskalski) add files support to work with out-of-FileDialog project-treeview
-fn get_dir_tree_on_select_callback(
-    file_dialog_handle : ViewHandle,
-) -> impl Fn(&mut Cursive, usize) {
-    move |siv : &mut Cursive, row : usize| {
+fn get_dir_tree_on_select_callback(file_dialog_handle: ViewHandle) -> impl Fn(&mut Cursive, usize) {
+    move |siv: &mut Cursive, row: usize| {
         // debug!("dir tree on select callback at {:}", row);
         let mut file_dialog = get_file_dialog(siv, &file_dialog_handle);
-        let mut view : ViewRef<TreeViewType> = file_dialog.tree_view();
+        let mut view: ViewRef<TreeViewType> = file_dialog.tree_view();
         //the line below looks complicated, but it boils down to copying Rc<LazyTreeNode>, so view
         // borrow can end immediately.
         let item: TreeNodeRef = (*view).borrow_item(row).unwrap().clone();
 
-        let mut file_list_view : ViewRef<SelectViewType> = file_dialog.file_list_view();
+        let mut file_list_view: ViewRef<SelectViewType> = file_dialog.file_list_view();
         file_list_view.clear();
 
         if !item.is_dir() {
@@ -290,22 +293,22 @@ fn get_dir_tree_on_select_callback(
             }
         }
 
-//        file_vec.sort();
+        //        file_vec.sort();
         for file in file_vec.iter() {
             file_list_view.add_item(file.to_string(), file.clone());
         }
     }
 }
 
-fn get_file_dialog(siv : &mut Cursive, file_dialog_handle : &ViewHandle) -> ViewRef<FileDialog> {
+fn get_file_dialog(siv: &mut Cursive, file_dialog_handle: &ViewHandle) -> ViewRef<FileDialog> {
     siv.find_id::<FileDialog>(&file_dialog_handle.to_string()).unwrap()
 }
 
 fn get_file_list_on_submit(
-    file_dialog_handle : ViewHandle,
-    is_file_open : bool,
+    file_dialog_handle: ViewHandle,
+    is_file_open: bool,
 ) -> impl Fn(&mut Cursive, &TreeNodeRef) -> () {
-    move |siv : &mut Cursive, item : &TreeNodeRef| {
+    move |siv: &mut Cursive, item: &TreeNodeRef| {
         // TODO(njskalski): for some reason if the line below is uncommented (and shadowing ones
         // are disabled) the unwrap inside get_path_op fails. Investigate why.
         // let mut file_view : ViewRef<FileDialog> =
@@ -314,22 +317,22 @@ fn get_file_list_on_submit(
             let mut file_view = get_file_dialog(siv, &file_dialog_handle);
 
             if item.is_file() {
-                file_view.result = Some(Ok(FileDialogResult::FileOpen(item.path().unwrap().to_owned())));
+                file_view.result =
+                    Some(Ok(FileDialogResult::FileOpen(item.path().unwrap().to_owned())));
             } else {
                 panic!("Expected only FileNodes on file_list.");
             }
-
         } else {
             siv.focus_id(EDIT_VIEW_ID);
-            let mut edit_view : ViewRef<EditView> = siv.find_id::<EditView>(EDIT_VIEW_ID).unwrap();
+            let mut edit_view: ViewRef<EditView> = siv.find_id::<EditView>(EDIT_VIEW_ID).unwrap();
             edit_view.borrow_mut().set_content(item.to_string());
         }
     }
 }
 
-fn get_path_op(siv : &mut Cursive, file_dialog_handle : &ViewHandle) -> Option<PathBuf> {
-    let mut file_dialog : ViewRef<FileDialog> = get_file_dialog(siv, file_dialog_handle);
-    let mut tree_view : ViewRef<TreeViewType> = file_dialog.tree_view();
+fn get_path_op(siv: &mut Cursive, file_dialog_handle: &ViewHandle) -> Option<PathBuf> {
+    let mut file_dialog: ViewRef<FileDialog> = get_file_dialog(siv, file_dialog_handle);
+    let mut tree_view: ViewRef<TreeViewType> = file_dialog.tree_view();
     let row = tree_view.row().unwrap();
     let item = tree_view.borrow_item(row).unwrap().clone();
 
@@ -343,20 +346,20 @@ fn get_path_op(siv : &mut Cursive, file_dialog_handle : &ViewHandle) -> Option<P
     }
 }
 
-fn get_on_file_edit_save_submit(file_dialog_handle : ViewHandle) -> impl Fn(&mut Cursive, &str) {
-    move |siv : &mut Cursive, file_name : &str| {
+fn get_on_file_edit_save_submit(file_dialog_handle: ViewHandle) -> impl Fn(&mut Cursive, &str) {
+    move |siv: &mut Cursive, file_name: &str| {
         if file_name.len() == 0 {
             return;
         }
 
         if let Some(mut path) = get_path_op(siv, &file_dialog_handle) {
-            let mut file_view : ViewRef<FileDialog> = get_file_dialog(siv, &file_dialog_handle);
+            let mut file_view: ViewRef<FileDialog> = get_file_dialog(siv, &file_dialog_handle);
             path.push(file_name);
             let buffer_id = file_view.get_buffer_id_op().unwrap();
             file_view.result = Some(Ok(FileDialogResult::FileSave(buffer_id, path)));
         } else {
             return; // no folder selected, no prefix. Just ignoring the "submit" for now.
-            // TODO(njskalski): add a popup? error message?
+                    // TODO(njskalski): add a popup? error message?
         };
     }
 }
@@ -405,25 +408,31 @@ fn get_on_file_edit_save_submit(file_dialog_handle : ViewHandle) -> impl Fn(&mut
 //}
 
 impl FileDialog {
-    pub fn new(
-        ch : IChannel,
-        variant : FileDialogVariant,
-        root : TreeNodeRef,
-        settings : Ref<Settings>,
-    ) -> IdView<Self> {
+    pub fn new<T>(
+        ch: IChannel,
+        variant: FileDialogVariant,
+        root: TreeNodeRef,
+        settings_ref: T,
+    ) -> IdView<Self>
+    where
+        T: Deref<Target = Settings>,
+    {
         debug!("creating file view with variant {:?}", variant);
 
         let handle = ViewHandle::new();
 
         // TODO(njskalski) implement styling with new solution when Cursive updates.
+
+        let settings = settings_ref.borrow();
+
         let primary_text_color = settings.get_color("theme/file_view/primary_text_color");
         let selected_bg_color = settings.get_color("theme/file_view/selected_background");
         let non_selected_bg_color = settings.get_color("theme/file_view/non_selected_background");
 
-        let printer_to_theme : PrinterModifierType = Rc::new(Box::new(move |p : &Printer| {
+        let printer_to_theme: PrinterModifierType = Rc::new(Box::new(move |p: &Printer| {
             let mut palette = theme::Palette::default();
 
-            let theme = Theme { shadow : false, borders : BorderStyle::None, palette : palette };
+            let theme = Theme { shadow: false, borders: BorderStyle::None, palette: palette };
 
             theme
         }));
@@ -433,28 +442,26 @@ impl FileDialog {
 
         // TODO(njskalski) add a separate theme to disable color inversion effect on edit.
 
-        let title : &'static str = variant.get_title();
+        let title: &'static str = variant.get_title();
 
         vertical_layout.add_child(ColorViewWrapper::new(
             Layer::new(TextView::new(title)),
             printer_to_theme.clone(),
         ));
 
-        let mut dir_tree : TreeViewType = TreeView::new();
+        let mut dir_tree: TreeViewType = TreeView::new();
 
         dir_tree.insert_container_item(root, Placement::LastChild, 0);
         dir_tree.set_collapsed(0, true);
         dir_tree.set_on_collapse(get_dir_tree_on_collapse_switch_callback(handle.clone(), false));
         dir_tree.set_on_select(get_dir_tree_on_select_callback(handle.clone()));
 
-
-
         horizontal_layout.add_child(ColorViewWrapper::new(
             BoxView::with_fixed_size(DIR_TREE_VIEW_SIZE, IdView::new(DIR_TREE_VIEW_ID, dir_tree)),
             printer_to_theme.clone(),
         ));
 
-        let mut file_select : SelectViewType = SelectView::new().v_align(VAlign::Top);
+        let mut file_select: SelectViewType = SelectView::new().v_align(VAlign::Top);
         file_select.set_on_submit(get_file_list_on_submit(handle.clone(), variant.is_open()));
 
         horizontal_layout.add_child(ColorViewWrapper::new(
@@ -478,7 +485,7 @@ impl FileDialog {
             }
         };
 
-        let file_view = FileDialog { variant, vertical_layout, result : None, handle };
+        let file_view = FileDialog { variant, vertical_layout, result: None, handle };
 
         IdView::new(file_view.handle(), file_view)
     }
@@ -507,19 +514,19 @@ impl FileDialog {
 
 // TODO(njskalski) maybe just use ViewWrapper?
 impl View for FileDialog {
-    fn draw(&self, printer : &Printer) {
+    fn draw(&self, printer: &Printer) {
         self.vertical_layout.draw(&printer);
     }
 
-    fn call_on_any<'a>(&mut self, s : &Selector, cb : Box<FnMut(&mut Any) + 'a>) {
+    fn call_on_any<'a>(&mut self, s: &Selector, cb: Box<FnMut(&mut Any) + 'a>) {
         self.vertical_layout.call_on_any(s, cb); //this view is transparent
     }
 
-    fn on_event(&mut self, event : Event) -> EventResult {
+    fn on_event(&mut self, event: Event) -> EventResult {
         self.vertical_layout.on_event(event)
     }
 
-    fn required_size(&mut self, constraint : Vec2) -> Vec2 {
+    fn required_size(&mut self, constraint: Vec2) -> Vec2 {
         self.vertical_layout.required_size(constraint)
     }
 
@@ -527,15 +534,15 @@ impl View for FileDialog {
         self.vertical_layout.needs_relayout()
     }
 
-    fn layout(&mut self, size : Vec2) {
+    fn layout(&mut self, size: Vec2) {
         self.vertical_layout.layout(size)
     }
 
-    fn focus_view(&mut self, sel : &Selector) -> Result<(), ()> {
+    fn focus_view(&mut self, sel: &Selector) -> Result<(), ()> {
         self.vertical_layout.focus_view(sel)
     }
 
-    fn take_focus(&mut self, source : Direction) -> bool {
+    fn take_focus(&mut self, source: Direction) -> bool {
         self.vertical_layout.take_focus(source)
     }
 }
@@ -544,15 +551,15 @@ impl View for FileDialog {
 mod tests {
 
     use super::*;
-    use cursive::Cursive;
-    use std::sync::mpsc;
-    use dir_tree::tests::*;
-    use std::sync::mpsc::Receiver;
-    use file_dialog::FileDialog;
-    use cursive::backend::puppet::observed::ObservedScreen;
-    use cursive::backend::puppet::observed_screen_view::ObservedScreenView;
     use crossbeam_channel;
     use cursive::backend::puppet::observed::ObservedCell;
+    use cursive::backend::puppet::observed::ObservedScreen;
+    use cursive::backend::puppet::observed_screen_view::ObservedScreenView;
+    use cursive::Cursive;
+    use dir_tree::tests::*;
+    use file_dialog::FileDialog;
+    use std::sync::mpsc;
+    use std::sync::mpsc::Receiver;
     use std::time::Duration;
 
     /*
@@ -570,27 +577,25 @@ mod tests {
     fn get_fake_filesystem() -> TreeNodeRef {
         fake_root(vec![
             fake_dir("/home/laura", vec![]),
-                fake_dir("/home/laura/subdirectory2", vec![]),
-                fake_dir("/home/laura/subdirectory2", vec![
-                    fake_file("file1"),
-                    fake_file("file2.txt"),
-                    fake_file("file3.rs"),
-                ]),
+            fake_dir("/home/laura/subdirectory2", vec![]),
+            fake_dir(
+                "/home/laura/subdirectory2",
+                vec![fake_file("file1"), fake_file("file2.txt"), fake_file("file3.rs")],
+            ),
             fake_file("file4.ini"),
-            fake_dir("/home/bob", vec![
-                fake_file(".file6.hidden")
-            ]),
+            fake_dir("/home/bob", vec![fake_file(".file6.hidden")]),
         ])
     }
 
     struct BasicSetup {
-        pub settings : Rc<Settings>,
-        pub receiver : Receiver<IEvent>,
-        pub filesystem : TreeNodeRef,
-//        pub view : ViewRef<FileDialog>,
-        pub siv : Cursive,
-        pub screen_sink : crossbeam_channel::Receiver<ObservedScreen>,
-        pub input : crossbeam_channel::Sender<Option<Event>>,
+        pub settings: Rc<Settings>,
+        pub receiver: Receiver<IEvent>,
+        pub filesystem: TreeNodeRef,
+        //        pub view : ViewRef<FileDialog>,
+        pub siv: Cursive,
+        pub screen_sink: crossbeam_channel::Receiver<ObservedScreen>,
+        pub input: crossbeam_channel::Sender<Option<Event>>,
+        last_screen: RefCell<Option<ObservedScreen>>,
     }
 
     impl BasicSetup {
@@ -601,13 +606,21 @@ mod tests {
             siv.step();
         }
 
-        fn draw_screen(&self, screen : &ObservedScreen) {
+        fn draw_screen(&self, screen: &ObservedScreen) {
             println!("captured screen:");
 
+            print!("x");
+            for x in 0..screen.size().x {
+                print!("{}", x % 10);
+            }
+            println!("x");
+
             for y in 0..screen.size().y {
+                print!("{}", y % 10);
+
                 for x in 0..screen.size().x {
-                    let pos = Vec2::new(x,y);
-                    let cell_op : &Option<ObservedCell> = &screen[&pos];
+                    let pos = Vec2::new(x, y);
+                    let cell_op: &Option<ObservedCell> = &screen[&pos];
                     if cell_op.is_some() {
                         let cell = cell_op.as_ref().unwrap();
 
@@ -622,74 +635,124 @@ mod tests {
                                 print!("{}", letter);
                             }
                         }
-
                     } else {
                         print!(".");
                     }
                 }
+                print!("|");
                 println!();
             }
+
+            print!("x");
+            for x in 0..screen.size().x {
+                print!("-");
+            }
+            println!("x");
+        }
+
+        fn last_screen(&self) -> Option<ObservedScreen> {
+            while let Ok(screen) = self.screen_sink.recv_timeout(Duration::new(0, 0)) {
+                self.last_screen.replace(Some(screen));
+            }
+
+            self.last_screen.borrow().clone()
         }
 
         fn dump_debug(&self) {
+            self.last_screen().as_ref().map(|s| {
+                self.draw_screen(s);
+            });
+        }
 
-//            let mut screen = self.screen_sink.recv().unwrap();
-//            self.draw_screen(&screen);
-//            screen = self.screen_sink.recv().unwrap();
-//            self.draw_screen(&screen);
-
-            while let Ok(screen) = self.screen_sink.recv_timeout(Duration::new(0,0)) {
-                self.draw_screen(&screen);
-            }
+        fn hit_keystroke(&mut self, key: Key) {
+            self.input.send(Some(Event::Key(key))).unwrap();
+            self.siv.step();
         }
     }
 
-    fn basic_setup(variant : FileDialogVariant) -> BasicSetup {
+    fn basic_setup(variant: FileDialogVariant) -> BasicSetup {
         let settings = Rc::new(Settings::load_default());
         let (sender, receiver) = mpsc::channel::<IEvent>();
         let filesystem = get_fake_filesystem();
-        let dialog = FileDialog::new(sender, variant, filesystem.clone(), &settings);
+        let dialog = FileDialog::new(sender, variant, filesystem.clone(), settings.clone());
         let handle = dialog.handle();
 
-        let backend = backend::puppet::Backend::init();
+        let size = Vec2::new(80,16); // TODO(njskalski): un-hardcode it.
+
+        let backend = backend::puppet::Backend::init(Some(size));
         let sink = backend.stream();
         let input = backend.input();
 
-        let mut siv = Cursive::new(|| { backend });
-//        let mut siv = Cursive::default();
-        siv.add_layer(dialog);
+        let mut siv = Cursive::new(|| backend);
+        //        let mut siv = Cursive::default();
+        siv.add_fullscreen_layer(dialog);
 
-//        let view : ViewRef<FileDialog> = siv.find_id(&handle.to_string()).unwrap();
+        //        let view : ViewRef<FileDialog> = siv.find_id(&handle.to_string()).unwrap();
 
         siv.focus_id(&handle.to_string());
+
+        siv.quit();
+        input.send(Some(Event::Refresh)).unwrap();
+        siv.step();
 
         BasicSetup {
             settings,
             receiver,
             filesystem,
-//            view,
+            //            view,
             siv,
-            screen_sink : sink,
-            input
+            screen_sink: sink,
+            input,
+            last_screen: RefCell::new(None),
         }
     }
 
     #[test]
-    fn first_test_ever() {
+    fn displays_open_file_header() {
+        let mut s = basic_setup(FileDialogVariant::OpenFile(None));
+        let screen = s.last_screen().unwrap();
+        assert_eq!(screen.find_occurences("Open file").len(), 1);
+        assert_eq!(screen.find_occurences("Save file").len(), 0);
+    }
+
+    #[test]
+    fn displays_save_file_header() {
+        let mut s = basic_setup(FileDialogVariant::SaveAsFile(BufferId::new(), None, None));
+        let screen = s.last_screen().unwrap();
+        assert_eq!(screen.find_occurences("Open file").len(), 0);
+        assert_eq!(screen.find_occurences("Save file").len(), 1);
+    }
+
+    #[test]
+    fn displays_root() {
+        let mut s = basic_setup(FileDialogVariant::OpenFile(None));
+        let screen = s.last_screen().unwrap();
+
+        let hits = screen.find_occurences("▸");
+        assert_eq!(hits.len(), 1);
+
+        let hit = hits.first().unwrap().expanded_line(0, 7);
+        assert_eq!(hit.to_string(), "▸ <root>".to_owned());
+    }
+
+    #[test]
+    fn expands_root() {
         let mut s = basic_setup(FileDialogVariant::OpenFile(None));
 
-        s.siv.quit(); // just to stop the loop.
+        {
+            let screen = s.last_screen().unwrap();
+            let hits = screen.find_occurences("▸ <root>");
+            let hit = hits.first().unwrap();
+        }
 
-        s.input.send(Some(Event::Key(Key::Enter)));
+        s.hit_keystroke(Key::Enter);
+        s.hit_keystroke(Key::Enter);
 
-        s.siv.step();
-        s.input.send(Some(Event::Key(Key::Enter)));
-        s.siv.step();
-        s.input.send(Some(Event::Refresh));
-        s.siv.step();
-
-
-//        assert_eq!(s.view.is_displayed(), true);
+//        {
+//            let screen = s.last_screen().unwrap();
+//            let hits = screen.find_occurences("▸ <root>");
+//            let hit = hits.first().unwrap();
+//        }
 
         s.dump_debug();
     }
