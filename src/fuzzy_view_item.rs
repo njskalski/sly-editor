@@ -39,14 +39,14 @@ use std::path::PathBuf;
 
 #[derive(Clone, Debug)]
 pub struct ViewItem {
-    header : String,
-    desc :   Option<String>,
-    marker : String,
+    header: String,
+    desc: Option<String>,
+    marker: String,
 }
 
 impl ViewItem {
-    pub fn new(header : String, desc : Option<String>, marker : String) -> Self {
-        ViewItem { header : header, desc : desc, marker : marker }
+    pub fn new(header: String, desc: Option<String>, marker: String) -> Self {
+        ViewItem { header: header, desc: desc, marker: marker }
     }
 
     pub fn get_header(&self) -> &String {
@@ -67,7 +67,7 @@ impl ViewItem {
 }
 
 impl PartialEq for ViewItem {
-    fn eq(&self, other : &ViewItem) -> bool {
+    fn eq(&self, other: &ViewItem) -> bool {
         self.marker == other.marker
     }
 }
@@ -77,31 +77,31 @@ impl Eq for ViewItem {}
 pub fn get_dummy_items() -> Vec<ViewItem> {
     vec![
         ViewItem {
-            header : "header 1".to_string(),
-            desc :   Some("some boring desc1".to_string()),
-            marker : "1".to_string(),
+            header: "header 1".to_string(),
+            desc: Some("some boring desc1".to_string()),
+            marker: "1".to_string(),
         },
         ViewItem {
-            header : "hakuna 2".to_string(),
-            desc :   Some("some boring desc2".to_string()),
-            marker : "2".to_string(),
+            header: "hakuna 2".to_string(),
+            desc: Some("some boring desc2".to_string()),
+            marker: "2".to_string(),
         },
         ViewItem {
-            header : "matata 3".to_string(),
-            desc :   Some("some boringmultiline\ndesc3".to_string()),
-            marker : "3".to_string(),
+            header: "matata 3".to_string(),
+            desc: Some("some boringmultiline\ndesc3".to_string()),
+            marker: "3".to_string(),
         },
     ]
 }
 
-pub fn file_list_to_items(file_list : &Vec<PathBuf>) -> Vec<ViewItem> {
+pub fn file_list_to_items(file_list: &Vec<PathBuf>) -> Vec<ViewItem> {
     // TODO(njskalski) add support to new (non-existent) files.
     file_list
         .iter()
         .map(|f| ViewItem {
-            header : f.file_name().unwrap().to_string_lossy().to_string(),
-            desc :   None,
-            marker : f.to_string_lossy().to_string(),
+            header: f.file_name().unwrap().to_string_lossy().to_string(),
+            desc: None,
+            marker: f.to_string_lossy().to_string(),
         })
         .collect()
 }

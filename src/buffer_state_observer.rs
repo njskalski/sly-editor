@@ -33,12 +33,12 @@ use view_handle::ViewHandle;
 
 #[derive(Clone)]
 pub struct BufferStateObserver {
-    buffer_id :    BufferId,
-    buffer_state : Rc<RefCell<BufferState>>,
+    buffer_id: BufferId,
+    buffer_state: Rc<RefCell<BufferState>>,
 }
 
 impl BufferStateObserver {
-    pub fn new(buffer_state : Rc<RefCell<BufferState>>) -> Self {
+    pub fn new(buffer_state: Rc<RefCell<BufferState>>) -> Self {
         let buffer_id = (*buffer_state).borrow().id();
         BufferStateObserver { buffer_id, buffer_state }
     }
@@ -73,7 +73,7 @@ impl BufferStateObserver {
         self.buffer_state.borrow().get_filename()
     }
 
-    pub fn submit_edit_events_to_buffer(&self, events : Vec<content_provider::EditEvent>) {
+    pub fn submit_edit_events_to_buffer(&self, events: Vec<content_provider::EditEvent>) {
         self.buffer_state.borrow_mut().submit_edit_events(events)
     }
 }

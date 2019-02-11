@@ -41,10 +41,10 @@ use jsonrpc_core::Output;
 use languageserver_types;
 
 pub struct LspClient {
-    waiter_handle :  JoinHandle<()>,
-    is_initialized : bool,
-    i_event_sink :   IChannel,
-    channel :        (Sender<LSPEvent>, Receiver<LSPEvent>),
+    waiter_handle: JoinHandle<()>,
+    is_initialized: bool,
+    i_event_sink: IChannel,
+    channel: (Sender<LSPEvent>, Receiver<LSPEvent>),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -52,14 +52,14 @@ pub enum LSPEvent {
     Initialized,
 }
 
-const ID_INIT : u64 = 0; // it's always a first message.
-const ID_COMPLETION : u64 = 0;
+const ID_INIT: u64 = 0; // it's always a first message.
+const ID_COMPLETION: u64 = 0;
 
 impl LspClient {
     pub fn new(
-        path_to_program : &OsStr,
-        event_sink : IChannel,
-        workspace_folders : Option<&Vec<PathBuf>>,
+        path_to_program: &OsStr,
+        event_sink: IChannel,
+        workspace_folders: Option<&Vec<PathBuf>>,
     ) -> Result<LspClient, Box<Error>> {
         let workspace_folders_op = workspace_folders.map(|v| {
             v.iter()
@@ -72,13 +72,13 @@ impl LspClient {
         });
 
         let init = languageserver_types::InitializeParams {
-            process_id :             Some(u64::from(process::id())),
-            root_path :              Some("./".to_string()),
-            root_uri :               None,
-            initialization_options : None,
-            capabilities :           languageserver_types::ClientCapabilities::default(),
-            trace :                  Some(lst::TraceOption::Verbose), /* TODO(njskalski) */
-            workspace_folders :      workspace_folders_op,
+            process_id: Some(u64::from(process::id())),
+            root_path: Some("./".to_string()),
+            root_uri: None,
+            initialization_options: None,
+            capabilities: languageserver_types::ClientCapabilities::default(),
+            trace: Some(lst::TraceOption::Verbose), /* TODO(njskalski) */
+            workspace_folders: workspace_folders_op,
         };
 
         let mut lsp_command = Command::new(path_to_program);
@@ -103,7 +103,7 @@ impl LspClient {
         let lsp_sink = lsp_channel.0.clone();
 
         let handle = thread::spawn(move || {
-            let mut headers : HashMap<String, String> = HashMap::new();
+            let mut headers: HashMap<String, String> = HashMap::new();
             loop {
                 headers.clear();
                 loop {
@@ -115,7 +115,7 @@ impl LspClient {
                     if header.is_empty() {
                         break;
                     }
-                    let parts : Vec<&str> = header.split(": ").collect();
+                    let parts: Vec<&str> = header.split(": ").collect();
                     if parts.len() != 2 {
                         return;
                     }
@@ -127,7 +127,7 @@ impl LspClient {
 
                 let msg = String::from_utf8(content).unwrap();
 
-                let output : serde_json::Result<Output> = serde_json::from_str(&msg);
+                let output: serde_json::Result<Output> = serde_json::from_str(&msg);
                 debug!("dd : {:?}", &output);
                 match output {
                     Ok(jt::Output::Success(suc)) => {
@@ -153,28 +153,28 @@ impl LspClient {
         });
 
         Ok(LspClient {
-            waiter_handle :  handle,
-            is_initialized : false,
-            i_event_sink :   event_sink,
-            channel :        lsp_channel,
+            waiter_handle: handle,
+            is_initialized: false,
+            i_event_sink: event_sink,
+            channel: lsp_channel,
         })
     }
 }
 
-fn send_request<T : Write, R : lst::request::Request>(
-    write : &mut T,
-    id : u64,
-    params : R::Params,
+fn send_request<T: Write, R: lst::request::Request>(
+    write: &mut T,
+    id: u64,
+    params: R::Params,
 ) -> Result<(), io::Error>
 where
-    R::Params : serde::Serialize,
+    R::Params: serde::Serialize,
 {
     if let serde_json::value::Value::Object(params) = serde_json::to_value(params).unwrap() {
         let req = jsonrpc_core::Call::MethodCall(jsonrpc_core::MethodCall {
-            jsonrpc : Some(jsonrpc_core::Version::V2),
-            method :  R::METHOD.to_string(),
-            params :  jsonrpc_core::Params::Map(params),
-            id :      jsonrpc_core::Id::Num(id),
+            jsonrpc: Some(jsonrpc_core::Version::V2),
+            method: R::METHOD.to_string(),
+            params: jsonrpc_core::Params::Map(params),
+            id: jsonrpc_core::Id::Num(id),
         });
         debug!("sending {:?}", &req);
         let request = serde_json::to_string(&req).unwrap();
@@ -184,18 +184,18 @@ where
     }
 }
 
-fn send_notify<T : Write, R : languageserver_types::notification::Notification>(
-    write : &mut T,
-    params : R::Params,
+fn send_notify<T: Write, R: languageserver_types::notification::Notification>(
+    write: &mut T,
+    params: R::Params,
 ) -> Result<(), io::Error>
 where
-    R::Params : serde::Serialize,
+    R::Params: serde::Serialize,
 {
     if let serde_json::value::Value::Object(params) = serde_json::to_value(params).unwrap() {
         let req = jsonrpc_core::Notification {
-            jsonrpc : Some(jsonrpc_core::Version::V2),
-            method :  R::METHOD.to_string(),
-            params :  jsonrpc_core::Params::Map(params),
+            jsonrpc: Some(jsonrpc_core::Version::V2),
+            method: R::METHOD.to_string(),
+            params: jsonrpc_core::Params::Map(params),
         };
         let request = serde_json::to_string(&req).unwrap();
         write!(write, "Content-Length: {}\r\n\r\n{}", request.len(), request)

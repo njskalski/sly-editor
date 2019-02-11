@@ -68,8 +68,8 @@ use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 use view_handle::ViewHandle;
 
-const INDEX_MARGIN : usize = 1;
-const PAGE_WIDTH : usize = 80;
+const INDEX_MARGIN: usize = 1;
+const PAGE_WIDTH: usize = 80;
 
 //Cursor: offset in CHARS and "preferred column" (probably cached y coordinate, don't remember).
 type Cursor = (usize, Option<usize>);
@@ -77,16 +77,16 @@ type Cursor = (usize, Option<usize>);
 //const NEWLINE_DRAWING : char = '\u{2424}';
 
 pub struct SlyTextView {
-    channel :               IChannel, // interface feedback channel
-    buffer :                BufferStateObserver,
-    cursors :               Vec<Cursor>, // offset in CHARS, preferred column
-    position :              Vec2,        // position of upper left corner of view in file
-    last_view_size :        Option<Vec2>, //not sure if using properly
-    settings :              Rc<RefCell<Settings>>,
-    clipboard_context :     clipboard::ClipboardContext,
-    special_char_mappings : HashMap<char, char>,
-    handle :                ViewHandle,
-    syntax_highlighting :   bool, //local override of global setting.
+    channel: IChannel, // interface feedback channel
+    buffer: BufferStateObserver,
+    cursors: Vec<Cursor>,         // offset in CHARS, preferred column
+    position: Vec2,               // position of upper left corner of view in file
+    last_view_size: Option<Vec2>, //not sure if using properly
+    settings: Rc<RefCell<Settings>>,
+    clipboard_context: clipboard::ClipboardContext,
+    special_char_mappings: HashMap<char, char>,
+    handle: ViewHandle,
+    syntax_highlighting: bool, //local override of global setting.
 }
 
 impl SlyView for SlyTextView {
@@ -97,23 +97,23 @@ impl SlyView for SlyTextView {
 
 impl SlyTextView {
     pub fn new(
-        settings : Rc<RefCell<Settings>>,
-        buffer : BufferStateObserver,
-        channel : IChannel,
+        settings: Rc<RefCell<Settings>>,
+        buffer: BufferStateObserver,
+        channel: IChannel,
     ) -> IdView<Self> {
-        let syntax_highlighting : bool = settings.borrow().auto_highlighting_enabled();
+        let syntax_highlighting: bool = settings.borrow().auto_highlighting_enabled();
 
         let mut view = SlyTextView {
-            channel :               channel,
-            buffer :                buffer,
-            cursors :               vec![(0, None)],
-            position :              Vec2::new(0, 0),
-            last_view_size :        None,
-            settings :              settings,
-            clipboard_context :     clipboard::ClipboardProvider::new().unwrap(),
-            special_char_mappings : hashmap!['\n' => '\u{21B5}'],
-            handle :                ViewHandle::new(),
-            syntax_highlighting :   syntax_highlighting,
+            channel: channel,
+            buffer: buffer,
+            cursors: vec![(0, None)],
+            position: Vec2::new(0, 0),
+            last_view_size: None,
+            settings: settings,
+            clipboard_context: clipboard::ClipboardProvider::new().unwrap(),
+            special_char_mappings: hashmap!['\n' => '\u{21B5}'],
+            handle: ViewHandle::new(),
+            syntax_highlighting: syntax_highlighting,
         };
 
         if syntax_highlighting && !view.syntax_highlighting_on() {
@@ -131,7 +131,7 @@ impl SlyTextView {
         &self.buffer
     }
 
-    fn submit_events(&mut self, events : Vec<EditEvent>) {
+    fn submit_events(&mut self, events: Vec<EditEvent>) {
         self.channel.send(IEvent::BufferEditEvent(self.buffer.buffer_id(), events)).unwrap()
     }
 
@@ -145,7 +145,7 @@ impl SlyTextView {
     }
 
     /// Returns value syntax highlighting is set to. May be different than requested.
-    pub fn set_syntax_highlighting(&mut self, enabled : bool) -> bool {
+    pub fn set_syntax_highlighting(&mut self, enabled: bool) -> bool {
         if enabled {
             self.syntax_highlighting = true;
             let mut content = self.buffer.borrow_mut_content();
@@ -159,10 +159,10 @@ impl SlyTextView {
 
 //TODO(njskalski) handle too small space.
 impl View for SlyTextView {
-    fn draw(&self, printer : &Printer) {
+    fn draw(&self, printer: &Printer) {
         let content = self.buffer.borrow_content();
 
-        let line_count : usize = content.get_lines().len_lines();
+        let line_count: usize = content.get_lines().len_lines();
         let index_length = line_count.to_string().len();
 
         let cursors = &self.cursors; //: Vec<Vec2> = textWindow.filter_cursors(&self.cursors);
@@ -174,7 +174,7 @@ impl View for SlyTextView {
         for line_no in
             (self.position.y)..(cmp::min(lines.len_lines(), self.position.y + view_size.y))
         {
-            let mut x : usize = 0;
+            let mut x: usize = 0;
 
             let y = line_no - self.position.y;
             let line_desc = (line_no + 1).to_string();
@@ -220,7 +220,7 @@ impl View for SlyTextView {
                 let char_offset = line_offset + char_idx;
 
                 let mut special_char = false;
-                let symbol : char = if line.len_chars() > char_idx {
+                let symbol: char = if line.len_chars() > char_idx {
                     let c = line.char(char_idx);
                     if !self.special_char_mappings.contains_key(&c) {
                         c
@@ -232,7 +232,7 @@ impl View for SlyTextView {
                     ' '
                 };
 
-                let color_style : ColorStyle = if self.had_cursor_at(&char_offset) {
+                let color_style: ColorStyle = if self.had_cursor_at(&char_offset) {
                     ColorStyle::highlight()
                 } else {
                     if char_idx <= 80 && !special_char {
@@ -241,7 +241,7 @@ impl View for SlyTextView {
                         match &rich_line_op {
                             None => {}
                             Some(rich_line) => {
-                                rich_line.get_color_at(char_idx).map(|color : Color| {
+                                rich_line.get_color_at(char_idx).map(|color: Color| {
                                     someColor.front = ColorType::Color(color);
                                 });
                             }
@@ -273,16 +273,16 @@ impl View for SlyTextView {
         //end of line ------------------------------------------------------------------------
     }
 
-    fn required_size(&mut self, constraint : Vec2) -> Vec2 {
+    fn required_size(&mut self, constraint: Vec2) -> Vec2 {
         self.last_view_size = Some(constraint);
         //        debug!("got constraint {:?}", constraint);
         constraint //now we just take whole available space
     }
 
-    fn on_event(&mut self, event : Event) -> EventResult {
+    fn on_event(&mut self, event: Event) -> EventResult {
         let text_keybindings = self.settings_ref().get_keybindings("text");
         if text_keybindings.contains_key(&event) {
-            let action : &String = &text_keybindings[&event];
+            let action: &String = &text_keybindings[&event];
 
             let mut consumed = true;
             match action.as_str() {
@@ -310,7 +310,7 @@ impl View for SlyTextView {
 
         let text_view_keybindings = self.settings_ref().get_keybindings("text_view");
         if text_view_keybindings.contains_key(&event) {
-            let action : &String = &text_view_keybindings[&event];
+            let action: &String = &text_view_keybindings[&event];
 
             let mut consumed = true;
             match action.as_str() {
@@ -379,8 +379,8 @@ impl SlyTextView {
     fn has_cursors_outside_view(&self) -> bool {
         let content = self.buffer.borrow_content();
         let rope = content.get_lines();
-        let first_offset : usize = rope.line_to_char(self.position.y);
-        let last_offset : usize =
+        let first_offset: usize = rope.line_to_char(self.position.y);
+        let last_offset: usize =
             rope.line_to_char(self.position.y + self.last_view_size.unwrap().y) - 1;
 
         for c in &self.cursors {
@@ -405,11 +405,11 @@ impl SlyTextView {
     }
 
     // These are work-in-progress implementations.
-    fn add_text(&mut self, text : &String) {
-        let mut edit_events : Vec<EditEvent> = self
+    fn add_text(&mut self, text: &String) {
+        let mut edit_events: Vec<EditEvent> = self
             .cursors
             .iter()
-            .map(|&cursor| EditEvent::Insert { offset : cursor.0, content : text.clone() })
+            .map(|&cursor| EditEvent::Insert { offset: cursor.0, content: text.clone() })
             .collect();
 
         let text_len =
@@ -420,7 +420,7 @@ impl SlyTextView {
         self.mod_all_cursors(text_len as isize);
     }
 
-    fn move_cursor_to_line(rope : &Rope, c : &mut Cursor, other_line : usize) {
+    fn move_cursor_to_line(rope: &Rope, c: &mut Cursor, other_line: usize) {
         // let rope = &self.buffer.content().get_lines();
         assert!(other_line < rope.len_lines());
         let line = rope.char_to_line(c.0);
@@ -443,11 +443,11 @@ impl SlyTextView {
         c.0 = rope.line_to_char(other_line) + pos_in_line_below;
     }
 
-    fn move_all_cursors_up(&mut self, len : usize) {
+    fn move_all_cursors_up(&mut self, len: usize) {
         assert!(len > 0);
         {
             let content = self.buffer.borrow_content();
-            let rope : &Rope = content.get_lines();
+            let rope: &Rope = content.get_lines();
             for mut c in &mut self.cursors {
                 let line = rope.char_to_line(c.0);
                 if line == 0 {
@@ -462,11 +462,11 @@ impl SlyTextView {
         self.make_sure_first_cursor_visible();
     }
 
-    fn move_all_cursors_down(&mut self, len : usize) {
+    fn move_all_cursors_down(&mut self, len: usize) {
         assert!(len > 0);
         {
             let content = self.buffer.borrow_content();
-            let rope : &Rope = content.get_lines();
+            let rope: &Rope = content.get_lines();
             for mut c in &mut self.cursors {
                 let line = rope.char_to_line(c.0);
                 if line == rope.len_lines() - 1 {
@@ -512,14 +512,14 @@ impl SlyTextView {
     }
 
     fn backspace(&mut self) {
-        let mut edit_events : Vec<EditEvent> = self
+        let mut edit_events: Vec<EditEvent> = self
             .cursors
             .iter()
             .filter(|&cursor| cursor.0 > 0)
             .map(|&cursor| EditEvent::Change {
-                offset :  cursor.0 - 1,
-                length :  1,
-                content : "".to_string(),
+                offset: cursor.0 - 1,
+                length: 1,
+                content: "".to_string(),
             })
             .collect();
 
@@ -529,7 +529,7 @@ impl SlyTextView {
         self.submit_events(edit_events);
     }
 
-    fn mod_all_cursors(&mut self, diff : isize) {
+    fn mod_all_cursors(&mut self, diff: isize) {
         for (i, c) in self.cursors.iter_mut().enumerate() {
             if diff > 0 {
                 c.0 += (diff as usize * (i + 1));
@@ -542,7 +542,7 @@ impl SlyTextView {
         self.reduce_cursor_duplicates();
     }
 
-    fn had_cursor_at(&self, offset : &usize) -> bool {
+    fn had_cursor_at(&self, offset: &usize) -> bool {
         for ref c in &self.cursors {
             if c.0 == *offset {
                 return true;

@@ -25,7 +25,7 @@ limitations under the License.
 // - plugin states are to be lost in first versions
 // - I am heading to MVP.
 
-const DEBUG : bool = false;
+const DEBUG: bool = false;
 
 use ignore::gitignore;
 use serde_json;
@@ -72,17 +72,17 @@ use view_handle::ViewHandle;
 use std::borrow::*;
 
 pub struct AppState {
-    buffers_to_load : VecDeque<PathBuf>,
-    file_index :      Arc<RefCell<FuzzyIndex>>,
+    buffers_to_load: VecDeque<PathBuf>,
+    file_index: Arc<RefCell<FuzzyIndex>>,
     /* because searches are mutating the cache TODO this can be solved with "interior
      * mutability", as other caches in this app */
-    dir_and_files_tree :     TreeNodeRef,
-    get_first_buffer_guard : Cell<bool>,
-    directories :            Vec<PathBuf>,
+    dir_and_files_tree: TreeNodeRef,
+    get_first_buffer_guard: Cell<bool>,
+    directories: Vec<PathBuf>,
     /* it's a straigthforward copy of arguments used to guess "workspace" parameter for
      * languageserver */
-    loaded_buffers : HashMap<BufferId, Rc<RefCell<BufferState>>>,
-    settings :       Rc<RefCell<Settings>>,
+    loaded_buffers: HashMap<BufferId, Rc<RefCell<BufferState>>>,
+    settings: Rc<RefCell<Settings>>,
 }
 
 impl AppState {
@@ -90,7 +90,7 @@ impl AppState {
     pub fn buffer_index(&self) -> Arc<RefCell<BufferIndex>> {
         // TODO(njskalski): add cache.
 
-        let observers : Vec<BufferStateObserver> =
+        let observers: Vec<BufferStateObserver> =
             self.loaded_buffers.values().map(|v| BufferStateObserver::new(v.clone())).collect();
 
         Arc::new(RefCell::new(BufferIndex::new(observers)))
@@ -103,8 +103,8 @@ impl AppState {
 
     /// Returns list of BufferIds associated with given path.
     /// Complexity: O(n), can be optimised later.
-    fn get_buffers_for_path(&self, lookup_path : &Path) -> Vec<BufferId> {
-        let mut result : Vec<BufferId> = Vec::new();
+    fn get_buffers_for_path(&self, lookup_path: &Path) -> Vec<BufferId> {
+        let mut result: Vec<BufferId> = Vec::new();
         for (buffer_id, buffer_state) in &self.loaded_buffers {
             if (**buffer_state).borrow().get_path().map(|state_path| state_path.eq(lookup_path))
                 == Some(true)
@@ -124,15 +124,15 @@ impl AppState {
         self.dir_and_files_tree.clone()
     }
 
-    pub fn schedule_file_for_load(&mut self, file_path : PathBuf) {
+    pub fn schedule_file_for_load(&mut self, file_path: PathBuf) {
         self.buffers_to_load.push_back(file_path);
     }
 
-    pub fn buffer_obs(&self, id : &BufferId) -> Option<BufferStateObserver> {
+    pub fn buffer_obs(&self, id: &BufferId) -> Option<BufferStateObserver> {
         self.loaded_buffers.get(id).map(|b| BufferStateObserver::new(b.clone()))
     }
 
-    pub fn save_buffer_as(&mut self, id : &BufferId, path : PathBuf) -> Result<(), io::Error> {
+    pub fn save_buffer_as(&mut self, id: &BufferId, path: PathBuf) -> Result<(), io::Error> {
         let buffer_ptr = self.loaded_buffers.get(id).unwrap();
         let mut buffer = (**buffer_ptr).borrow_mut();
         buffer.save(Some(path))
@@ -140,7 +140,7 @@ impl AppState {
 
     /// As of this time, it does not re-open file that is already opened, just returns buffer id
     /// instead.
-    pub fn open_or_get_file(&mut self, path : &Path) -> Result<BufferId, io::Error> {
+    pub fn open_or_get_file(&mut self, path: &Path) -> Result<BufferId, io::Error> {
         let buffers = self.get_buffers_for_path(path);
         if buffers.is_empty() {
             self.open_file(path)
@@ -157,9 +157,9 @@ impl AppState {
     }
 
     /// Opens file, not checking if a file is opened in another buffer. Intentionally private.
-    fn open_file(&mut self, path : &Path) -> Result<BufferId, io::Error> {
+    fn open_file(&mut self, path: &Path) -> Result<BufferId, io::Error> {
         // TODO(njskalski): add delayed load (promise)
-        let autohighlight : bool = self.settings_ref().auto_highlighting_enabled();
+        let autohighlight: bool = self.settings_ref().auto_highlighting_enabled();
         let buffer = BufferState::open(path, ExistPolicy::MustExist)?;
         let id = (*buffer).borrow().id();
         self.loaded_buffers.insert(id.clone(), buffer);
@@ -173,7 +173,7 @@ impl AppState {
         }
         self.get_first_buffer_guard.set(true);
 
-        let buffer : Rc<RefCell<BufferState>> = if self.buffers_to_load.is_empty() {
+        let buffer: Rc<RefCell<BufferState>> = if self.buffers_to_load.is_empty() {
             /// if there is no buffer to load, we create an unnamed one.
             BufferState::new()
         } else {
@@ -187,10 +187,10 @@ impl AppState {
         Ok(self.buffer_obs(&id).unwrap())
     }
 
-    pub fn new(directories : Vec<PathBuf>, files : Vec<PathBuf>, enable_gitignore : bool) -> Self {
+    pub fn new(directories: Vec<PathBuf>, files: Vec<PathBuf>, enable_gitignore: bool) -> Self {
         let settings = Settings::load_default();
 
-        let mut files_to_index : Vec<PathBuf> = files.to_owned();
+        let mut files_to_index: Vec<PathBuf> = files.to_owned();
         debug!("enable_gitignore == {}", enable_gitignore);
 
         let file_index_limit = settings.file_index_limit();
@@ -202,18 +202,16 @@ impl AppState {
         //        debug!("file index:\n{:?}", &files_to_index);
 
         let file_index_items = file_list_to_items(&files_to_index);
-        let buffers_to_load : VecDeque<PathBuf> = files.iter().map(|x| x.clone()).collect();
-
-
+        let buffers_to_load: VecDeque<PathBuf> = files.iter().map(|x| x.clone()).collect();
 
         AppState {
-            buffers_to_load :        buffers_to_load,
-            loaded_buffers :         HashMap::new(),
-            file_index :             Arc::new(RefCell::new(FuzzyIndex::new(file_index_items))),
-            dir_and_files_tree :     LazyTreeNode::new(directories.clone(), files).as_ref(),
-            get_first_buffer_guard : Cell::new(false),
-            directories :            directories,
-            settings :               Rc::new(RefCell::new(settings))
+            buffers_to_load: buffers_to_load,
+            loaded_buffers: HashMap::new(),
+            file_index: Arc::new(RefCell::new(FuzzyIndex::new(file_index_items))),
+            dir_and_files_tree: LazyTreeNode::new(directories.clone(), files).as_ref(),
+            get_first_buffer_guard: Cell::new(false),
+            directories: directories,
+            settings: Rc::new(RefCell::new(settings)),
         }
     }
 
@@ -233,11 +231,11 @@ impl AppState {
 /// this method takes into account .git and other directives set in .gitignore. However it only
 /// takes into account most recent .gitignore
 fn build_file_index(
-    mut index : &mut Vec<PathBuf>,
-    dir : &Path,
-    enable_gitignore : bool,
-    gi_op : Option<&gitignore::Gitignore>,
-    file_index_limit : usize
+    mut index: &mut Vec<PathBuf>,
+    dir: &Path,
+    enable_gitignore: bool,
+    gi_op: Option<&gitignore::Gitignore>,
+    file_index_limit: usize,
 ) {
     if index.len() >= file_index_limit {
         return;
@@ -245,7 +243,7 @@ fn build_file_index(
 
     match fs::read_dir(dir) {
         Ok(read_dir) => {
-            let gitignore_op : Option<gitignore::Gitignore> = if enable_gitignore {
+            let gitignore_op: Option<gitignore::Gitignore> = if enable_gitignore {
                 let pathbuf = dir.join(Path::new(".gitignore"));
                 let gitignore_path = pathbuf.as_path();
                 if gitignore_path.exists() && gitignore_path.is_file() {
@@ -265,7 +263,6 @@ fn build_file_index(
             };
 
             for entry_res in read_dir {
-
                 if index.len() >= file_index_limit {
                     break;
                 }
@@ -302,7 +299,7 @@ fn build_file_index(
                                 &path,
                                 enable_gitignore,
                                 most_recent_gitignore,
-                                file_index_limit
+                                file_index_limit,
                             );
                         }
                     }

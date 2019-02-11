@@ -44,6 +44,7 @@ mod buffer_state_observer;
 mod color_view_wrapper;
 mod content_provider;
 mod default_settings;
+mod dir_tree;
 mod events;
 mod file_dialog;
 mod fuzzy_index;
@@ -51,7 +52,6 @@ mod fuzzy_index_trait;
 mod fuzzy_query_view;
 mod fuzzy_view_item;
 mod interface;
-mod dir_tree;
 mod lsp_client;
 mod overlay_dialog;
 mod rich_content;
@@ -59,6 +59,7 @@ mod settings;
 mod simple_fuzzy_index;
 mod sly_text_view;
 mod sly_view;
+mod test_utils;
 mod view_handle;
 
 extern crate clipboard;
@@ -82,9 +83,8 @@ extern crate languageserver_types;
 extern crate jsonrpc_core;
 #[macro_use]
 extern crate human_panic;
-extern crate serde;
 extern crate crossbeam_channel;
-
+extern crate serde;
 
 use app_state::AppState;
 use cpuprofiler::PROFILER;
@@ -99,8 +99,8 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 // Reason for it being string is that I want to be able to load filelists from remote locations
-fn get_file_list_from_dir(path : &Path) -> Vec<String> {
-    let mut file_list : Vec<String> = Vec::new();
+fn get_file_list_from_dir(path: &Path) -> Vec<String> {
+    let mut file_list: Vec<String> = Vec::new();
 
     let paths = fs::read_dir(path).unwrap();
 
@@ -139,12 +139,12 @@ fn main() {
         return;
     }
 
-    let profiling_enabled : bool = matches.is_present("profiling");
-    let git_files_included : bool = matches.is_present("git");
+    let profiling_enabled: bool = matches.is_present("profiling");
+    let git_files_included: bool = matches.is_present("git");
 
     if profiling_enabled {
-        let profile_file : String = format!("./sly-{:}.profile", time::now().rfc3339());
-        let profile_path : &Path = Path::new(&profile_file);
+        let profile_file: String = format!("./sly-{:}.profile", time::now().rfc3339());
+        let profile_path: &Path = Path::new(&profile_file);
         if !profile_path.exists() {
             //with timestamp in name this is probably never true
             fs::File::create(&profile_file);
@@ -152,10 +152,10 @@ fn main() {
         PROFILER.lock().unwrap().start(profile_file.clone()).unwrap();
     };
 
-    let args : Vec<String> = env::args().skip(1).collect();
+    let args: Vec<String> = env::args().skip(1).collect();
 
-    let mut directories : Vec<PathBuf> = Vec::new();
-    let mut files : Vec<PathBuf> = Vec::new();
+    let mut directories: Vec<PathBuf> = Vec::new();
+    let mut files: Vec<PathBuf> = Vec::new();
 
     if matches.is_present("files_and_directories") {
         for value in matches.values_of("files_and_directories").unwrap() {

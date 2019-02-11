@@ -20,12 +20,12 @@ use uid;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ViewHandle {
-    view_id : usize,
+    view_id: usize,
 }
 
 impl ViewHandle {
     pub fn new() -> Self {
-        ViewHandle { view_id : uid::Id::<usize>::new().get() }
+        ViewHandle { view_id: uid::Id::<usize>::new().get() }
     }
 
     pub fn view_id(&self) -> usize {
@@ -34,7 +34,7 @@ impl ViewHandle {
 }
 
 impl fmt::Display for ViewHandle {
-    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "vh{}", self.view_id)
     }
 }

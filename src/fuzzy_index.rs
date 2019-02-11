@@ -39,8 +39,8 @@ use std::sync::mpsc::*;
 use std::sync::Arc;
 use std::thread;
 
-const MAX_CACHE_SIZE : usize = 30;
-pub const HARD_QUERY_LIMIT : usize = 50;
+const MAX_CACHE_SIZE: usize = 30;
+pub const HARD_QUERY_LIMIT: usize = 50;
 /*
 Disclaimer:
 index matches a fuzzy query to u64, that can be converted to items. So basically we have
@@ -51,22 +51,27 @@ example: mutliple methods with same names from different files.
 It is not possible to add items after a fst::Map has been built.
 */
 pub struct FuzzyIndex {
-    index : Arc<Map>, /* this is Map<String, u64>. It's Arc, because queries are ran in
-                       * worker threads. */
-    items :       HashMap<u64, Vec<Rc<ViewItem>>>,
-    items_sizes : Arc<HashMap<u64, usize>>, /* this field is used by workers to determine
-                                             * whether they hit the limit
-                                             * of records or not. */
-    cache : HashMap<String, FuzzySearchTask>,
+    index: Arc<Map>, /* this is Map<String, u64>. It's Arc, because queries are ran in
+                      * worker threads. */
+    items: HashMap<u64, Vec<Rc<ViewItem>>>,
+    items_sizes: Arc<HashMap<u64, usize>>, /* this field is used by workers to determine
+                                            * whether they hit the limit
+                                            * of records or not. */
+    cache: HashMap<String, FuzzySearchTask>,
     /// used to know in what order clear the cache. Does not contain empty query, which is computed
     /// in cache immediately. Also, cache_order and cache sizes are not synchronized, as
     /// cache_order can contain duplicates in rare situations.
-    cache_order : LinkedList<String>,
+    cache_order: LinkedList<String>,
 }
 
 impl FuzzyIndexTrait for FuzzyIndex {
-    fn get_results_for(&mut self, query : &String, limit_op : Option<usize>, inot_op : Option<InterfaceNotifier>) -> Vec<Rc<ViewItem>> {
-        let mut results : Vec<Rc<ViewItem>> = Vec::new();
+    fn get_results_for(
+        &mut self,
+        query: &String,
+        limit_op: Option<usize>,
+        inot_op: Option<InterfaceNotifier>,
+    ) -> Vec<Rc<ViewItem>> {
+        let mut results: Vec<Rc<ViewItem>> = Vec::new();
 
         // this has no effect if we already had such task in progress.
         self.start_search(query, limit_op, inot_op);
@@ -87,19 +92,19 @@ impl FuzzyIndexTrait for FuzzyIndex {
 }
 
 impl FuzzyIndex {
-    pub fn new(word_list : Vec<ViewItem>) -> FuzzyIndex {
+    pub fn new(word_list: Vec<ViewItem>) -> FuzzyIndex {
         // TODO we can consume word_list here instead of calling ci.copy() below
-        let mut items : HashMap<u64, Vec<Rc<ViewItem>>> = HashMap::new();
-        let mut header_to_key : HashMap<String, u64> = HashMap::new();
+        let mut items: HashMap<u64, Vec<Rc<ViewItem>>> = HashMap::new();
+        let mut header_to_key: HashMap<String, u64> = HashMap::new();
         let mut key = 0;
         for ci in word_list {
-            let header : &String = &ci.get_header();
+            let header: &String = &ci.get_header();
 
             if header_to_key.contains_key(header) {
-                let id : u64 = header_to_key[header];
+                let id: u64 = header_to_key[header];
                 items.get_mut(&id).unwrap().push(Rc::new(ci.clone()));
             } else {
-                let mut vec : Vec<Rc<ViewItem>> = Vec::new();
+                let mut vec: Vec<Rc<ViewItem>> = Vec::new();
                 vec.push(Rc::new(ci.clone()));
                 header_to_key.insert(header.clone(), key);
                 items.insert(key, vec);
@@ -107,22 +112,22 @@ impl FuzzyIndex {
             }
         }
 
-        let mut header_to_key_sorted : Vec<(String, u64)> =
+        let mut header_to_key_sorted: Vec<(String, u64)> =
             header_to_key.iter().map(|item| (item.0.clone(), item.1.clone())).collect();
         header_to_key_sorted.sort();
         let map = Map::from_iter(header_to_key_sorted).unwrap();
 
-        let mut item_sizes : HashMap<u64, usize> = HashMap::new();
+        let mut item_sizes: HashMap<u64, usize> = HashMap::new();
         for (k, v) in items.iter() {
             item_sizes.insert(*k, v.len());
         }
 
         let mut i = FuzzyIndex {
-            index :       Arc::new(map),
-            items :       items,
-            items_sizes : Arc::new(item_sizes),
-            cache :       HashMap::new(),
-            cache_order : LinkedList::new(),
+            index: Arc::new(map),
+            items: items,
+            items_sizes: Arc::new(item_sizes),
+            cache: HashMap::new(),
+            cache_order: LinkedList::new(),
         };
         // we do not pass inot_op below, since we don't want to necessarily update interface on
         // creation, but we do want our "" results to be available immediately.
@@ -132,9 +137,9 @@ impl FuzzyIndex {
 
     fn start_search(
         &mut self,
-        query : &String,
-        limit_op : Option<usize>,
-        inot_op : Option<InterfaceNotifier>,
+        query: &String,
+        limit_op: Option<usize>,
+        inot_op: Option<InterfaceNotifier>,
     ) {
         // TODO(njskalski): while it is possible to update limit as query runs, resuming query is
         // not implemented yet, so I just restart it now.
@@ -167,7 +172,7 @@ impl FuzzyIndex {
             // self.cache_order.remove(&query)
         }
 
-        let task : FuzzySearchTask = FuzzySearchTask::new(query.clone(), self, limit_op, inot_op);
+        let task: FuzzySearchTask = FuzzySearchTask::new(query.clone(), self, limit_op, inot_op);
         self.cache.insert(query.clone(), task);
 
         if query.len() > 0 {
@@ -193,21 +198,21 @@ enum FuzzySearchTaskUpdate {
 
 // TODO(njskalski): add resume (re-spawning thread) if limit is bigger.
 struct FuzzySearchTask {
-    receiver :            mpsc::Receiver<u64>,
-    query :               String,
-    item_ids :            RefCell<Vec<u64>>,
-    done :                Cell<bool>,
-    limit_op :            Option<usize>,
-    update_stram_sender : Sender<FuzzySearchTaskUpdate>,
-    has_inot :            bool,
+    receiver: mpsc::Receiver<u64>,
+    query: String,
+    item_ids: RefCell<Vec<u64>>,
+    done: Cell<bool>,
+    limit_op: Option<usize>,
+    update_stram_sender: Sender<FuzzySearchTaskUpdate>,
+    has_inot: bool,
 }
 
 impl FuzzySearchTask {
     pub fn new(
-        query : String,
-        index : &FuzzyIndex,
-        mut limit_op : Option<usize>,
-        mut inot_op : Option<InterfaceNotifier>,
+        query: String,
+        index: &FuzzyIndex,
+        mut limit_op: Option<usize>,
+        mut inot_op: Option<InterfaceNotifier>,
     ) -> FuzzySearchTask {
         let (sender, receiver) = channel::<u64>();
         let item_ids = Vec::new();
@@ -223,12 +228,12 @@ impl FuzzySearchTask {
         thread::spawn(move || {
             debug!("worker {:}: created", &query_copy);
             let regex = query_to_regex(&query_copy);
-            let stream_builder : map::StreamBuilder<Regex> = index_ref_copy.search(regex);
+            let stream_builder: map::StreamBuilder<Regex> = index_ref_copy.search(regex);
             let mut stream = stream_builder.into_stream();
 
             debug!("worker {:}: start search", &query_copy);
-            let mut results : Vec<&ViewItem> = Vec::new();
-            let mut it : usize = 0;
+            let mut results: Vec<&ViewItem> = Vec::new();
+            let mut it: usize = 0;
             while let Some((header, key)) = stream.next() {
                 if sender.send(key).is_err() {
                     debug!("unable to send key in FuzzySearchTask internal worker");
@@ -272,13 +277,13 @@ impl FuzzySearchTask {
         });
 
         FuzzySearchTask {
-            receiver :            receiver,
-            item_ids :            RefCell::new(item_ids),
-            done :                Cell::new(false),
-            query :               query,
-            limit_op :            limit_op,
-            update_stram_sender : update_stream_sender,
-            has_inot :            has_inot,
+            receiver: receiver,
+            item_ids: RefCell::new(item_ids),
+            done: Cell::new(false),
+            query: query,
+            limit_op: limit_op,
+            update_stram_sender: update_stream_sender,
+            has_inot: has_inot,
         }
     }
 
@@ -303,7 +308,7 @@ impl FuzzySearchTask {
     /// If runner is done, results in noop.
     //
     // TODO(njskalski): store inot for case of restart
-    pub fn update_inot(&self, inot : InterfaceNotifier) {
+    pub fn update_inot(&self, inot: InterfaceNotifier) {
         self.update_stram_sender.send(FuzzySearchTaskUpdate::Inot(inot)); // ignoring result.
     }
 
@@ -324,8 +329,8 @@ impl FuzzySearchTask {
     }
 }
 
-fn query_to_regex(query : &String) -> Regex {
-    let mut regex_vec : Vec<char> = Vec::new();
+fn query_to_regex(query: &String) -> Regex {
+    let mut regex_vec: Vec<char> = Vec::new();
 
     regex_vec.append(&mut vec!['.', '*']);
 
@@ -346,7 +351,7 @@ fn query_to_regex(query : &String) -> Regex {
 
     debug!("regex str {:?}", regex_str);
 
-    let regex : Regex = Regex::new(&regex_str).unwrap();
+    let regex: Regex = Regex::new(&regex_str).unwrap();
 
     regex
 }

@@ -16,11 +16,11 @@ limitations under the License.
 
 // this is a collection of functions I expect to use in multiple places
 
+use rich_content::HighlightSettings;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::Path;
 use std::path::PathBuf;
-use rich_content::HighlightSettings;
 use std::rc::Rc;
 
 #[macro_export]
@@ -41,11 +41,10 @@ macro_rules! ifdebug {
     }}
 }
 
-
 /// this method takes a string representing a path, returns pair of options describing
 /// folder path and filename. Does not check if file exists, so it cannot differentiate between
 /// files and directories, unless path ends with "/", in which case it is assumed it's a directory.
-pub fn path_string_to_pair(path_str : String) -> (Option<String>, Option<String>) {
+pub fn path_string_to_pair(path_str: String) -> (Option<String>, Option<String>) {
     if path_str.ends_with('/') {
         (Some(path_str[..path_str.len() - 1].to_string()), None)
     } else {
@@ -89,7 +88,7 @@ pub fn path_string_to_pair(path_str : String) -> (Option<String>, Option<String>
 //}
 
 // TODO(njskalski): this should be somewhere else, but I have no brainpower to plan it now.
-pub fn highlight_settings_from_path(path : &Path) -> Option<Rc<HighlightSettings>> {
+pub fn highlight_settings_from_path(path: &Path) -> Option<Rc<HighlightSettings>> {
     let ext = path.extension()?.to_string_lossy();
     let settings = HighlightSettings::new(&ext)?;
     Some(Rc::new(settings))
@@ -113,11 +112,11 @@ mod tests {
         );
     }
 
-//    #[test]
-//    fn guess_format_test() {
-//        assert_eq!(guess_format(Path::new("/home/someone/rust.rs")), Some("rust"));
-//        assert_eq!(guess_format(Path::new("/home/someone/Cargo.toml")), Some("toml"));
-//        assert_eq!(guess_format(Path::new("/home/someone/some.json")), Some("json"));
-//    }
+    //    #[test]
+    //    fn guess_format_test() {
+    //        assert_eq!(guess_format(Path::new("/home/someone/rust.rs")), Some("rust"));
+    //        assert_eq!(guess_format(Path::new("/home/someone/Cargo.toml")), Some("toml"));
+    //        assert_eq!(guess_format(Path::new("/home/someone/some.json")), Some("json"));
+    //    }
 
 }

@@ -39,41 +39,36 @@ use std::cell::Cell;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use syntect::highlighting::{
-    HighlightIterator,
-    HighlightState,
-    Highlighter,
-    Style,
-    Theme,
-    ThemeSet,
+    HighlightIterator, HighlightState, Highlighter, Style, Theme, ThemeSet,
 };
 use syntect::parsing::{ParseState, ScopeStack, SyntaxReference, SyntaxSet};
 
-const PARSING_MILESTONE : usize = 10;
+const PARSING_MILESTONE: usize = 10;
 
 #[derive(Debug)]
 pub struct RichLine {
-    line_no : usize,
-    length :  usize,
-    body :    Vec<(Color, String)>,
+    line_no: usize,
+    length: usize,
+    body: Vec<(Color, String)>,
 }
 
 //TODO(njskalski): optimise, rethink api. maybe even drop the content.
 impl RichLine {
-    pub fn new(line_no : usize, body : Vec<(Color, String)>) -> Self {
-        let mut len : usize = 0;
+    pub fn new(line_no: usize, body: Vec<(Color, String)>) -> Self {
+        let mut len: usize = 0;
         for piece in &body {
             len += piece.1.len()
         }
 
-        RichLine { line_no, length : len, body }
+        RichLine { line_no, length: len, body }
     }
 
     pub fn len(&self) -> usize {
         self.length
     }
 
-    pub fn get_color_at(&self, idx : usize) -> Option<Color> {
-        let mut cur_idx : usize = 0;
+    pub fn get_color_at(&self, idx: usize) -> Option<Color> {
+        let mut cur_idx: usize = 0;
 
         for chunk in &self.body {
             if cur_idx + chunk.1.len() > idx {
@@ -92,76 +87,72 @@ impl RichLine {
 
 #[derive(Debug)]
 pub struct HighlightSettings {
-    theme :      Theme,
-    syntax :     SyntaxReference,
-    syntax_set : SyntaxSet,
+    theme: Theme,
+    syntax: SyntaxReference,
+    syntax_set: SyntaxSet,
 }
 
 //TODO move const strings to settings parameters.
 impl HighlightSettings {
-    pub fn new(extension : &str) -> Option<Self> {
+    pub fn new(extension: &str) -> Option<Self> {
         let syntax_set = SyntaxSet::load_defaults_newlines().clone();
         let ts = &ThemeSet::load_defaults();
 
         let syntax = syntax_set.find_syntax_by_extension(extension)?.clone();
         let theme = ts.themes["base16-ocean.dark"].clone();
 
-        Some(HighlightSettings {
-            theme :      theme,
-            syntax :     syntax,
-            syntax_set : syntax_set,
-        })
+        Some(HighlightSettings { theme: theme, syntax: syntax, syntax_set: syntax_set })
     }
 }
 
 #[derive(Clone, Debug)]
 struct ParseCacheRecord {
-    line_to_parse :   usize,
-    parse_state :     ParseState,
-    highlight_state : HighlightState,
+    line_to_parse: usize,
+    parse_state: ParseState,
+    highlight_state: HighlightState,
 }
 
 impl ParseCacheRecord {
-    pub fn new(parse_state : ParseState, highlighter : &Highlighter) -> Self {
+    pub fn new(parse_state: ParseState, highlighter: &Highlighter) -> Self {
         let scope_stack = ScopeStack::new();
         let highlight_state = HighlightState::new(highlighter, scope_stack);
 
-        ParseCacheRecord { line_to_parse : 0, parse_state, highlight_state }
+        ParseCacheRecord { line_to_parse: 0, parse_state, highlight_state }
     }
 }
 
 #[derive(Clone)]
 pub struct RichContent {
-    highlight_settings : Rc<HighlightSettings>,
-    raw_content :        Rope,
+    highlight_settings: Rc<HighlightSettings>,
+    raw_content: Rope,
     // the key corresponds to number of next line to parse by ParseState. NOT DONE, bc I don't want
     // negative numbers.
-    parse_cache : RefCell<Vec<ParseCacheRecord>>, //TODO is it possible to remove RefCell?
-    lines :       RefCell<Vec<Rc<RichLine>>>,
+    parse_cache: RefCell<Vec<ParseCacheRecord>>, //TODO is it possible to remove RefCell?
+    lines: RefCell<Vec<Rc<RichLine>>>,
 }
 
 impl RichContent {
-    pub fn new(settings : Rc<HighlightSettings>, rope : Rope) -> Self {
+    pub fn new(settings: Rc<HighlightSettings>, rope: Rope) -> Self {
         RichContent {
-            highlight_settings : settings,
-            raw_content :        rope,
+            highlight_settings: settings,
+            raw_content: rope,
             //contract: sorted.
-            parse_cache : RefCell::new(Vec::new()),
+            parse_cache: RefCell::new(Vec::new()),
             //contract: max key of parse_cache < len(lines)
-            lines : RefCell::new(Vec::new()),
+            lines: RefCell::new(Vec::new()),
         }
     }
 
     //TODO(njskalski): it should have some kind of observer, but reference to ContentProvider
     // creates a nightmare of lifetimes escalation. Maybe it can be merged with "drop lines"?
-    pub fn update_raw_content(&mut self, rope : Rope) {
+    pub fn update_raw_content(&mut self, rope: Rope) {
         self.raw_content = rope;
     }
 
     // Drop lines removes cache after lines_to_save. Since it operates on cache, it's non mutable.
     // lines_to_save is *exclusive*. It corresponds to number of lines to save. So 0 means
     // "no lines to save", therefore line #0 is subject to drop as well.
-    pub fn drop_lines(&self, lines_to_save : usize) {
+    pub fn drop_lines(&self, lines_to_save: usize) {
         debug!("dropping all lines from (exclusive) {:}", lines_to_save);
         //dropping cache.
         {
@@ -200,13 +191,13 @@ impl RichContent {
     /// Every ParseCacheRecord with index higher than the one returned is going to be invalid after
     /// line (#line_no + 1) gets modified.
     // TODO unit tests.
-    fn get_cache_idx(&self, line_no : usize) -> Option<usize> {
-        let parse_cache : Ref<Vec<ParseCacheRecord>> = self.parse_cache.borrow();
+    fn get_cache_idx(&self, line_no: usize) -> Option<usize> {
+        let parse_cache: Ref<Vec<ParseCacheRecord>> = self.parse_cache.borrow();
 
         debug!("parse cache len = {}", parse_cache.len());
 
         if !parse_cache.is_empty() {
-            let cache : Option<usize> =
+            let cache: Option<usize> =
                 match parse_cache.binary_search_by(|rec| rec.line_to_parse.cmp(&line_no)) {
                     Ok(idx) => Some(idx),
                     Err(higher_index) => {
@@ -225,13 +216,13 @@ impl RichContent {
 
     /// Returns last valid ParseCacheRecord given the last non-modified line index.
     /// ParseCacheRecord.line_to_parse > line_no (*strictly higher* guaranteed).
-    pub fn get_cache(&self, line_no : usize) -> Option<ParseCacheRecord> {
+    pub fn get_cache(&self, line_no: usize) -> Option<ParseCacheRecord> {
         let idx_op = self.get_cache_idx(line_no);
         debug!("idx_op : {:?}", &idx_op);
         idx_op.and_then(|x| self.parse_cache.borrow().get(x).map(|cache| cache.clone()))
     }
 
-    pub fn get_line(&self, line_no : usize) -> Option<Rc<RichLine>> {
+    pub fn get_line(&self, line_no: usize) -> Option<Rc<RichLine>> {
         debug!("ask for rich line {:}", line_no);
 
         if self.lines.borrow().len() > line_no {
@@ -242,7 +233,7 @@ impl RichContent {
         let highlighter = Highlighter::new(&self.highlight_settings.theme);
 
         // see contracts
-        let mut parse_cache : ParseCacheRecord = match self.get_cache(line_no) {
+        let mut parse_cache: ParseCacheRecord = match self.get_cache(line_no) {
             None => {
                 debug!("cache miss for line_no {:}", line_no);
                 ParseCacheRecord::new(
@@ -270,7 +261,7 @@ impl RichContent {
             let ops =
                 parse_cache.parse_state.parse_line(&line_str, &self.highlight_settings.syntax_set);
 
-            let ranges : Vec<(Style, &str)> = {
+            let ranges: Vec<(Style, &str)> = {
                 HighlightIterator::new(
                     &mut parse_cache.highlight_state,
                     &ops[..],
@@ -280,7 +271,7 @@ impl RichContent {
                 .collect()
             };
 
-            let new_line : Vec<(Color, String)> = ranges
+            let new_line: Vec<(Color, String)> = ranges
                 .into_iter()
                 .map(|(style, words)| (simplify_style(&style), words.to_string()))
                 .collect();
@@ -316,8 +307,8 @@ impl RichContent {
 }
 
 struct RichLinesIterator<'a> {
-    content : &'a RichContent,
-    line_no : usize,
+    content: &'a RichContent,
+    line_no: usize,
 }
 
 impl<'a> Iterator for RichLinesIterator<'a> {
@@ -346,15 +337,13 @@ impl<'a> ExactSizeIterator for RichLinesIterator<'a> {
 //    }
 //}
 
-fn simplify_style(style : &Style) -> Color {
+fn simplify_style(style: &Style) -> Color {
     Color::Rgb(style.foreground.r, style.foreground.g, style.foreground.b)
 }
 
 pub mod tests {
     use super::*;
 
-    fn basic_setup() {
-
-    }
+    fn basic_setup() {}
 
 }

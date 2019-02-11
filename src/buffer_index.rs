@@ -17,24 +17,29 @@ limitations under the License.
 use buffer_state_observer::BufferStateObserver;
 use fuzzy_index_trait::FuzzyIndexTrait;
 use fuzzy_view_item::*;
-use std::rc::Rc;
-use std::cmp;
 use interface::InterfaceNotifier;
+use std::cmp;
+use std::rc::Rc;
 
 pub struct BufferIndex {
-    buffers : Vec<BufferStateObserver>,
-    items :   Vec<Rc<ViewItem>>,
+    buffers: Vec<BufferStateObserver>,
+    items: Vec<Rc<ViewItem>>,
 }
 
 impl BufferIndex {
-    pub fn new(buffers : Vec<BufferStateObserver>) -> Self {
-        let items = buffers.iter().map(|buffer| { Rc::new(buffer_to_item(buffer))}).collect();
-        BufferIndex { buffers : buffers, items : items }
+    pub fn new(buffers: Vec<BufferStateObserver>) -> Self {
+        let items = buffers.iter().map(|buffer| Rc::new(buffer_to_item(buffer))).collect();
+        BufferIndex { buffers: buffers, items: items }
     }
 }
 
 impl FuzzyIndexTrait for BufferIndex {
-    fn get_results_for(&mut self, query : &String, limit_op : Option<usize>, _ : Option<InterfaceNotifier>) -> Vec<Rc<ViewItem>> {
+    fn get_results_for(
+        &mut self,
+        query: &String,
+        limit_op: Option<usize>,
+        _: Option<InterfaceNotifier>,
+    ) -> Vec<Rc<ViewItem>> {
         if let Some(limit) = limit_op {
             self.items[..cmp::min(limit, self.items.len())].to_vec()
         } else {
@@ -43,18 +48,17 @@ impl FuzzyIndexTrait for BufferIndex {
     }
 }
 
-fn buffer_to_item(buffer : &BufferStateObserver) -> ViewItem {
-
-    let header : String = match buffer.get_filename() {
-        Some(filename) => format!("{}{}", filename.to_string_lossy(), if buffer.modified() { " *"} else { ""}),
-        None => format!("<unnamed> {}{}", buffer.buffer_id(), if buffer.modified() { " *"} else { ""})
+fn buffer_to_item(buffer: &BufferStateObserver) -> ViewItem {
+    let header: String = match buffer.get_filename() {
+        Some(filename) => {
+            format!("{}{}", filename.to_string_lossy(), if buffer.modified() { " *" } else { "" })
+        }
+        None => {
+            format!("<unnamed> {}{}", buffer.buffer_id(), if buffer.modified() { " *" } else { "" })
+        }
     };
 
     let marker = buffer.buffer_id().to_string();
 
-    ViewItem::new(
-        header,
-        buffer.get_path().map(|path| path.to_string_lossy().to_string()),
-        marker,
-    )
+    ViewItem::new(header, buffer.get_path().map(|path| path.to_string_lossy().to_string()), marker)
 }

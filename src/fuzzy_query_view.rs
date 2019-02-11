@@ -25,7 +25,7 @@ description. Example: search line is filename, description is it's location. (do
 
 // TODO(njskalski): add keys remapping.
 
-const DEBUG : bool = false;
+const DEBUG: bool = false;
 
 use cursive::view::Selector;
 use std::any::Any;
@@ -53,6 +53,7 @@ use interface::InterfaceNotifier;
 use overlay_dialog::OverlayDialog;
 use sly_view::SlyView;
 use std::cell::Cell;
+use std::cell::Ref;
 use std::cell::RefCell;
 use std::cmp;
 use std::collections::{HashMap, LinkedList};
@@ -61,50 +62,49 @@ use std::fmt;
 use std::marker::Sized;
 use std::sync::Arc;
 use view_handle::ViewHandle;
-use std::cell::Ref;
 
-const WIDTH : usize = 100;
+const WIDTH: usize = 100;
 
 pub struct FuzzyQueryView {
-    context :        String,
-    marker :         String,
-    query :          String,
-    scrollbase :     ScrollBase,
-    index :          Arc<RefCell<FuzzyIndexTrait>>,
-    size :           Option<Vec2>,
-    needs_relayout : Cell<bool>,
-    selected :       usize,
-    settings :       Rc<RefCell<Settings>>,
-    items_cache :    RefCell<Option<Rc<Vec<Rc<ViewItem>>>>>,
-    old_selection :  Option<Rc<ViewItem>>,
-    handle :         ViewHandle,
-    result :         Option<Result<FuzzyQueryResult, FuzzyQueryError>>,
-    inot :           InterfaceNotifier,
+    context: String,
+    marker: String,
+    query: String,
+    scrollbase: ScrollBase,
+    index: Arc<RefCell<FuzzyIndexTrait>>,
+    size: Option<Vec2>,
+    needs_relayout: Cell<bool>,
+    selected: usize,
+    settings: Rc<RefCell<Settings>>,
+    items_cache: RefCell<Option<Rc<Vec<Rc<ViewItem>>>>>,
+    old_selection: Option<Rc<ViewItem>>,
+    handle: ViewHandle,
+    result: Option<Result<FuzzyQueryResult, FuzzyQueryError>>,
+    inot: InterfaceNotifier,
 }
 
 impl FuzzyQueryView {
     pub fn new(
-        index : Arc<RefCell<FuzzyIndexTrait>>,
-        marker : String,
-        channel : IChannel,
-        settings : Rc<RefCell<Settings>>,
-        inot : InterfaceNotifier,
+        index: Arc<RefCell<FuzzyIndexTrait>>,
+        marker: String,
+        channel: IChannel,
+        settings: Rc<RefCell<Settings>>,
+        inot: InterfaceNotifier,
     ) -> IdView<Self> {
         let res = FuzzyQueryView {
-            context :        "context".to_string(),
-            query :          String::new(),
-            scrollbase :     ScrollBase::new(),
-            index :          index,
-            settings :       settings,
-            selected :       0,
-            marker :         marker,
-            items_cache :    RefCell::new(None),
-            size :           None,
-            needs_relayout : Cell::new(false),
-            old_selection :  None,
-            handle :         ViewHandle::new(),
-            result :         None,
-            inot :           inot,
+            context: "context".to_string(),
+            query: String::new(),
+            scrollbase: ScrollBase::new(),
+            index: index,
+            settings: settings,
+            selected: 0,
+            marker: marker,
+            items_cache: RefCell::new(None),
+            size: None,
+            needs_relayout: Cell::new(false),
+            old_selection: None,
+            handle: ViewHandle::new(),
+            result: None,
+            inot: inot,
         };
 
         IdView::new(res.handle(), res)
@@ -147,7 +147,7 @@ impl FuzzyQueryView {
         self.settings.borrow()
     }
 
-    fn get_item_colorstyle(&self, selected : bool, highlighted : bool) -> ColorStyle {
+    fn get_item_colorstyle(&self, selected: bool, highlighted: bool) -> ColorStyle {
         self.settings_ref().get_colorstyle(
             if highlighted {
                 "theme/fuzzy_view/highlighted_text_color"
@@ -162,7 +162,7 @@ impl FuzzyQueryView {
         )
     }
 
-    fn draw_item(&self, item : &ViewItem, selected : bool, line_no : usize, printer : &Printer) {
+    fn draw_item(&self, item: &ViewItem, selected: bool, line_no: usize, printer: &Printer) {
         let row_width = self.size.unwrap().x;
 
         // debug!("item: {:?}, selected: {:?}, line_no: {:?}", item, selected, line_no);
@@ -266,7 +266,7 @@ impl FuzzyQueryView {
         self.old_selection = None;
     }
 
-    fn add_letter(&mut self, letter : char) {
+    fn add_letter(&mut self, letter: char) {
         self.old_selection = self.get_current_items().get(self.selected).map(|x| x.clone());
         self.query.push(letter);
         self.clear_cache();
@@ -286,12 +286,12 @@ impl FuzzyQueryView {
 }
 
 impl View for FuzzyQueryView {
-    fn layout(&mut self, size : Vec2) {
+    fn layout(&mut self, size: Vec2) {
         self.size = Some(size);
         self.try_update_scrollbase();
     }
 
-    fn draw(&self, printer : &Printer) {
+    fn draw(&self, printer: &Printer) {
         ifdebug!("fqv redraw");
         //draw context
         printer.print((2, 0), &format!("Context : {:?} \tquery: {:?}", &self.context, &self.query));
@@ -312,13 +312,13 @@ impl View for FuzzyQueryView {
         self.needs_relayout.get()
     }
 
-    fn required_size(&mut self, constraint : Vec2) -> Vec2 {
+    fn required_size(&mut self, constraint: Vec2) -> Vec2 {
         // one stands for header.
         let height = 1 + count_items_lines(self.get_current_items().iter());
         Vec2::new(cmp::min(WIDTH, constraint.x), cmp::min(height, constraint.y))
     }
 
-    fn on_event(&mut self, event : Event) -> EventResult {
+    fn on_event(&mut self, event: Event) -> EventResult {
         let mut event_consumed = true;
         match event {
             Event::Char(c) => {
@@ -396,7 +396,7 @@ pub enum FuzzyQueryResult {
 pub struct FuzzyQueryError;
 
 impl fmt::Display for FuzzyQueryError {
-    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "FuzzyQueryError (not defined)")
     }
 }
@@ -436,22 +436,22 @@ impl SlyView for FuzzyQueryView {
 }
 
 //TODO tests
-fn count_items_lines<I, T>(items : I) -> usize
+fn count_items_lines<I, T>(items: I) -> usize
 where
-    T : AsRef<ViewItem>,
-    I : Iterator<Item = T>,
+    T: AsRef<ViewItem>,
+    I: Iterator<Item = T>,
 {
     items.fold(0, |acc, x| acc + x.as_ref().get_height_in_lines())
 }
 
 //TODO tests, early exit
 /// Returns Option<(number of lines preceeding items consumed, item_idx)>
-fn get_item_for_line<I, T>(mut items : I, line : usize) -> Option<(usize, usize)>
+fn get_item_for_line<I, T>(mut items: I, line: usize) -> Option<(usize, usize)>
 where
-    T : AsRef<ViewItem>,
-    I : Iterator<Item = T>,
+    T: AsRef<ViewItem>,
+    I: Iterator<Item = T>,
 {
-    let res : (usize, Option<usize>) =
+    let res: (usize, Option<usize>) =
         items.enumerate().fold((0, None), |acc, (item_idx, item)| match acc {
             (l, None) => {
                 if l <= line && line < l + item.as_ref().get_height_in_lines() {

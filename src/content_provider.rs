@@ -26,46 +26,46 @@ use rich_content::RichContent;
 use rich_content::RichLine;
 use ropey::RopeSlice;
 
-const DEFAULT_BLANK : char = ' ';
+const DEFAULT_BLANK: char = ' ';
 
 /// Represents a order to edit a content. Offsets are calculated in CHARS, not bytes.
 /// offset is the first character of selection, inclusive.
 //TODO(njskalski) secure against overlapping cursors!
 #[derive(Debug, Serialize, Deserialize)]
 pub enum EditEvent {
-    Insert { offset : usize, content : String },
-    Change { offset : usize, length : usize, content : String },
+    Insert { offset: usize, content: String },
+    Change { offset: usize, length: usize, content: String },
 }
 
 #[derive(Debug)]
 struct RopeBasedContent {
-    lines :     Rope,
-    timestamp : time::Tm,
+    lines: Rope,
+    timestamp: time::Tm,
 }
 
 impl RopeBasedContent {
-    pub fn new(reader_op : Option<&mut Read>) -> Self {
+    pub fn new(reader_op: Option<&mut Read>) -> Self {
         match reader_op {
             Some(reader) => RopeBasedContent {
-                lines :     Rope::from_reader(reader).expect("failed to build rope from reader"), /* TODO(njskalski) error handling */
-                timestamp : time::now(),
+                lines: Rope::from_reader(reader).expect("failed to build rope from reader"), /* TODO(njskalski) error handling */
+                timestamp: time::now(),
             },
-            None => RopeBasedContent { lines : Rope::new(), timestamp : time::now() },
+            None => RopeBasedContent { lines: Rope::new(), timestamp: time::now() },
         }
     }
 
-    pub fn save<T : io::Write>(&self, writer : T) -> io::Result<()> {
+    pub fn save<T: io::Write>(&self, writer: T) -> io::Result<()> {
         self.lines.write_to(writer)
     }
 }
 
 pub struct RopeBasedContentProvider {
-    history : Vec<RopeBasedContent>,
-    current : usize,
+    history: Vec<RopeBasedContent>,
+    current: usize,
     // Contract: we do not version rich content. It doesn't make sense: redrawing screen
     // has a similar complexity to syntax highlighting, provided it's implemented properly.
-    rich_content :          Option<RichContent>,
-    highlight_settings_op : Option<Rc<HighlightSettings>>,
+    rich_content: Option<RichContent>,
+    highlight_settings_op: Option<Rc<HighlightSettings>>,
 }
 
 // Applies events to RopeBasedContent producing new one, and returning *number of lines common* to
@@ -73,8 +73,8 @@ pub struct RopeBasedContentProvider {
 // Now events are applied one after another in order they were issued.
 //TODO in some combinations offsets should be recomputed. But I expect no such combinations appear.
 // I should however check it just in case.
-fn apply_events(c : &RopeBasedContent, events : &Vec<EditEvent>) -> (RopeBasedContent, usize) {
-    let mut new_lines : Rope = c.lines.clone();
+fn apply_events(c: &RopeBasedContent, events: &Vec<EditEvent>) -> (RopeBasedContent, usize) {
+    let mut new_lines: Rope = c.lines.clone();
 
     // Offset is in CHARS, and since it's common, it's valid in both new and old contents.
     let mut first_change_pos = new_lines.len_chars();
@@ -109,25 +109,25 @@ fn apply_events(c : &RopeBasedContent, events : &Vec<EditEvent>) -> (RopeBasedCo
         }
     };
 
-    (RopeBasedContent { lines : new_lines, timestamp : time::now() }, num_common_lines)
+    (RopeBasedContent { lines: new_lines, timestamp: time::now() }, num_common_lines)
 }
 
 impl RopeBasedContentProvider {
     pub fn new(
-        reader_op : Option<&mut Read>,
-        highlight_settings_op : Option<Rc<HighlightSettings>>,
+        reader_op: Option<&mut Read>,
+        highlight_settings_op: Option<Rc<HighlightSettings>>,
     ) -> Self {
         RopeBasedContentProvider {
-            history :               vec![RopeBasedContent::new(reader_op)],
-            current :               0,
-            rich_content :          None,
-            highlight_settings_op : highlight_settings_op,
+            history: vec![RopeBasedContent::new(reader_op)],
+            current: 0,
+            rich_content: None,
+            highlight_settings_op: highlight_settings_op,
         }
     }
 
     /// Returns whether the content is enabled or not.
     // TODO(njskalski): break down for enabled and available.
-    pub fn set_rich_content_enabled(&mut self, enabled : bool) -> bool {
+    pub fn set_rich_content_enabled(&mut self, enabled: bool) -> bool {
         if !enabled {
             self.rich_content = None;
             false
@@ -135,7 +135,8 @@ impl RopeBasedContentProvider {
             // This costs O(1), but if content provider changes, it needs
             // update.
             self.rich_content = self
-                .highlight_settings_op.as_ref()
+                .highlight_settings_op
+                .as_ref()
                 .map(|s| RichContent::new(s.clone(), self.get_lines().clone()));
             self.rich_content.is_some()
         }
@@ -149,7 +150,7 @@ impl RopeBasedContentProvider {
         &self.history[self.current].lines
     }
 
-    pub fn get_line(&self, line_no : usize) -> RopeSlice {
+    pub fn get_line(&self, line_no: usize) -> RopeSlice {
         self.history[self.current].lines.line(line_no)
     }
 
@@ -157,7 +158,7 @@ impl RopeBasedContentProvider {
         self.history[self.current].lines.len_lines()
     }
 
-    pub fn get_rich_line(&self, line_no : usize) -> Option<Rc<RichLine>> {
+    pub fn get_rich_line(&self, line_no: usize) -> Option<Rc<RichLine>> {
         self.rich_content.as_ref().and_then(|rich_content| rich_content.get_line(line_no))
     }
 
@@ -169,7 +170,7 @@ impl RopeBasedContentProvider {
         self.current < self.history.len() - 1
     }
 
-    pub fn submit_events(&mut self, events : Vec<EditEvent>) {
+    pub fn submit_events(&mut self, events: Vec<EditEvent>) {
         debug!("got events {:?}", events);
         let (new_content, num_common_lines) = apply_events(&self.history[self.current], &events);
         let rope = new_content.lines.clone(); // O(1)
@@ -185,7 +186,7 @@ impl RopeBasedContentProvider {
         });
     }
 
-    pub fn save<T : io::Write>(&self, writer : T) -> io::Result<()> {
+    pub fn save<T: io::Write>(&self, writer: T) -> io::Result<()> {
         self.history.last().unwrap().lines.write_to(writer)
     }
 }

@@ -50,25 +50,25 @@ pub enum ExistPolicy {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BufferStateS {
     /// Path can be None. This represents a buffer which has no file name set.
-    path : Option<PathBuf>,
+    path: Option<PathBuf>,
 }
 
 pub struct BufferState {
-    id :           BufferId,
-    ss :           BufferStateS,
-    modified :     bool,
-    mode :         BufferOpenMode,
-    content :      RopeBasedContentProvider,
+    id: BufferId,
+    ss: BufferStateS,
+    modified: bool,
+    mode: BufferOpenMode,
+    content: RopeBasedContentProvider,
 }
 
 impl BufferState {
     pub fn new() -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(BufferState {
-            id :           BufferId::new(),
-            ss :           BufferStateS { path : None },
-            modified :     false,
-            content :      RopeBasedContentProvider::new(None, None),
-            mode :         BufferOpenMode::ReadWrite,
+            id: BufferId::new(),
+            ss: BufferStateS { path: None },
+            modified: false,
+            content: RopeBasedContentProvider::new(None, None),
+            mode: BufferOpenMode::ReadWrite,
         }))
     }
 
@@ -81,8 +81,8 @@ impl BufferState {
     }
 
     pub fn open(
-        file_path : &Path,
-        creation_policy : ExistPolicy,
+        file_path: &Path,
+        creation_policy: ExistPolicy,
     ) -> Result<Rc<RefCell<Self>>, io::Error> {
         debug!("reading file {:?}, creation_policy = {:?}", file_path, creation_policy);
 
@@ -100,15 +100,15 @@ impl BufferState {
             ));
         }
 
-        let mut reader : fs::File = path_to_reader(&file_path);
+        let mut reader: fs::File = path_to_reader(&file_path);
         let highlight_settings_op = highlight_settings_from_path(file_path);
 
         Ok(Rc::new(RefCell::new(BufferState {
-            id :           BufferId::new(),
-            ss :           BufferStateS { path : Some(file_path.to_owned()) },
-            modified :     false,
-            content :      RopeBasedContentProvider::new(Some(&mut reader), highlight_settings_op),
-            mode :         BufferOpenMode::ReadWrite,
+            id: BufferId::new(),
+            ss: BufferStateS { path: Some(file_path.to_owned()) },
+            modified: false,
+            content: RopeBasedContentProvider::new(Some(&mut reader), highlight_settings_op),
+            mode: BufferOpenMode::ReadWrite,
         })))
     }
 
@@ -120,7 +120,7 @@ impl BufferState {
         &mut self.content
     }
 
-    pub fn submit_edit_events(&mut self, events : Vec<EditEvent>) {
+    pub fn submit_edit_events(&mut self, events: Vec<EditEvent>) {
         self.content.submit_events(events);
         self.modified = true; // TODO modified should be moved to history.
     }
@@ -136,7 +136,7 @@ impl BufferState {
         self.ss.path.clone()
     }
 
-    fn proceed_with_save(&mut self, mut file : fs::File) -> Result<(), io::Error> {
+    fn proceed_with_save(&mut self, mut file: fs::File) -> Result<(), io::Error> {
         self.content.save(file)
     }
 
@@ -145,7 +145,7 @@ impl BufferState {
         self.get_path().map_or(false, |path| path.exists())
     }
 
-    pub fn save(&mut self, path : Option<PathBuf>) -> Result<(), io::Error> {
+    pub fn save(&mut self, path: Option<PathBuf>) -> Result<(), io::Error> {
         if path.is_none() && self.ss.path.is_none() {
             return Err(io::Error::new(io::ErrorKind::NotFound, "No path provided."));
         }
@@ -155,7 +155,7 @@ impl BufferState {
             return Ok(());
         }
 
-        let final_path : PathBuf = match path {
+        let final_path: PathBuf = match path {
             Some(p) => p,
             None => self.get_path().unwrap(),
         };
@@ -171,6 +171,6 @@ impl BufferState {
     }
 }
 
-fn path_to_reader(path : &Path) -> fs::File {
+fn path_to_reader(path: &Path) -> fs::File {
     fs::File::open(path).expect(&format!("file {:?} did not exist!", path))
 }

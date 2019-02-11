@@ -35,7 +35,7 @@ use std::rc::Rc;
 pub type KeybindingsType = HashMap<Event, String>;
 
 fn get_known_keys() -> HashSet<String> {
-    let mut known_keys : HashSet<String> = HashSet::new();
+    let mut known_keys: HashSet<String> = HashSet::new();
 
     for s in vec!["ctrl", "alt", "shift", "backspace", "delete", "esc"] {
         known_keys.insert(s.to_string());
@@ -53,7 +53,7 @@ fn get_known_keys() -> HashSet<String> {
     known_keys
 }
 
-fn color_hex_to_rgb(hex : &str) -> Result<theme::Color, Error> {
+fn color_hex_to_rgb(hex: &str) -> Result<theme::Color, Error> {
     if hex.len() != 7 {
         Err(Error::new(ErrorKind::Other, format!("Error parsing color \"{:?}\".", hex)))
     } else {
@@ -70,22 +70,22 @@ fn color_hex_to_rgb(hex : &str) -> Result<theme::Color, Error> {
 }
 
 pub struct Settings {
-    tree :              sj::Value,
-    color_cache :       RefCell<HashMap<&'static str, cursive::theme::Color>>,
-    auto_highlighting : bool,
-    file_index_limit :  usize,
+    tree: sj::Value,
+    color_cache: RefCell<HashMap<&'static str, cursive::theme::Color>>,
+    auto_highlighting: bool,
+    file_index_limit: usize,
 }
 
 impl Settings {
-    fn get_value(&self, selector : &'static str) -> Option<&sj::Value> {
-        let mut ptr : Option<&sj::Value> = Some(&self.tree);
+    fn get_value(&self, selector: &'static str) -> Option<&sj::Value> {
+        let mut ptr: Option<&sj::Value> = Some(&self.tree);
         for lane in selector.split('/') {
             ptr = ptr.map(|subtree| &subtree[lane]);
         }
         ptr
     }
 
-    pub fn get_color(&self, selector : &'static str) -> cursive::theme::Color {
+    pub fn get_color(&self, selector: &'static str) -> cursive::theme::Color {
         match self.color_cache.borrow().get(selector) {
             Some(color) => return color.clone(),
             None => (),
@@ -112,7 +112,7 @@ impl Settings {
     // TODO(njskalski) I decided not to use Cursive's palette mechanism, because most views will be
     // using more than the default number of colors. So this method is obsolete.
     pub fn get_palette(&self) -> theme::Palette {
-        let mut palette : theme::Palette = theme::Palette::default();
+        let mut palette: theme::Palette = theme::Palette::default();
 
         palette[theme::PaletteColor::Background] =
             self.get_color("theme/text_view/background_color");
@@ -127,12 +127,12 @@ impl Settings {
 
     pub fn get_colorstyle(
         &self,
-        front_selector : &'static str,
-        background_selector : &'static str,
+        front_selector: &'static str,
+        background_selector: &'static str,
     ) -> cursive::theme::ColorStyle {
         cursive::theme::ColorStyle {
-            front : cursive::theme::ColorType::Color(self.get_color(front_selector)),
-            back :  cursive::theme::ColorType::Color(self.get_color(background_selector)),
+            front: cursive::theme::ColorType::Color(self.get_color(front_selector)),
+            back: cursive::theme::ColorType::Color(self.get_color(background_selector)),
         }
     }
 
@@ -140,20 +140,20 @@ impl Settings {
         self.file_index_limit
     }
 
-    pub fn get_keybindings(&self, context : &str) -> KeybindingsType {
+    pub fn get_keybindings(&self, context: &str) -> KeybindingsType {
         let known_keys = get_known_keys();
 
-        let text_bindings : &sj::map::Map<String, sj::Value> =
+        let text_bindings: &sj::map::Map<String, sj::Value> =
             match self.tree["keybindings"][context] {
                 sj::Value::Object(ref map) => map,
                 _ => panic!("settings/keybindings/text is not an sj::Object!"),
             };
 
-        let mut result : KeybindingsType = HashMap::new();
+        let mut result: KeybindingsType = HashMap::new();
 
         for (name, object) in text_bindings.iter() {
-            let option_name : &String = name;
-            let option_keys : &Vec<sj::Value> = match object {
+            let option_name: &String = name;
+            let option_keys: &Vec<sj::Value> = match object {
                 &sj::Value::Array(ref items) => items,
                 _ => panic!("settings/keybindings/text/{:?} is not an array!", option_name),
             };
@@ -165,7 +165,7 @@ impl Settings {
                 );
             }
 
-            let keys : Vec<&String> = option_keys
+            let keys: Vec<&String> = option_keys
                 .iter()
                 .enumerate()
                 .map(|(i, ref value)| {
@@ -196,8 +196,8 @@ impl Settings {
             let shift_in = keys.contains(&&"shift".to_string());
             let alt_in = keys.contains(&&"alt".to_string());
 
-            let last_str : &String = keys.last().unwrap();
-            let letter : char = last_str.chars().last().unwrap();
+            let last_str: &String = keys.last().unwrap();
+            let letter: char = last_str.chars().last().unwrap();
 
             let event = match (shift_in, alt_in, ctrl_in, last_str.as_str()) {
                 (_, _, _, "esc") => Event::Key(Key::Esc),
@@ -220,10 +220,10 @@ impl Settings {
         Self::load(&mut default_settings.as_bytes()).expect("failed loading settings. Parse error?")
     }
 
-    pub fn load(reader : &mut Read) -> Option<Self> {
+    pub fn load(reader: &mut Read) -> Option<Self> {
         let settings_result = sj::from_reader::<_, sj::Value>(reader);
 
-        let tree : Option<sj::Value> = match settings_result {
+        let tree: Option<sj::Value> = match settings_result {
             Err(some_error) => {
                 debug!("{:?}", some_error);
                 log::logger().flush();
@@ -254,10 +254,10 @@ impl Settings {
             .unwrap() as usize;
 
         Some(Settings {
-            tree :              tree,
-            color_cache :       RefCell::new(HashMap::new()),
-            auto_highlighting : auto_highlighting,
-            file_index_limit : file_index_limit
+            tree: tree,
+            color_cache: RefCell::new(HashMap::new()),
+            auto_highlighting: auto_highlighting,
+            file_index_limit: file_index_limit,
         })
     }
 }

@@ -18,7 +18,7 @@ limitations under the License.
 
 use std::io::Read;
 
-const default_settings_string : &'static str = r####"
+const default_settings_string: &'static str = r####"
 {
   "keybindings" : {
     "text" : {

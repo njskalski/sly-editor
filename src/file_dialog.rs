@@ -556,155 +556,15 @@ mod tests {
     use cursive::backend::puppet::observed::ObservedScreen;
     use cursive::backend::puppet::observed_screen_view::ObservedScreenView;
     use cursive::Cursive;
-    use dir_tree::tests::*;
     use file_dialog::FileDialog;
     use std::sync::mpsc;
     use std::sync::mpsc::Receiver;
     use std::time::Duration;
 
-    /*
-        <root>
-            - directory1 (/home/laura)
-                - subdirectory1
-                - subdirectory2
-                    - file1
-                    - file2.txt
-                    - file3.rs
-                - file4.ini
-            - directory2 (/home/bob)
-                - .file6.hidden
-    */
-    fn get_fake_filesystem() -> TreeNodeRef {
-        fake_root(vec![
-            fake_dir("/home/laura", vec![]),
-            fake_dir("/home/laura/subdirectory2", vec![]),
-            fake_dir(
-                "/home/laura/subdirectory2",
-                vec![fake_file("file1"), fake_file("file2.txt"), fake_file("file3.rs")],
-            ),
-            fake_file("file4.ini"),
-            fake_dir("/home/bob", vec![fake_file(".file6.hidden")]),
-        ])
-    }
-
-    struct BasicSetup {
-        pub settings: Rc<Settings>,
-        pub receiver: Receiver<IEvent>,
-        pub filesystem: TreeNodeRef,
-        //        pub view : ViewRef<FileDialog>,
-        pub siv: Cursive,
-        pub screen_sink: crossbeam_channel::Receiver<ObservedScreen>,
-        pub input: crossbeam_channel::Sender<Option<Event>>,
-        last_screen: RefCell<Option<ObservedScreen>>,
-    }
-
-    impl BasicSetup {
-        fn dump(&self) {
-            let mut siv = Cursive::default();
-            siv.step();
-            siv.add_layer(ObservedScreenView::new(self.screen_sink.recv().unwrap()));
-            siv.step();
-        }
-
-        fn draw_screen(&self, screen: &ObservedScreen) {
-            println!("captured screen:");
-
-            print!("x");
-            for x in 0..screen.size().x {
-                print!("{}", x % 10);
-            }
-            println!("x");
-
-            for y in 0..screen.size().y {
-                print!("{}", y % 10);
-
-                for x in 0..screen.size().x {
-                    let pos = Vec2::new(x, y);
-                    let cell_op: &Option<ObservedCell> = &screen[&pos];
-                    if cell_op.is_some() {
-                        let cell = cell_op.as_ref().unwrap();
-
-                        if cell.letter.is_continuation() {
-                            print!("c");
-                            continue;
-                        } else {
-                            let letter = cell.letter.unwrap();
-                            if letter == " " {
-                                print!(" ");
-                            } else {
-                                print!("{}", letter);
-                            }
-                        }
-                    } else {
-                        print!(".");
-                    }
-                }
-                print!("|");
-                println!();
-            }
-
-            print!("x");
-            for x in 0..screen.size().x {
-                print!("-");
-            }
-            println!("x");
-        }
-
-        fn last_screen(&self) -> Option<ObservedScreen> {
-            while let Ok(screen) = self.screen_sink.recv_timeout(Duration::new(0, 0)) {
-                self.last_screen.replace(Some(screen));
-            }
-
-            self.last_screen.borrow().clone()
-        }
-
-        fn dump_debug(&self) {
-            self.last_screen().as_ref().map(|s| {
-                self.draw_screen(s);
-            });
-        }
-
-        fn hit_keystroke(&mut self, key: Key) {
-            self.input.send(Some(Event::Key(key))).unwrap();
-            self.siv.step();
-        }
-    }
+    use test_utils::basic_setup::BasicSetup;
 
     fn basic_setup(variant: FileDialogVariant) -> BasicSetup {
-        let settings = Rc::new(Settings::load_default());
-        let (sender, receiver) = mpsc::channel::<IEvent>();
-        let filesystem = get_fake_filesystem();
-        let dialog = FileDialog::new(sender, variant, filesystem.clone(), settings.clone());
-        let handle = dialog.handle();
-
-        let size = Vec2::new(80, 16); // TODO(njskalski): un-hardcode it.
-
-        let backend = backend::puppet::Backend::init(Some(size));
-        let sink = backend.stream();
-        let input = backend.input();
-
-        let mut siv = Cursive::new(|| backend);
-        //        let mut siv = Cursive::default();
-        siv.add_fullscreen_layer(dialog);
-
-        //        let view : ViewRef<FileDialog> = siv.find_id(&handle.to_string()).unwrap();
-
-        siv.focus_id(&handle.to_string());
-
-        siv.quit();
-        input.send(Some(Event::Refresh)).unwrap();
-        siv.step();
-
-        BasicSetup {
-            settings,
-            receiver,
-            filesystem,
-            //            view,
-            siv,
-            screen_sink: sink,
-            input,
-            last_screen: RefCell::new(None),
-        }
+        BasicSetup::new(variant)
     }
 
     #[test]
@@ -768,6 +628,6 @@ mod tests {
             assert_eq!(subnodes, expected);
         }
 
-//        s.dump_debug();
+        //        s.dump_debug();
     }
 }

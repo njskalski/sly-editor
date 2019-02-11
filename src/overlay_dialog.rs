@@ -21,7 +21,7 @@ use std::fmt::Display;
 /// This trait will represent floating "windows" of interface.
 pub trait OverlayDialog<R, E>: SlyView
 where
-    E : Error + Display,
+    E: Error + Display,
 {
     fn is_displayed(&self) -> bool;
     fn is_finished(&self) -> bool;

@@ -15,8 +15,8 @@ limitations under the License.
 */
 
 use fuzzy_view_item::*;
-use std::rc::Rc;
 use interface::InterfaceNotifier;
+use std::rc::Rc;
 
 /*
 Index became a trait, because a default (fst-based) implementation cannot be modified after initial
@@ -34,8 +34,8 @@ pub trait FuzzyIndexTrait {
     //TODO(njskalski) remove mut or write why it's impossible.
     fn get_results_for(
         &mut self,
-        query : &String,
-        limit_op : Option<usize>,
-        inot_op : Option<InterfaceNotifier>,
+        query: &String,
+        limit_op: Option<usize>,
+        inot_op: Option<InterfaceNotifier>,
     ) -> Vec<Rc<ViewItem>>;
 }

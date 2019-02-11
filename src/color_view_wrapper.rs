@@ -26,41 +26,41 @@ use std::rc::Rc;
 pub type PrinterModifierType = Rc<Box<Fn(&Printer) -> Theme>>;
 
 // TODO(njskalski) it has not been decided yet what is the final structure of this wrapper.
-pub struct ColorViewWrapper<T : View> {
-    view :             T,
-    printer_modifier : PrinterModifierType,
+pub struct ColorViewWrapper<T: View> {
+    view: T,
+    printer_modifier: PrinterModifierType,
     // effects : EnumSet<theme::Effect>,
     // fill_background : bool,
-    size : Vec2,
+    size: Vec2,
 }
 
-impl<T : View> ColorViewWrapper<T> {
+impl<T: View> ColorViewWrapper<T> {
     inner_getters!(self.view: T);
 
     // TODO(njskalski) extend constructor, un-hardcode parameters
-    pub fn new(view : T, printer_modifier : PrinterModifierType) -> Self
+    pub fn new(view: T, printer_modifier: PrinterModifierType) -> Self
     where
-        T : View, /* + ?Sized */
+        T: View, /* + ?Sized */
     {
         ColorViewWrapper {
-            view :             view,
-            printer_modifier : printer_modifier,
+            view: view,
+            printer_modifier: printer_modifier,
             // effects : EnumSet::new(),
             // fill_background : true,
-            size : Vec2::new(0, 0),
+            size: Vec2::new(0, 0),
         }
     }
 }
 
-impl<T : View + Sized> ViewWrapper for ColorViewWrapper<T> {
+impl<T: View + Sized> ViewWrapper for ColorViewWrapper<T> {
     wrap_impl!(self.view: T);
 
-    fn wrap_layout(&mut self, size : Vec2) {
+    fn wrap_layout(&mut self, size: Vec2) {
         self.size = size;
         self.view.layout(size);
     }
 
-    fn wrap_draw(&self, printer : &Printer) {
+    fn wrap_draw(&self, printer: &Printer) {
         let new_theme = { (self.printer_modifier)(printer) };
         // debug!("new_theme : {:?}", new_theme);
 

@@ -19,26 +19,25 @@ use uid;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct BufferId {
-    id : usize,
+    id: usize,
 }
 
 impl BufferId {
     pub fn new() -> Self {
-        BufferId { id : uid::Id::<usize>::new().get() }
+        BufferId { id: uid::Id::<usize>::new().get() }
     }
 
     pub fn id(&self) -> usize {
         self.id
     }
 
-    pub fn from_string(s : &str) -> Option<Self> {
-        s[1..].parse::<usize>().ok().map( |id| {BufferId{ id }})
+    pub fn from_string(s: &str) -> Option<Self> {
+        s[1..].parse::<usize>().ok().map(|id| BufferId { id })
     }
 }
 
 impl fmt::Display for BufferId {
-    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "b{}", self.id)
     }
 }
-

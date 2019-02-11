@@ -14,19 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-use core::borrow::BorrowMut;
-use cursive::view::View;
-use cursive::view::ViewWrapper;
-use cursive::views::IdView;
-use view_handle::ViewHandle;
+pub mod basic_setup;
+pub mod fake_tree;
 
-/// This is a common trait of all windows used in this program.
-pub trait SlyView {
-    fn handle(&self) -> ViewHandle;
-}
-
-impl<V: SlyView + View> SlyView for cursive::views::IdView<V> {
-    fn handle(&self) -> ViewHandle {
-        (self as &IdView<V>).with_view(|v| v.handle()).unwrap()
-    }
-}
