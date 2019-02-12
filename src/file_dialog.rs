@@ -564,7 +564,9 @@ mod tests {
     use test_utils::basic_setup::BasicSetup;
 
     fn basic_setup(variant: FileDialogVariant) -> BasicSetup {
-        BasicSetup::new(variant)
+        BasicSetup::new(move |settings, ichannel | {
+            FileDialog::new(ichannel, variant, settings.filesystem().clone(), settings.settings().clone())
+            })
     }
 
     #[test]

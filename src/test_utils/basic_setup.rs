@@ -14,39 +14,70 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+use cursive::backend;
+use cursive::backend::puppet::observed::ObservedCell;
 use cursive::backend::puppet::observed::ObservedScreen;
 use cursive::event::Event;
+use cursive::event::Key;
 use cursive::Cursive;
+use cursive::Vec2;
 use dir_tree::TreeNodeRef;
 use events::IEvent;
+use file_dialog::FileDialog;
+use file_dialog::FileDialogVariant;
 use settings::Settings;
 use sly_view::SlyView;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc;
+use std::time::Duration;
 use test_utils::fake_tree::fake_dir;
 use test_utils::fake_tree::fake_file;
 use test_utils::fake_tree::fake_root;
 use view_handle::ViewHandle;
-use file_dialog::FileDialogVariant;
-use file_dialog::FileDialog;
-use cursive::Vec2;
-use cursive::backend;
-use cursive::backend::puppet::observed::ObservedCell;
-use std::time::Duration;
-use cursive::event::Key;
+use events::IChannel;
+
+pub trait BasicSetupSetupTrait {
+    fn settings(&self) -> &Rc<Settings>;
+    fn filesystem(&self) -> &TreeNodeRef;
+}
+
+struct BasicSetupSetupStruct {
+    settings: Rc<Settings>,
+    filesystem: TreeNodeRef,
+}
+
+impl BasicSetupSetupTrait for BasicSetupSetupStruct {
+    fn settings(&self) -> &Rc<Settings> {
+        &self.settings
+    }
+
+    fn filesystem(&self) -> &TreeNodeRef {
+        &self.filesystem
+    }
+}
+
+impl BasicSetupSetupStruct {
+    fn new() -> Self {
+        BasicSetupSetupStruct {
+            settings : Rc::new(Settings::load_default()),
+            filesystem : get_fake_filesystem()
+        }
+    }
+}
+
 
 pub struct BasicSetup {
-    pub settings: Rc<Settings>,
-    pub receiver: mpsc::Receiver<IEvent>,
-    pub filesystem: TreeNodeRef,
-    //        pub view : ViewRef<FileDialog>,
-    pub siv: Cursive,
-    pub screen_sink: crossbeam_channel::Receiver<ObservedScreen>,
-    pub input: crossbeam_channel::Sender<Option<Event>>,
+    ss : Box<dyn BasicSetupSetupTrait>,
+    receiver: mpsc::Receiver<IEvent>,
+    siv: Cursive,
+    screen_sink: crossbeam_channel::Receiver<ObservedScreen>,
+    input: crossbeam_channel::Sender<Option<Event>>,
     last_screen: RefCell<Option<ObservedScreen>>,
-//    handle: ViewHandle,
+    handle: ViewHandle,
 }
+
+
 
 /*
     <root>
@@ -74,12 +105,20 @@ fn get_fake_filesystem() -> TreeNodeRef {
 }
 
 impl BasicSetup {
-    pub fn new(variant: FileDialogVariant) -> Self {
-        let settings = Rc::new(Settings::load_default());
+    pub fn new<C, V>(constructor: C) -> Self
+    where
+        C: FnOnce(&BasicSetupSetupTrait, IChannel) -> V,
+        V: SlyView + cursive::view::View,
+    {
+        let basicSetup = BasicSetupSetupStruct::new();
+
         let (sender, receiver) = mpsc::channel::<IEvent>();
         let filesystem = get_fake_filesystem();
-        let dialog = FileDialog::new(sender, variant, filesystem.clone(), settings.clone());
-        let handle = dialog.handle();
+
+        let view = constructor(&basicSetup, sender);
+
+//        let dialog = FileDialog::new(sender, variant, filesystem.clone(), settings.clone());
+        let handle = view.handle();
 
         let size = Vec2::new(80, 16); // TODO(njskalski): un-hardcode it.
 
@@ -88,32 +127,23 @@ impl BasicSetup {
         let input = backend.input();
 
         let mut siv = Cursive::new(|| backend);
-        //        let mut siv = Cursive::default();
-        siv.add_fullscreen_layer(dialog);
-
-        //        let view : ViewRef<FileDialog> = siv.find_id(&handle.to_string()).unwrap();
+        siv.add_fullscreen_layer(view);
 
         siv.focus_id(&handle.to_string());
-
         siv.quit();
         input.send(Some(Event::Refresh)).unwrap();
         siv.step();
 
         BasicSetup {
-            settings,
+            ss : Box::new(basicSetup),
             receiver,
-            filesystem,
-            //            view,
             siv,
             screen_sink: sink,
             input,
             last_screen: RefCell::new(None),
+            handle,
         }
     }
-//
-//    fn view(&self) {
-//        self.siv.find_id(self.handle)
-//    }
 
     pub fn draw_screen(&self, screen: &ObservedScreen) {
         println!("captured screen:");
