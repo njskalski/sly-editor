@@ -162,6 +162,11 @@ impl Interface {
                         ch.send(IEvent::SaveCurrentBuffer).unwrap();
                     });
                 }
+                "save_as" => {
+                    i.siv.add_global_callback(event, move |_| {
+                        ch.send(IEvent::SaveCurrentBufferAs).unwrap();
+                    });
+                }
                 "open_file_dialog" => {
                     i.siv.add_global_callback(event, move |_| {
                         ch.send(IEvent::OpenFileDialog).unwrap();
@@ -254,6 +259,9 @@ impl Interface {
                 }
                 IEvent::SaveCurrentBuffer => {
                     self.save_current_buffer();
+                }
+                IEvent::SaveCurrentBufferAs => {
+                    self.show_save_as();
                 }
                 IEvent::OpenFileDialog => {
                     self.show_open_file_dialog();
@@ -436,8 +444,7 @@ impl Interface {
 
         let (folder_op, file_op) = match path_op {
             None => (None, None),
-            Some(path) => utils::path_string_to_pair(path.to_string_lossy().to_string()), /* TODO get rid of
-                                                                                           * path_string_to_pair */
+            Some(path) => (Some(path.parent().unwrap().to_owned()), Some(path.file_name().unwrap().to_string_lossy().to_string()))
         };
         self.show_file_dialog(FileDialogVariant::SaveAsFile(id, folder_op, file_op));
     }

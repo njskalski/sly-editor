@@ -90,8 +90,8 @@ use dir_tree::LazyTreeNode;
 
 #[derive(Debug)]
 pub enum FileDialogVariant {
-    SaveAsFile(BufferId, Option<String>, Option<String>), // directory, filename
-    OpenFile(Option<String>),                             // directory
+    SaveAsFile(BufferId, Option<PathBuf>, Option<String>), // directory, filename
+    OpenFile(Option<PathBuf>),                              // directory
 }
 
 impl FileDialogVariant {
@@ -102,7 +102,7 @@ impl FileDialogVariant {
         }
     }
 
-    pub fn get_folder_op(&self) -> &Option<String> {
+    pub fn get_folder_op(&self) -> &Option<PathBuf> {
         match self {
             FileDialogVariant::SaveAsFile(buffer_id, folder_op, file_op) => folder_op,
             FileDialogVariant::OpenFile(folder_op) => folder_op,
@@ -382,8 +382,8 @@ fn is_prefix_of(prefix : &Path, path : &Path) -> bool {
 }
 
 /// Will expand tree to open directory
-pub fn expand_tree(siv : &mut Cursive, root : TreeNodeRef, path : &Path) -> bool {
-    let mut tree_view = siv.find_id::<TreeViewType>(DIR_TREE_VIEW_ID).unwrap();
+pub fn expand_tree(tree_view : &mut TreeViewType, path : &Path) -> bool {
+//    let mut tree_view = siv.find_id::<TreeViewType>(DIR_TREE_VIEW_ID).unwrap();
 
     let mut row_begin = 0;
     let mut row_end = tree_view.len();
@@ -477,6 +477,11 @@ impl FileDialog {
 
         dir_tree.insert_container_item(root, Placement::LastChild, 0);
         dir_tree.set_collapsed(0, true);
+
+        if let Some(path) = variant.get_folder_op() {
+            expand_tree(&mut dir_tree, path);
+        }
+
         dir_tree.set_on_collapse(get_dir_tree_on_collapse_switch_callback(handle.clone(), false));
         dir_tree.set_on_select(get_dir_tree_on_select_callback(handle.clone()));
 
