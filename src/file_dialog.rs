@@ -77,6 +77,7 @@ use std::fmt;
 use std::ops::Deref;
 use std::path::PathBuf;
 use view_handle::ViewHandle;
+use dir_tree::LazyTreeNode;
 //use lazy_dir_tree::LazyTreeNode;
 
 // TODO(njskalski) this view took longer than anticipated to implement, so I rushed to the end
@@ -90,7 +91,7 @@ use view_handle::ViewHandle;
 #[derive(Debug)]
 pub enum FileDialogVariant {
     SaveAsFile(BufferId, Option<String>, Option<String>), // directory, filename
-    OpenFile(Option<String>),                             //directory
+    OpenFile(Option<String>),                             // directory
 }
 
 impl FileDialogVariant {
@@ -364,48 +365,71 @@ fn get_on_file_edit_save_submit(file_dialog_handle: ViewHandle) -> impl Fn(&mut 
     }
 }
 
-//pub fn expand_tree(siv : &mut Cursive, path : &Path) {
-//    let mut tree_view = siv.find_id::<TreeViewType>(DIR_TREE_VIEW_ID).unwrap();
-//
-//    let mut row_begin = 0;
-//    let mut row_end = tree_view.len();
-//
-//    let mut done = false;
-//
-//    let mut last_expansion : Option<usize> = None;
-//
-//    while !done {
-//        let mut expanded = false;
-//        for i in row_begin..row_end {
-//            let item = tree_view.borrow_item(i).unwrap().clone();
-//
-//            match *item {
-//                LazyTreeNode::DirNode(ref dir) => {
-//                    if path.starts_with(dir.as_ref()) {
-//                        let items_in_total = tree_view.len();
-//                        tree_view.expand_item(i);
-//                        last_expansion = Some(i);
-//                        expanded = true;
-//                        let num_children = tree_view.len() - items_in_total;
-//                        row_begin = i + 1;
-//                        row_end = row_begin + num_children;
-//                        break;
-//                    }
-//                }
-//                _ => {}
-//            }
-//        }
-//
-//        if !expanded && last_expansion.is_some() {
-//            let last_i = last_expansion.unwrap();
-//
-//            tree_view.collapse_item(last_i);
-//            tree_view.set_selected_row(last_i);
-//
-//            done = true;
-//        }
-//    }
-//}
+fn is_prefix_of(prefix : &Path, path : &Path) -> bool {
+    if path.components().count() < prefix.components().count() {
+        return false;
+    }
+
+    for (idx, pref_it) in prefix.components().enumerate() {
+        if pref_it != path.components().skip(idx).next().unwrap() {
+            return false;
+        }
+    }
+
+    true
+
+//    if prefix_components.len() < path_components.co
+}
+
+/// Will expand tree to open directory
+pub fn expand_tree(siv : &mut Cursive, root : TreeNodeRef, path : &Path) -> bool {
+    let mut tree_view = siv.find_id::<TreeViewType>(DIR_TREE_VIEW_ID).unwrap();
+
+    let mut row_begin = 0;
+    let mut row_end = tree_view.len();
+
+    let mut done = false;
+
+    let mut last_expansion : Option<usize> = None;
+
+    let mut i = 0;
+    loop {
+
+        if i >= tree_view.len() {
+            return false;
+        }
+
+        let item = tree_view.borrow_item(i).unwrap().clone();
+
+        if (**item).is_root() {
+            tree_view.expand_item(i);
+            i += 1;
+            continue;
+        }
+
+        if (**item).is_dir() {
+            let item_path = (**item).path().unwrap();
+
+            if is_prefix_of(item_path, path) {
+                tree_view.expand_item(i);
+                i += 1;
+                continue;
+            }
+        }
+
+        if (**item).is_file() {
+            let item_path = (**item).path().unwrap();
+
+            if item_path == path {
+                return true;
+            }
+
+            i += 1;
+        }
+    }
+
+    false
+}
 
 impl FileDialog {
     pub fn new<T>(
@@ -563,6 +587,18 @@ mod tests {
 
     use test_utils::basic_setup::BasicSetup;
 
+
+    #[test]
+    fn is_prefix_of_test() {
+        assert_eq!(is_prefix_of(Path::new("/"), Path::new("/home/nj/sly/editor")), true);
+        assert_eq!(is_prefix_of(Path::new("/home/"), Path::new("/home/nj/sly/editor")), true);
+        assert_eq!(is_prefix_of(Path::new("/home/nj"), Path::new("/home/nj/sly/editor")), true);
+        assert_eq!(is_prefix_of(Path::new("/home/nj/sly"), Path::new("/home/nj/sly/editor")), true);
+        assert_eq!(is_prefix_of(Path::new("/home/nj/sly/editor"), Path::new("/home/nj/sly/editor")), true);
+        assert_eq!(is_prefix_of(Path::new("/home/njs/sly"), Path::new("/home/nj/sly/editor")), false);
+        assert_eq!(is_prefix_of(Path::new("/etc/"), Path::new("/home/nj/sly/editor")), false);
+    }
+
     fn basic_setup(variant: FileDialogVariant) -> BasicSetup {
         BasicSetup::new(move |settings, ichannel | {
             FileDialog::new(ichannel, variant, settings.filesystem().clone(), settings.settings().clone())
@@ -629,7 +665,10 @@ mod tests {
 
             assert_eq!(subnodes, expected);
         }
+    }
 
-        //        s.dump_debug();
+    #[test]
+    fn open_file_points_to_dir() {
+
     }
 }
