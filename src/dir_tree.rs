@@ -42,19 +42,23 @@ pub trait TreeNode: fmt::Debug + fmt::Display {
 
 #[derive(Debug, Clone)]
 pub enum LazyTreeNode {
-    RootNode(Vec<Rc<LazyTreeNode>>),
+    RootNode(TreeNodeVec),
     DirNode(Rc<PathBuf>),
     FileNode(Rc<PathBuf>),
 }
 
 impl LazyTreeNode {
     pub fn new(directories: Vec<PathBuf>, files: Vec<PathBuf>) -> Self {
-        let mut nodes: Vec<Rc<LazyTreeNode>> = directories
-            .into_iter()
-            .map(|x| Rc::new(LazyTreeNode::DirNode(Rc::new(x))))
-            .chain(files.into_iter().map(|x| Rc::new(LazyTreeNode::FileNode(Rc::new(x)))))
-            .collect();
-        //        nodes.sort();
+        let mut nodes : TreeNodeVec = vec![];
+
+        for directory in directories {
+            nodes.push(Rc::new(Box::new(LazyTreeNode::DirNode(Rc::new(directory)))));
+        }
+
+        for file in files {
+            nodes.push(Rc::new(Box::new(LazyTreeNode::FileNode(Rc::new(file)))));
+        }
+
         LazyTreeNode::RootNode(nodes)
     }
 }
@@ -83,7 +87,7 @@ impl TreeNode for LazyTreeNode {
 
     fn children(&self) -> TreeNodeVec {
         match self {
-            &LazyTreeNode::RootNode(ref children) => vec![],
+            &LazyTreeNode::RootNode(ref children) => { children.clone() }
             &LazyTreeNode::DirNode(ref path) => {
                 //                let path = Path::new(&**p);
                 let mut contents: TreeNodeVec = Vec::new();

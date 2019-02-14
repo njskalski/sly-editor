@@ -253,6 +253,8 @@ impl Settings {
             .and_then(|node| node.as_u64())
             .unwrap() as usize;
 
+        debug!("file index limit {}", file_index_limit);
+
         Some(Settings {
             tree: tree,
             color_cache: RefCell::new(HashMap::new()),

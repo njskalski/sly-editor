@@ -199,7 +199,7 @@ impl AppState {
             build_file_index(&mut files_to_index, dir, enable_gitignore, None, file_index_limit);
         }
 
-        //        debug!("file index:\n{:?}", &files_to_index);
+//        debug!("file index:\n{:?}", &files_to_index);
 
         let file_index_items = file_list_to_items(&files_to_index);
         let buffers_to_load: VecDeque<PathBuf> = files.iter().map(|x| x.clone()).collect();
