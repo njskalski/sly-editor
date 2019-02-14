@@ -411,7 +411,6 @@ pub fn expand_tree(
 
     let mut i = 0;
     loop {
-        dbg!(i);
         if i >= tree_view.len() {
             return false;
         }
@@ -692,7 +691,7 @@ mod tests {
                 .map(|hit| hit.expanded_line(0, 20).to_string().trim().to_owned())
                 .collect();
 
-            let expected = vec!["▸ laura", "▸ subdirectory2", "▸ subdirectory2", "▸ bob"];
+            let expected = vec!["▸ laura", "▸ subdirectory1", "▸ subdirectory2", "▸ bob"];
 
             assert_eq!(subnodes, expected);
         }
@@ -705,5 +704,17 @@ mod tests {
             Some(Path::new("/home/laura/subdirectory2").to_owned()),
             Some("file2.txt".to_owned()),
         ));
+
+        let screen = s.last_screen().unwrap();
+
+        let hits = screen.find_occurences("▾");
+        assert_eq!(hits.len(), 3);
+
+        let subnodes: Vec<String> =
+            hits.iter().map(|hit| hit.expanded_line(0, 20).to_string().trim().to_owned()).collect();
+
+        let expected = vec!["▾ <root>", "▾ laura", "▾ subdirectory2"];
+
+        assert_eq!(subnodes, expected);
     }
 }

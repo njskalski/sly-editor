@@ -94,7 +94,7 @@ pub struct BasicSetup {
 fn get_fake_filesystem() -> TreeNodeRef {
     fake_root(vec![
         fake_dir("/home/laura", vec![]),
-        fake_dir("/home/laura/subdirectory2", vec![]),
+        fake_dir("/home/laura/subdirectory1", vec![]),
         fake_dir(
             "/home/laura/subdirectory2",
             vec![fake_file("file1"), fake_file("file2.txt"), fake_file("file3.rs")],
