@@ -65,6 +65,7 @@ use std::env;
 use std::path::Path;
 
 use buffer_id::BufferId;
+use dir_tree::LazyTreeNode;
 use dir_tree::TreeNodeVec;
 use events::IChannel;
 use events::IEvent;
@@ -77,7 +78,6 @@ use std::fmt;
 use std::ops::Deref;
 use std::path::PathBuf;
 use view_handle::ViewHandle;
-use dir_tree::LazyTreeNode;
 //use lazy_dir_tree::LazyTreeNode;
 
 // TODO(njskalski) this view took longer than anticipated to implement, so I rushed to the end
@@ -91,7 +91,7 @@ use dir_tree::LazyTreeNode;
 #[derive(Debug)]
 pub enum FileDialogVariant {
     SaveAsFile(BufferId, Option<PathBuf>, Option<String>), // directory, filename
-    OpenFile(Option<PathBuf>),                              // directory
+    OpenFile(Option<PathBuf>),                             // directory
 }
 
 impl FileDialogVariant {
@@ -211,6 +211,42 @@ impl SlyView for FileDialog {
 type TreeViewType = TreeView<TreeNodeRef>;
 type SelectViewType = SelectView<TreeNodeRef>;
 
+fn expand_row_add_children(tree_view: &mut TreeViewType, row: usize, files_visible: bool) {
+    let mut tree_view = tree_view.borrow_mut();
+    let item = tree_view.borrow_item(row).unwrap().clone();
+
+    let mut dir_vec: Vec<TreeNodeRef> = Vec::new();
+    let mut file_vec: Vec<TreeNodeRef> = Vec::new();
+
+    let children = item.children();
+
+    if children.is_empty() {
+        return;
+    }
+
+    for c in children {
+        if c.is_file() {
+            file_vec.push(c);
+        } else {
+            assert!(c.is_dir());
+            dir_vec.push(c);
+        }
+    }
+
+    //            dir_vec.sort();
+    for dir in dir_vec.iter() {
+        tree_view.insert_container_item(dir.clone(), Placement::LastChild, row);
+    }
+
+    if files_visible {
+        //                file_vec.sort();
+
+        for file in file_vec.iter() {
+            tree_view.insert_item(file.clone(), Placement::LastChild, row);
+        }
+    }
+}
+
 fn get_dir_tree_on_collapse_switch_callback(
     file_dialog_handle: ViewHandle,
     files_visible: bool,
@@ -223,40 +259,12 @@ fn get_dir_tree_on_collapse_switch_callback(
         let mut tree_view: ViewRef<TreeViewType> = file_dialog.tree_view();
         //the line below looks complicated, but it boils down to copying Rc<LazyTreeNode>, so view
         // borrow can end immediately.
-        let item = (*tree_view).borrow_item(row).unwrap().clone();
 
         if is_collapsed == false {
-            let mut dir_vec: Vec<TreeNodeRef> = Vec::new();
-            let mut file_vec: Vec<TreeNodeRef> = Vec::new();
-
-            let children = item.children();
-
-            if children.is_empty() {
-                return;
-            }
-
-            for c in children {
-                if c.is_file() {
-                    file_vec.push(c);
-                } else {
-                    assert!(c.is_dir());
-                    dir_vec.push(c);
-                }
-            }
-
-            //            dir_vec.sort();
-            for dir in dir_vec.iter() {
-                tree_view.insert_container_item(dir.clone(), Placement::LastChild, row);
-            }
-
-            if files_visible {
-                //                file_vec.sort();
-
-                for file in file_vec.iter() {
-                    tree_view.insert_item(file.clone(), Placement::LastChild, row);
-                }
-            }
+            expand_row_add_children(tree_view.borrow_mut(), row, files_visible);
         } else {
+            let item = tree_view.borrow_mut().borrow_item(row).unwrap().clone();
+
             // TODO(njskalski) - possible bug in cursive_tree_view: removal of these set_collapsed
             // calls leads to cursive_tree_view::draw crash. It seems like there is an
             // override of "index" variable there. Also, the repository seems outdated,
@@ -275,29 +283,41 @@ fn get_dir_tree_on_select_callback(file_dialog_handle: ViewHandle) -> impl Fn(&m
     move |siv: &mut Cursive, row: usize| {
         // debug!("dir tree on select callback at {:}", row);
         let mut file_dialog = get_file_dialog(siv, &file_dialog_handle);
-        let mut view: ViewRef<TreeViewType> = file_dialog.tree_view();
-        //the line below looks complicated, but it boils down to copying Rc<LazyTreeNode>, so view
-        // borrow can end immediately.
-        let item: TreeNodeRef = (*view).borrow_item(row).unwrap().clone();
+        let mut tree_view_ref: ViewRef<TreeViewType> = file_dialog.tree_view();
+        let mut file_list_view_ref: ViewRef<SelectViewType> = file_dialog.file_list_view();
 
-        let mut file_list_view: ViewRef<SelectViewType> = file_dialog.file_list_view();
-        file_list_view.clear();
+        let mut tree_view = tree_view_ref.borrow_mut();
+        let mut file_list_view = file_list_view_ref.borrow_mut();
 
-        if !item.is_dir() {
-            return;
+        dir_tree_on_select(tree_view, file_list_view, row);
+    }
+}
+
+fn dir_tree_on_select(
+    tree_view: &mut TreeViewType,
+    file_list_view: &mut SelectViewType,
+    row: usize,
+) {
+    //the line below looks complicated, but it boils down to copying Rc<LazyTreeNode>, so view
+    // borrow can end immediately.
+    let item: TreeNodeRef = (*tree_view).borrow_item(row).unwrap().clone();
+
+    file_list_view.clear();
+
+    if !item.is_dir() {
+        return;
+    }
+
+    let mut file_vec = TreeNodeVec::new();
+    for c in item.children() {
+        if c.is_file() {
+            file_vec.push(c);
         }
+    }
 
-        let mut file_vec = TreeNodeVec::new();
-        for c in item.children() {
-            if c.is_file() {
-                file_vec.push(c);
-            }
-        }
-
-        //        file_vec.sort();
-        for file in file_vec.iter() {
-            file_list_view.add_item(file.to_string(), file.clone());
-        }
+    //        file_vec.sort();
+    for file in file_vec.iter() {
+        file_list_view.add_item(file.to_string(), file.clone());
     }
 }
 
@@ -365,7 +385,7 @@ fn get_on_file_edit_save_submit(file_dialog_handle: ViewHandle) -> impl Fn(&mut 
     }
 }
 
-fn is_prefix_of(prefix : &Path, path : &Path) -> bool {
+fn is_prefix_of(prefix: &Path, path: &Path) -> bool {
     if path.components().count() < prefix.components().count() {
         return false;
     }
@@ -378,23 +398,20 @@ fn is_prefix_of(prefix : &Path, path : &Path) -> bool {
 
     true
 
-//    if prefix_components.len() < path_components.co
+    //    if prefix_components.len() < path_components.co
 }
 
-/// Will expand tree to open directory
-pub fn expand_tree(tree_view : &mut TreeViewType, path : &Path) -> bool {
-//    let mut tree_view = siv.find_id::<TreeViewType>(DIR_TREE_VIEW_ID).unwrap();
-
-    let mut row_begin = 0;
-    let mut row_end = tree_view.len();
-
-    let mut done = false;
-
-    let mut last_expansion : Option<usize> = None;
+pub fn expand_tree(
+    tree_view: &mut TreeViewType,
+    file_list_view: &mut SelectViewType,
+    path: &Path,
+    files_visible: bool,
+) -> bool {
+    let mut last_expansion: Option<usize> = None;
 
     let mut i = 0;
     loop {
-
+        dbg!(i);
         if i >= tree_view.len() {
             return false;
         }
@@ -402,18 +419,20 @@ pub fn expand_tree(tree_view : &mut TreeViewType, path : &Path) -> bool {
         let item = tree_view.borrow_item(i).unwrap().clone();
 
         if (**item).is_root() {
+            tree_view.set_selected_row(i);
             tree_view.expand_item(i);
-            i += 1;
-            continue;
+            expand_row_add_children(tree_view, i, files_visible);
+            dir_tree_on_select(tree_view, file_list_view, i);
         }
 
         if (**item).is_dir() {
             let item_path = (**item).path().unwrap();
 
             if is_prefix_of(item_path, path) {
+                tree_view.set_selected_row(i);
                 tree_view.expand_item(i);
-                i += 1;
-                continue;
+                expand_row_add_children(tree_view, i, files_visible);
+                dir_tree_on_select(tree_view, file_list_view, i);
             }
         }
 
@@ -423,9 +442,8 @@ pub fn expand_tree(tree_view : &mut TreeViewType, path : &Path) -> bool {
             if item_path == path {
                 return true;
             }
-
-            i += 1;
         }
+        i += 1;
     }
 
     false
@@ -474,24 +492,22 @@ impl FileDialog {
         ));
 
         let mut dir_tree: TreeViewType = TreeView::new();
-
         dir_tree.insert_container_item(root, Placement::LastChild, 0);
         dir_tree.set_collapsed(0, true);
-
-        if let Some(path) = variant.get_folder_op() {
-            expand_tree(&mut dir_tree, path);
-        }
-
         dir_tree.set_on_collapse(get_dir_tree_on_collapse_switch_callback(handle.clone(), false));
         dir_tree.set_on_select(get_dir_tree_on_select_callback(handle.clone()));
+
+        let mut file_select: SelectViewType = SelectView::new().v_align(VAlign::Top);
+        file_select.set_on_submit(get_file_list_on_submit(handle.clone(), variant.is_open()));
+
+        if let Some(path) = variant.get_folder_op() {
+            expand_tree(&mut dir_tree, &mut file_select, path, false);
+        }
 
         horizontal_layout.add_child(ColorViewWrapper::new(
             BoxView::with_fixed_size(DIR_TREE_VIEW_SIZE, IdView::new(DIR_TREE_VIEW_ID, dir_tree)),
             printer_to_theme.clone(),
         ));
-
-        let mut file_select: SelectViewType = SelectView::new().v_align(VAlign::Top);
-        file_select.set_on_submit(get_file_list_on_submit(handle.clone(), variant.is_open()));
 
         horizontal_layout.add_child(ColorViewWrapper::new(
             BoxView::with_fixed_size(FILE_LIST_VIEW_SIZE, file_select.with_id(FILE_LIST_VIEW_ID)),
@@ -592,22 +608,32 @@ mod tests {
 
     use test_utils::basic_setup::BasicSetup;
 
-
     #[test]
     fn is_prefix_of_test() {
         assert_eq!(is_prefix_of(Path::new("/"), Path::new("/home/nj/sly/editor")), true);
         assert_eq!(is_prefix_of(Path::new("/home/"), Path::new("/home/nj/sly/editor")), true);
         assert_eq!(is_prefix_of(Path::new("/home/nj"), Path::new("/home/nj/sly/editor")), true);
         assert_eq!(is_prefix_of(Path::new("/home/nj/sly"), Path::new("/home/nj/sly/editor")), true);
-        assert_eq!(is_prefix_of(Path::new("/home/nj/sly/editor"), Path::new("/home/nj/sly/editor")), true);
-        assert_eq!(is_prefix_of(Path::new("/home/njs/sly"), Path::new("/home/nj/sly/editor")), false);
+        assert_eq!(
+            is_prefix_of(Path::new("/home/nj/sly/editor"), Path::new("/home/nj/sly/editor")),
+            true
+        );
+        assert_eq!(
+            is_prefix_of(Path::new("/home/njs/sly"), Path::new("/home/nj/sly/editor")),
+            false
+        );
         assert_eq!(is_prefix_of(Path::new("/etc/"), Path::new("/home/nj/sly/editor")), false);
     }
 
     fn basic_setup(variant: FileDialogVariant) -> BasicSetup {
-        BasicSetup::new(move |settings, ichannel | {
-            FileDialog::new(ichannel, variant, settings.filesystem().clone(), settings.settings().clone())
-            })
+        BasicSetup::new(move |settings, ichannel| {
+            FileDialog::new(
+                ichannel,
+                variant,
+                settings.filesystem().clone(),
+                settings.settings().clone(),
+            )
+        })
     }
 
     #[test]
@@ -673,7 +699,11 @@ mod tests {
     }
 
     #[test]
-    fn open_file_points_to_dir() {
-
+    fn save_file_as_points_to_dir() {
+        let mut s = basic_setup(FileDialogVariant::SaveAsFile(
+            BufferId::new(),
+            Some(Path::new("/home/laura/subdirectory2").to_owned()),
+            Some("file2.txt".to_owned()),
+        ));
     }
 }

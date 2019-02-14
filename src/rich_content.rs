@@ -218,12 +218,12 @@ impl RichContent {
     /// ParseCacheRecord.line_to_parse > line_no (*strictly higher* guaranteed).
     pub fn get_cache(&self, line_no: usize) -> Option<ParseCacheRecord> {
         let idx_op = self.get_cache_idx(line_no);
-        debug!("idx_op : {:?}", &idx_op);
+//        debug!("idx_op : {:?}", &idx_op);
         idx_op.and_then(|x| self.parse_cache.borrow().get(x).map(|cache| cache.clone()))
     }
 
     pub fn get_line(&self, line_no: usize) -> Option<Rc<RichLine>> {
-        debug!("ask for rich line {:}", line_no);
+//        debug!("ask for rich line {:}", line_no);
 
         if self.lines.borrow().len() > line_no {
             return self.lines.borrow().get(line_no).map(|x| x.clone());
@@ -235,14 +235,14 @@ impl RichContent {
         // see contracts
         let mut parse_cache: ParseCacheRecord = match self.get_cache(line_no) {
             None => {
-                debug!("cache miss for line_no {:}", line_no);
+//                debug!("cache miss for line_no {:}", line_no);
                 ParseCacheRecord::new(
                     ParseState::new(&self.highlight_settings.syntax),
                     &highlighter,
                 )
             }
             Some(x) => {
-                debug!("cache HIT for line_no {:} ({:})", line_no, x.line_to_parse);
+//                debug!("cache HIT for line_no {:} ({:})", line_no, x.line_to_parse);
                 x
             }
         };
