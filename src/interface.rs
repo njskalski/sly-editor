@@ -105,9 +105,7 @@ impl Interface {
         InterfaceNotifier { siv_cb_sink: self.siv.cb_sink().clone(), ichan: self.event_sink() }
     }
 
-    pub fn new(mut state: AppState) -> Self {
-        let mut siv = Cursive::default();
-
+    pub fn new(mut state: AppState, mut siv: Cursive) -> Self {
         let palette = state.settings_ref().get_palette();
 
         let theme: Theme = Theme { shadow: false, borders: BorderStyle::Simple, palette: palette };
@@ -121,6 +119,7 @@ impl Interface {
         let active_editor = sly_text_view.handle().clone();
 
         siv.add_fullscreen_layer(sly_text_view);
+        siv.focus_id(&active_editor.to_string());
 
         let mut i = Interface {
             state: state,
@@ -409,17 +408,29 @@ impl Interface {
         self.file_dialog().map(|mut file_dialog_ref| file_dialog_ref.borrow_mut().cancel());
     }
 
+    pub fn done(&self) -> bool {
+        self.done
+    }
+
+    pub fn siv(&self) -> &Cursive {
+        &self.siv
+    }
+
     /// Main program method
     pub fn main(&mut self) {
-        while !self.done {
-            // first, let's finish whatever action have been started in a previous frame.
-            self.process_dialogs();
+        while !self.done() {
+            self.main_step();
+        }
+    }
 
-            self.process_events();
+    pub fn main_step(&mut self) {
+        // first, let's finish whatever action have been started in a previous frame.
+        self.process_dialogs();
 
-            if !self.done {
-                self.siv.step();
-            }
+        self.process_events();
+
+        if !self.done() {
+            self.siv.step();
         }
     }
 
@@ -444,7 +455,10 @@ impl Interface {
 
         let (folder_op, file_op) = match path_op {
             None => (None, None),
-            Some(path) => (Some(path.parent().unwrap().to_owned()), Some(path.file_name().unwrap().to_string_lossy().to_string()))
+            Some(path) => (
+                Some(path.parent().unwrap().to_owned()),
+                Some(path.file_name().unwrap().to_string_lossy().to_string()),
+            ),
         };
         self.show_file_dialog(FileDialogVariant::SaveAsFile(id, folder_op, file_op));
     }

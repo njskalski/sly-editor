@@ -49,7 +49,7 @@ pub enum LazyTreeNode {
 
 impl LazyTreeNode {
     pub fn new(directories: Vec<PathBuf>, files: Vec<PathBuf>) -> Self {
-        let mut nodes : TreeNodeVec = vec![];
+        let mut nodes: TreeNodeVec = vec![];
 
         for directory in directories {
             nodes.push(Rc::new(Box::new(LazyTreeNode::DirNode(Rc::new(directory)))));
@@ -87,7 +87,7 @@ impl TreeNode for LazyTreeNode {
 
     fn children(&self) -> TreeNodeVec {
         match self {
-            &LazyTreeNode::RootNode(ref children) => { children.clone() }
+            &LazyTreeNode::RootNode(ref children) => children.clone(),
             &LazyTreeNode::DirNode(ref path) => {
                 //                let path = Path::new(&**p);
                 let mut contents: TreeNodeVec = Vec::new();

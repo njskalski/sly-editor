@@ -52,6 +52,7 @@ mod fuzzy_index_trait;
 mod fuzzy_query_view;
 mod fuzzy_view_item;
 mod interface;
+mod interface_tests;
 mod lsp_client;
 mod overlay_dialog;
 mod rich_content;
@@ -84,10 +85,12 @@ extern crate jsonrpc_core;
 #[macro_use]
 extern crate human_panic;
 extern crate crossbeam_channel;
+extern crate ncurses;
 extern crate serde;
 
 use app_state::AppState;
 use cpuprofiler::PROFILER;
+use cursive::Cursive;
 use interface::Interface;
 use std::borrow::Borrow;
 use std::borrow::BorrowMut;
@@ -196,7 +199,8 @@ fn main() {
 
     let app_state = AppState::new(directories, files, git_files_included == false);
 
-    let mut interface = Interface::new(app_state);
+    let mut siv = Cursive::default();
+    let mut interface = Interface::new(app_state, siv);
     interface.main();
     if profiling_enabled {
         PROFILER.lock().unwrap().stop().unwrap();
