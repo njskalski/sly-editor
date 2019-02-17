@@ -8,7 +8,8 @@ script:
 dist: xenial
 addons:
   apt:
-    - libx11-xcb-dev
-    - libncurses5-dev
-    - libgoogle-perftools-dev
-    - libncursesw5-dev
+    packages:
+      - libx11-xcb-dev
+      - libncurses5-dev
+      - libgoogle-perftools-dev
+      - libncursesw5-dev
