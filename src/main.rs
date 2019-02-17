@@ -68,9 +68,11 @@ mod sly_view;
 mod test_utils;
 mod view_handle;
 
+#[cfg(target_os = "linux")]
+extern crate cpuprofiler;
+
 extern crate clipboard;
 extern crate core;
-extern crate cpuprofiler;
 extern crate enumset;
 extern crate ignore;
 extern crate regex;
@@ -97,7 +99,6 @@ extern crate yaml_rust;
 extern crate filesystem;
 
 use app_state::AppState;
-use cpuprofiler::PROFILER;
 use cursive::Cursive;
 use filesystem::*;
 use interface::Interface;
@@ -109,6 +110,34 @@ use std::path;
 use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
+
+#[cfg(target_os = "linux")]
+use cpuprofiler::PROFILER;
+
+#[cfg(target_os = "linux")]
+fn start_profiling() {
+    let profile_file: String = format!("./sly-{:}.profile", time::now().rfc3339());
+    let profile_path: &Path = Path::new(&profile_file);
+    if !profile_path.exists() {
+        //with timestamp in name this is probably never true
+        fs::File::create(&profile_file);
+    }
+    PROFILER.lock().unwrap().start(profile_file.clone()).unwrap();
+}
+
+#[cfg(target_os = "linux")]
+fn stop_profiling() {
+    PROFILER.lock().unwrap().stop().unwrap();
+}
+
+#[cfg(not(target_os = "linux"))]
+fn start_profiling() {
+    debug!("profiling not available on this platform.");
+}
+
+#[cfg(not(target_os = "linux"))]
+fn stop_profiling() {
+}
 
 #[cfg(test)]
 pub type FileSystemType = FakeFileSystem;
@@ -132,18 +161,12 @@ fn main() {
         return;
     }
 
-    let profiling_enabled: bool = matches.is_present("profiling");
+    let profiling_enabled: bool = matches.is_present("profiling") && cfg!(target_os = "linux");
     let git_files_included: bool = matches.is_present("git");
 
     if profiling_enabled {
-        let profile_file: String = format!("./sly-{:}.profile", time::now().rfc3339());
-        let profile_path: &Path = Path::new(&profile_file);
-        if !profile_path.exists() {
-            //with timestamp in name this is probably never true
-            fs::File::create(&profile_file);
-        }
-        PROFILER.lock().unwrap().start(profile_file.clone()).unwrap();
-    };
+        start_profiling();
+    }
 
     let args: Vec<String> = env::args().skip(1).collect();
 
@@ -194,7 +217,7 @@ fn main() {
     let mut interface = Interface::new(app_state, siv);
     interface.main();
     if profiling_enabled {
-        PROFILER.lock().unwrap().stop().unwrap();
+        stop_profiling();
     };
     debug!("goodbye!");
 }
