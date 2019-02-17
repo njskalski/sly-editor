@@ -58,7 +58,7 @@ mod tests {
         s.step();
 
         let screen = s.last_screen().unwrap();
-        let piece = screen.piece(Vec2::new(0,0), Vec2::new(6, 4));
+        let piece = screen.piece(Vec2::new(0, 0), Vec2::new(6, 4));
         let text = piece.as_strings();
 
         assert_eq!(text.len(), 4);
@@ -84,22 +84,31 @@ mod tests {
         assert_eq!(screen.find_occurences("<unnamed> b1").len(), 1);
     }
 
-//    #[test]
-//    fn fuzzy_file_index_displays() {
-//        let mut s = AdvancedSetup::new();
-//
-//        s.input().send(Some(Event::CtrlChar('p'))).unwrap();
-//        s.step();
-//
-//        let screen = s.last_screen().unwrap();
-//
-//        assert_eq!(screen.find_occurences("Context : \"context\"    query: \"\"").len(), 1);
-////        assert_eq!(screen.find_occurences("<unnamed> b1").len(), 1);
-//
-//        s.dump_debug();
-//        s.step();
-//        s.dump_debug();
-//        s.step();
-//        s.dump_debug();
-//    }
+    #[test]
+    fn fuzzy_file_index_displays() {
+        let mut s = AdvancedSetup::new();
+
+        s.input().send(Some(Event::CtrlChar('p'))).unwrap();
+        s.step();
+
+        let screen = s.last_screen().unwrap();
+
+        assert_eq!(screen.find_occurences("Context : \"context\"    query: \"\"").len(), 1);
+
+        s.type_letters("fi");
+        s.step(); // needed to process keystrokes
+
+        let screen = s.last_screen().unwrap();
+        assert_eq!(screen.find_occurences("query: \"fi\"").len(), 1);
+
+        println!("fi : {:?}", s.interface().state().get_file_index());
+
+        while s.has_running_workers() {
+            s.step();
+        }
+
+        // cannot test query results at this time, since the file index is empty without mocking
+        // ::path.
+        s.dump_debug();
+    }
 }

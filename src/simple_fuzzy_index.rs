@@ -21,6 +21,7 @@ use regex;
 use std::iter::FromIterator;
 use std::rc::Rc;
 
+#[derive(Debug)]
 pub struct SimpleIndex {
     items: Vec<Rc<ViewItem>>,
 }

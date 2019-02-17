@@ -38,9 +38,12 @@ use std::sync::mpsc;
 use std::sync::mpsc::*;
 use std::sync::Arc;
 use std::thread;
+use std::thread::ThreadId;
+use std::fmt;
 
 const MAX_CACHE_SIZE: usize = 30;
 pub const HARD_QUERY_LIMIT: usize = 50;
+
 /*
 Disclaimer:
 index matches a fuzzy query to u64, that can be converted to items. So basically we have
@@ -62,6 +65,12 @@ pub struct FuzzyIndex {
     /// in cache immediately. Also, cache_order and cache sizes are not synchronized, as
     /// cache_order can contain duplicates in rare situations.
     cache_order: LinkedList<String>,
+}
+
+impl fmt::Debug for FuzzyIndex {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "FuzzyIndex : items.len() = {}", self.items.len())
+    }
 }
 
 impl FuzzyIndexTrait for FuzzyIndex {
@@ -86,7 +95,7 @@ impl FuzzyIndexTrait for FuzzyIndex {
             }
         }
 
-        debug!("returning {} results for query {}", results.len(), query);
+//        debug!("returning {} results for query {}", results.len(), query);
         results
     }
 }
@@ -226,23 +235,27 @@ impl FuzzySearchTask {
         let (update_stream_sender, update_stream_receiver) = channel::<FuzzySearchTaskUpdate>();
 
         thread::spawn(move || {
-            debug!("worker {:}: created", &query_copy);
+            let workerId : usize = uid::Id::<usize>::new().get();
+            inot_op.as_ref().map(|inot| inot.worker_start(workerId));
+
+            debug!("worker {} {:}: created", workerId, &query_copy);
             let regex = query_to_regex(&query_copy);
             let stream_builder: map::StreamBuilder<Regex> = index_ref_copy.search(regex);
             let mut stream = stream_builder.into_stream();
 
-            debug!("worker {:}: start search", &query_copy);
+            debug!("worker {} {:}: start search", workerId, &query_copy);
             let mut results: Vec<&ViewItem> = Vec::new();
             let mut it: usize = 0;
             while let Some((header, key)) = stream.next() {
                 if sender.send(key).is_err() {
-                    debug!("unable to send key in FuzzySearchTask internal worker");
+                    error!("unable to send key in FuzzySearchTask internal worker");
                     return;
                 }
                 it += items_sizes_ref[&key];
 
                 while let Ok(update) = update_stream_receiver.try_recv() {
-                    debug!("worker {:}: got update {:?}", &query_copy, &update);
+                    /// this gets hit many time because "get_results_for" is called on display.
+//                    debug!("worker {} {:}: got update {:?}", workerId, &query_copy, &update);
                     match update {
                         FuzzySearchTaskUpdate::NewLimit(new_limit) => {
                             if let Some(old_limit) = limit_op {
@@ -257,23 +270,23 @@ impl FuzzySearchTask {
                     }
                 }
 
-                if let Some(ref inot) = inot_op {
-                    debug!("worker {:}: refresh", &query_copy);
-                    inot.refresh();
-                } else {
-                    debug!("worker {:}: no refresh", &query_copy);
-                }
+                inot_op.as_ref().map(|inot| {
+//                    debug!("worker {} {:}: refresh", workerId, &query_copy);
+                    inot.worker_refresh(workerId);
+                });
 
                 if let Some(limit) = limit_op {
                     if it < limit {
                         it += 1;
                     } else {
-                        debug!("worker {:}: limit {:} reached.", &query_copy, &limit);
+                        error!("worker {} {:}: limit {:} reached.", workerId, &query_copy, &limit);
                         break;
                     }
                 }
-            }
-            debug!("finished");
+            } //while
+
+            debug!("worker {} finished", workerId);
+            inot_op.as_ref().map(|inot| inot.worker_finished(workerId));
         });
 
         FuzzySearchTask {

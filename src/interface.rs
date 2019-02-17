@@ -60,6 +60,8 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::Duration;
 use view_handle::ViewHandle;
+use std::thread::ThreadId;
+use std::collections::HashSet;
 
 const FILE_BAR_MARKER: &'static str = "file_bar";
 const BUFFER_LIST_MARKER: &'static str = "file_bar";
@@ -82,6 +84,7 @@ pub struct Interface {
     file_bar_handle: Option<ViewHandle>,
     buffer_list_handle: Option<ViewHandle>,
     lsp_clients: Vec<LspClient>, //TODO(njskalski): temporary storage to avoid removal
+    active_workers: HashSet<usize>,
 }
 
 fn find_view_with_handle<V>(siv: &mut Cursive, handle_op: &Option<ViewHandle>) -> Option<ViewRef<V>>
@@ -133,6 +136,7 @@ impl Interface {
             file_bar_handle: None,
             buffer_list_handle: None,
             lsp_clients: Vec::new(),
+            active_workers: HashSet::new()
         };
 
         // let known_actions = vec!["show_everything_bar"];
@@ -188,6 +192,10 @@ impl Interface {
         }
 
         i
+    }
+
+    pub fn has_running_workers(&self) -> bool {
+        !self.active_workers.is_empty()
     }
 
     // TODO(njskalski): error handling, borrow instead of copy etc.
@@ -270,6 +278,12 @@ impl Interface {
                 }
                 IEvent::EnableLSP => {
                     self.enable_lsp();
+                }
+                IEvent::WorkerStart(workerId) => {
+                    self.active_workers.insert(workerId);
+                }
+                IEvent::WorkerFinished(workerId) => {
+                    self.active_workers.remove(&workerId);
                 }
                 _ => {
                     debug!("unhandled IEvent {:?}", &msg);
@@ -551,6 +565,10 @@ impl Interface {
     fn settings_ref(&self) -> Ref<Settings> {
         self.state.settings_ref()
     }
+
+    pub fn state(&self) -> &AppState {
+        &self.state
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -565,12 +583,18 @@ pub struct InterfaceNotifier {
 }
 
 impl InterfaceNotifier {
-    pub fn refresh(&self) {
+    pub fn worker_start(&self, workerId : usize) {
+        self.ichan.send(IEvent::WorkerStart(workerId));
+    }
+
+    pub fn worker_refresh(&self, workerId : usize) {
+//        self.ichan.send(IEvent::WorkerRefresh(workerId));
         self.siv_cb_sink.send_timeout(Box::new(|s: &mut Cursive| {}), Duration::new(0, 0));
     }
 
-    pub fn sink(&self) -> &IChannel {
-        &self.ichan
+    pub fn worker_finished(&self, workedId : usize) {
+        self.ichan.send(IEvent::WorkerFinished(workedId));
+        self.siv_cb_sink.send_timeout(Box::new(|s: &mut Cursive| {}), Duration::new(0, 0));
     }
 }
 

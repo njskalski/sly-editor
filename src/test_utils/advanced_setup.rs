@@ -141,7 +141,7 @@ impl AdvancedSetup {
     }
 
     pub fn last_screen(&self) -> Option<ObservedScreen> {
-        while let Ok(screen) = self.screen_sink.recv_timeout(Duration::new(0, 0)) {
+        while let Ok(screen) = self.screen_sink.try_recv() {
             self.last_screen.replace(Some(screen));
         }
 
@@ -169,6 +169,18 @@ impl AdvancedSetup {
 
     pub fn input(&self) -> &crossbeam_channel::Sender<Option<Event>> {
         &self.input
+    }
+
+    /// Active wait
+//    pub fn wait_workers_finish(&self) {
+//        self.refresh();
+//        while self.interface.has_running_workers() {
+//            self.interface.main_step();
+//        }
+//    }
+
+    pub fn has_running_workers(&self) -> bool {
+        self.interface.has_running_workers()
     }
 }
 

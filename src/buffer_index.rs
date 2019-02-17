@@ -20,6 +20,7 @@ use fuzzy_view_item::*;
 use interface::InterfaceNotifier;
 use std::cmp;
 use std::rc::Rc;
+use std::fmt;
 
 pub struct BufferIndex {
     buffers: Vec<BufferStateObserver>,
@@ -30,6 +31,12 @@ impl BufferIndex {
     pub fn new(buffers: Vec<BufferStateObserver>) -> Self {
         let items = buffers.iter().map(|buffer| Rc::new(buffer_to_item(buffer))).collect();
         BufferIndex { buffers: buffers, items: items }
+    }
+}
+
+impl fmt::Debug for BufferIndex {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "BufferIndex : items {:?}", &self.items)
     }
 }
 
