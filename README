@@ -9,6 +9,10 @@ primarily on interface and functionality. Also, I am still learning Rust. So
 code is full of temporary solutions and workarounds. I am yet to figure the
 complete internal design after I fully understand requirements of goals.
 
+Progress can be tracked at:
+
+https://github.com/njskalski/sly-editor/blob/master/progress.md
+
 Readme
 
 This is a work in progress project of a command line text editor. The goals are:
@@ -40,20 +44,8 @@ I plan no support for:
 
 The script language of choice will most probably be either Python or Go.
 
-What is already done:
-- reading and editing, saving files.
-- thanks to the great libraries of fst and Cursive, fuzzy search bar already works
-for files, other menus will be implemented soon.
-- thanks to the great serde_json library, settings mechanism (including keybindings) is implemented.
-- thanks to the great Ropey library the editing backend is already performing well, supporting
-low overhead history (to support undo/redo).
-- multi cursor editing, basic clipboard (only paste now) support
-
-* there are also other great libraries this project uses, but it was "already done" section. See Cargo.toml for list of dependencies.
-
 How to run
 
-As file_dialog (open/save as) is not wired yet, the example way to run sly is:
 cargo build && cargo run . CONTRIBUTING.md 2>/dev/pts/2
 
 (you can change /dev/pts/2 to any other place you want stderr to go, it's just
