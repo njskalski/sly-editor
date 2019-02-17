@@ -123,6 +123,6 @@ mod tests {
 
         // cannot test query results at this time, since the file index is empty without mocking
         // ::path.
-//        s.dump_debug();
+        //        s.dump_debug();
     }
 }

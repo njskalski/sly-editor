@@ -14,10 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-/// copied from "clap" crate
-macro_rules! load_yaml {
-    ($yml:expr) => {
-        &::yaml_rust::YamlLoader::load_from_str(include_str!($yml))
-            .expect("failed to load YAML file")[0]
-    };
+use clipboard::nop_clipboard::NopClipboardContext;
+use clipboard::ClipboardContext;
+use clipboard::ClipboardProvider;
+use std::error::Error;
+
+#[cfg(test)]
+pub fn default_clipboard() -> Result<ClipboardContext, Box<std::error::Error>> {
+    NopClipboardContext::new()
+}
+
+#[cfg(not(test))]
+pub fn default_clipboard() -> Result<ClipboardContext, Box<std::error::Error>> {
+    ClipboardProvider::new()
 }

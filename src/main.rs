@@ -44,6 +44,7 @@ mod buffer_id;
 mod buffer_index;
 mod buffer_state;
 mod buffer_state_observer;
+mod abstract_clipboard;
 mod color_view_wrapper;
 mod content_provider;
 mod default_settings;
@@ -98,23 +99,22 @@ extern crate filesystem;
 use app_state::AppState;
 use cpuprofiler::PROFILER;
 use cursive::Cursive;
+use filesystem::*;
 use interface::Interface;
 use std::borrow::Borrow;
 use std::borrow::BorrowMut;
 use std::env;
+use std::fs;
 use std::path;
 use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::fs;
-use filesystem::*;
 
 #[cfg(test)]
 pub type FileSystemType = FakeFileSystem;
 
 #[cfg(not(test))]
 pub type FileSystemType = OsFileSystem;
-
 
 fn main() {
     //        setup_panic!();
@@ -187,7 +187,8 @@ fn main() {
         &directories, &files, git_files_included
     );
 
-    let app_state = AppState::new(FileSystemType::new(),directories, files, git_files_included == false);
+    let app_state =
+        AppState::new(FileSystemType::new(), directories, files, git_files_included == false);
 
     let mut siv = Cursive::default();
     let mut interface = Interface::new(app_state, siv);

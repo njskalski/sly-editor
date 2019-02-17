@@ -12,7 +12,7 @@ Interface:
 	- [ ] show keyboard shortcut
 	- [ ] force keyboard shortcut (learning mode)
 - [ ] all-commands bar
-	- [ ] display
+	- [x] display
 	- [ ] act
 	- [ ] keyboard shortcuts
 - [ ] loading files

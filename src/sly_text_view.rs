@@ -67,6 +67,7 @@ use unicode_segmentation;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 use view_handle::ViewHandle;
+use abstract_clipboard::default_clipboard;
 
 const INDEX_MARGIN: usize = 1;
 const PAGE_WIDTH: usize = 80;
@@ -110,7 +111,7 @@ impl SlyTextView {
             position: Vec2::new(0, 0),
             last_view_size: None,
             settings: settings,
-            clipboard_context: clipboard::ClipboardProvider::new().unwrap(),
+            clipboard_context: default_clipboard().unwrap(),
             special_char_mappings: hashmap!['\n' => '\u{21B5}'],
             handle: ViewHandle::new(),
             syntax_highlighting: syntax_highlighting,

@@ -29,10 +29,10 @@ use std::rc::Rc;
 
 use buffer_id::BufferId;
 use buffer_state_observer::BufferStateObserver;
+use filesystem::*;
 use std::borrow::Borrow;
 use utils::highlight_settings_from_path;
 use FileSystemType;
-use filesystem::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BufferOpenMode {
@@ -82,7 +82,7 @@ impl BufferState {
     }
 
     pub fn open(
-        fs : &FileSystemType,
+        fs: &FileSystemType,
         file_path: &Path,
         creation_policy: ExistPolicy,
     ) -> Result<Rc<RefCell<Self>>, io::Error> {
@@ -106,9 +106,7 @@ impl BufferState {
 
         let highlight_settings_op = highlight_settings_from_path(file_path);
 
-        let contents = if exists {
-            Some(fs.read_file(&file_path)?)
-        } else { None };
+        let contents = if exists { Some(fs.read_file(&file_path)?) } else { None };
 
         Ok(Rc::new(RefCell::new(BufferState {
             id: BufferId::new(),
@@ -144,16 +142,16 @@ impl BufferState {
     }
 
     /// Returns whether file exists. File with no path obviously does not.
-    pub fn exists(&self, fs : &FileSystemType) -> bool {
+    pub fn exists(&self, fs: &FileSystemType) -> bool {
         self.get_path().map_or(false, |path| fs.is_file(path))
     }
 
-    pub fn save(&mut self, fs : &FileSystemType, path: Option<PathBuf>) -> Result<(), io::Error> {
+    pub fn save(&mut self, fs: &FileSystemType, path: Option<PathBuf>) -> Result<(), io::Error> {
         if path.is_none() && self.ss.path.is_none() {
             return Err(io::Error::new(io::ErrorKind::NotFound, "No path provided."));
         }
 
-        if path == self.ss.path && self.exists() && !self.modified {
+        if path == self.ss.path && self.exists(fs) && !self.modified {
             info!("Early exit from BufferState.save - file not modified.");
             return Ok(());
         }
@@ -163,7 +161,7 @@ impl BufferState {
             None => self.get_path().unwrap(),
         };
 
-        let mut buf : Vec<u8> = Vec::new();
+        let mut buf: Vec<u8> = Vec::new();
         buf.resize(self.content.get_lines().len_bytes(), 0 as u8);
         self.content.get_lines().write_to(&mut buf);
         fs.create_file(&final_path, &buf)?;

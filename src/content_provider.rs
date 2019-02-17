@@ -45,15 +45,12 @@ struct RopeBasedContent {
 
 impl RopeBasedContent {
     pub fn new(contents: Option<Vec<u8>>) -> Self {
-        let rope : Rope = match contents {
+        let rope: Rope = match contents {
             Some(contents) => Rope::from_reader(&contents[..]).unwrap(),
-            None => Rope::new()
+            None => Rope::new(),
         };
 
-        RopeBasedContent {
-            lines: rope,
-            timestamp : time::now()
-        }
+        RopeBasedContent { lines: rope, timestamp: time::now() }
     }
 
     pub fn save<T: io::Write>(&self, writer: T) -> io::Result<()> {
@@ -116,7 +113,7 @@ fn apply_events(c: &RopeBasedContent, events: &Vec<EditEvent>) -> (RopeBasedCont
 
 impl RopeBasedContentProvider {
     pub fn new(
-        contents : Option<Vec<u8>>,
+        contents: Option<Vec<u8>>,
         highlight_settings_op: Option<Rc<HighlightSettings>>,
     ) -> Self {
         RopeBasedContentProvider {

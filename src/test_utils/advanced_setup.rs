@@ -27,6 +27,7 @@ pub mod tests {
     use dir_tree::TreeNodeRef;
     use dir_tree::TreeNodeVec;
     use events::IEvent;
+    use filesystem::FakeFileSystem;
     use interface::Interface;
     use ncurses::filter;
     use std::cell::RefCell;
@@ -36,7 +37,6 @@ pub mod tests {
     use test_utils::basic_setup::BasicSetupSetupStruct;
     use test_utils::basic_setup::BasicSetupSetupTrait;
     use test_utils::fake_tree::{fake_dir, fake_file, fake_root};
-    use filesystem::FakeFileSystem;
 
     pub struct AdvancedSetup {
         ss: Box<dyn BasicSetupSetupTrait>,
@@ -189,17 +189,17 @@ pub mod tests {
     }
 
     /*
-    <root>
-        - directory1 (/home/laura)
-            - subdirectory1
-            - subdirectory2
-                - file1
-                - file2.txt
-                - file3.rs
-            - file4.ini
-        - directory2 (/home/bob)
-            - .file6.hidden
-*/
+        <root>
+            - directory1 (/home/laura)
+                - subdirectory1
+                - subdirectory2
+                    - file1
+                    - file2.txt
+                    - file3.rs
+                - file4.ini
+            - directory2 (/home/bob)
+                - .file6.hidden
+    */
     fn get_fake_filesystem() -> TreeNodeRef {
         fake_root(vec![
             fake_dir("/home/laura", vec![]),

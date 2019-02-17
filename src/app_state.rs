@@ -68,14 +68,14 @@ use std::sync::mpsc::Receiver;
 use std::sync::mpsc::Sender;
 use view_handle::ViewHandle;
 
-use std::borrow::*;
 use filesystem::*;
+use std::borrow::*;
 use FileSystemType;
 
 pub struct AppState {
     buffers_to_load: VecDeque<PathBuf>,
     file_index: Arc<RefCell<FuzzyIndex>>,
-    filesystem : FileSystemType,
+    filesystem: FileSystemType,
     /* because searches are mutating the cache TODO this can be solved with "interior
      * mutability", as other caches in this app */
     dir_and_files_tree: TreeNodeRef,
@@ -162,7 +162,7 @@ impl AppState {
     fn open_file(&mut self, path: &Path) -> Result<BufferId, io::Error> {
         // TODO(njskalski): add delayed load (promise)
         let autohighlight: bool = self.settings_ref().auto_highlighting_enabled();
-        let buffer = BufferState::open(&self.filesystem,path, ExistPolicy::MustExist)?;
+        let buffer = BufferState::open(&self.filesystem, path, ExistPolicy::MustExist)?;
         let id = (*buffer).borrow().id();
         self.loaded_buffers.insert(id.clone(), buffer);
         Ok(id)
@@ -190,10 +190,10 @@ impl AppState {
     }
 
     pub fn new(
-        fs : FileSystemType,
+        fs: FileSystemType,
         directories: Vec<PathBuf>,
         files: Vec<PathBuf>,
-        enable_gitignore: bool
+        enable_gitignore: bool,
     ) -> Self {
         debug!(
             "dirs = {:?}\nfiles = {:?}\nenable_gitignore = {}",
@@ -205,7 +205,14 @@ impl AppState {
         let file_index_limit = settings.file_index_limit();
 
         for dir in &directories {
-            build_file_index(&fs, &mut files_to_index, dir, enable_gitignore, None, file_index_limit);
+            build_file_index(
+                &fs,
+                &mut files_to_index,
+                dir,
+                enable_gitignore,
+                None,
+                file_index_limit,
+            );
         }
 
         //        debug!("file index:\n{:?}", &files_to_index);
@@ -217,7 +224,7 @@ impl AppState {
             buffers_to_load: buffers_to_load,
             loaded_buffers: HashMap::new(),
             file_index: Arc::new(RefCell::new(FuzzyIndex::new(file_index_items))),
-            filesystem : fs,
+            filesystem: fs,
             dir_and_files_tree: LazyTreeNode::new(directories.clone(), files).as_ref(),
             get_first_buffer_guard: Cell::new(false),
             directories: directories,
@@ -241,7 +248,7 @@ impl AppState {
 /// this method takes into account .git and other directives set in .gitignore. However it only
 /// takes into account most recent .gitignore
 fn build_file_index(
-    fs : &FileSystemType,
+    fs: &FileSystemType,
     mut index: &mut Vec<PathBuf>,
     dir: &Path,
     enable_gitignore: bool,

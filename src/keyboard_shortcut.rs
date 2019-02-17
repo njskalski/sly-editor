@@ -19,17 +19,17 @@ use cursive::event::Event::*;
 
 #[derive(Clone, Debug)]
 pub struct KeyboardShortcut {
-    event : Event
+    event: Event,
 }
 
 impl KeyboardShortcut {
-    pub fn new(event : Event) -> Self {
+    pub fn new(event: Event) -> Self {
         assert!(is_keyboard_event(&event));
         KeyboardShortcut { event }
     }
 }
 
-fn is_keyboard_event(event : &Event) -> bool {
+fn is_keyboard_event(event: &Event) -> bool {
     match event {
         &Char(_) => true,
         &CtrlChar(_) => true,

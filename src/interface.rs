@@ -42,6 +42,7 @@ use file_dialog::FileDialog;
 use fuzzy_query_view::FuzzyQueryResult;
 use lsp_client::LspClient;
 use overlay_dialog::OverlayDialog;
+use simple_fuzzy_index::SimpleIndex;
 use sly_view::SlyView;
 use std::any::Any;
 use std::cell::Ref;
@@ -62,7 +63,6 @@ use std::sync::Arc;
 use std::thread::ThreadId;
 use std::time::Duration;
 use view_handle::ViewHandle;
-use simple_fuzzy_index::SimpleIndex;
 
 const FILE_BAR_MARKER: &'static str = "file_bar";
 const BUFFER_LIST_MARKER: &'static str = "buffer_list";
@@ -516,7 +516,6 @@ impl Interface {
 
         self.all_commands_bar_handle = Some(all_commands_bar.get_mut().handle().clone());
         self.siv.add_layer(all_commands_bar);
-
     }
 
     fn show_open_file_dialog(&mut self) {

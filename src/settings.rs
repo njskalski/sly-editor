@@ -26,15 +26,15 @@ use cursive::event::{Event, Key};
 use cursive::theme;
 use default_settings::*;
 use fuzzy_view_item::ViewItem;
+use keyboard_shortcut::KeyboardShortcut;
 use log;
 use serde_json as sj;
+use serde_json::error::ErrorCode::KeyMustBeAString;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::io::{Error, ErrorKind, Read};
 use std::iter::FromIterator;
 use std::rc::Rc;
-use serde_json::error::ErrorCode::KeyMustBeAString;
-use keyboard_shortcut::KeyboardShortcut;
 
 pub type EventToMarker = HashMap<Event, String>;
 pub type MarkerToEvent = HashMap<String, Event>;
@@ -51,18 +51,15 @@ impl std::fmt::Debug for KeybindingsType {
 }
 
 impl KeybindingsType {
-    pub fn from_event_to_marker(etm : EventToMarker) -> Self {
-        let mut marker_to_event : MarkerToEvent = HashMap::new();
+    pub fn from_event_to_marker(etm: EventToMarker) -> Self {
+        let mut marker_to_event: MarkerToEvent = HashMap::new();
 
         for (event, marker) in &etm {
             assert!(!marker_to_event.contains_key(marker));
             marker_to_event.insert(marker.clone(), event.clone());
         }
 
-        KeybindingsType {
-            event_to_marker : etm,
-            marker_to_event : marker_to_event
-        }
+        KeybindingsType { event_to_marker: etm, marker_to_event: marker_to_event }
     }
 
     pub fn event_to_marker(&self) -> &EventToMarker {
