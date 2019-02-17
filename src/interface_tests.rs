@@ -20,7 +20,7 @@ mod tests {
     use cursive::event::Event;
     use cursive::event::Key;
     use cursive::Vec2;
-    use test_utils::advanced_setup::AdvancedSetup;
+    use test_utils::advanced_setup::tests::AdvancedSetup;
 
     #[test]
     fn first_interface_test() {

@@ -28,6 +28,7 @@ human-panic = "1"
 crossbeam-channel = "0.3"
 lazy_static = "1.2"
 yaml-rust = "0.4"
+filesystem = "0.4"
 
 [dependencies.clap]
 version = "2.32"

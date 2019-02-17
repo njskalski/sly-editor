@@ -44,13 +44,15 @@ struct RopeBasedContent {
 }
 
 impl RopeBasedContent {
-    pub fn new(reader_op: Option<&mut Read>) -> Self {
-        match reader_op {
-            Some(reader) => RopeBasedContent {
-                lines: Rope::from_reader(reader).expect("failed to build rope from reader"), /* TODO(njskalski) error handling */
-                timestamp: time::now(),
-            },
-            None => RopeBasedContent { lines: Rope::new(), timestamp: time::now() },
+    pub fn new(contents: Option<Vec<u8>>) -> Self {
+        let rope : Rope = match contents {
+            Some(contents) => Rope::from_reader(&contents[..]).unwrap(),
+            None => Rope::new()
+        };
+
+        RopeBasedContent {
+            lines: rope,
+            timestamp : time::now()
         }
     }
 
@@ -114,11 +116,11 @@ fn apply_events(c: &RopeBasedContent, events: &Vec<EditEvent>) -> (RopeBasedCont
 
 impl RopeBasedContentProvider {
     pub fn new(
-        reader_op: Option<&mut Read>,
+        contents : Option<Vec<u8>>,
         highlight_settings_op: Option<Rc<HighlightSettings>>,
     ) -> Self {
         RopeBasedContentProvider {
-            history: vec![RopeBasedContent::new(reader_op)],
+            history: vec![RopeBasedContent::new(contents)],
             current: 0,
             rich_content: None,
             highlight_settings_op: highlight_settings_op,
@@ -184,9 +186,5 @@ impl RopeBasedContentProvider {
             rich_content.drop_lines(num_common_lines);
             rich_content.update_raw_content(rope);
         });
-    }
-
-    pub fn save<T: io::Write>(&self, writer: T) -> io::Result<()> {
-        self.history.last().unwrap().lines.write_to(writer)
     }
 }

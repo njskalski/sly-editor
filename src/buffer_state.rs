@@ -19,7 +19,6 @@ use content_provider::RopeBasedContentProvider;
 use view_handle::ViewHandle;
 
 use cursive;
-use std::fs;
 use std::io;
 
 use std::cell::RefCell;
@@ -32,6 +31,8 @@ use buffer_id::BufferId;
 use buffer_state_observer::BufferStateObserver;
 use std::borrow::Borrow;
 use utils::highlight_settings_from_path;
+use FileSystemType;
+use filesystem::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BufferOpenMode {
@@ -81,33 +82,39 @@ impl BufferState {
     }
 
     pub fn open(
+        fs : &FileSystemType,
         file_path: &Path,
         creation_policy: ExistPolicy,
     ) -> Result<Rc<RefCell<Self>>, io::Error> {
         debug!("reading file {:?}, creation_policy = {:?}", file_path, creation_policy);
 
-        if !file_path.exists() && creation_policy == ExistPolicy::MustExist {
+        let exists = fs.is_file(file_path);
+
+        if !exists && creation_policy == ExistPolicy::MustExist {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 format!("\"{:?}\" not found, and required", &file_path),
             ));
         }
 
-        if file_path.exists() && creation_policy == ExistPolicy::MustNotExist {
+        if exists && creation_policy == ExistPolicy::MustNotExist {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 format!("\"{:?}\" found and required not to be there.", &file_path),
             ));
         }
 
-        let mut reader: fs::File = path_to_reader(&file_path);
         let highlight_settings_op = highlight_settings_from_path(file_path);
+
+        let contents = if exists {
+            Some(fs.read_file(&file_path)?)
+        } else { None };
 
         Ok(Rc::new(RefCell::new(BufferState {
             id: BufferId::new(),
             ss: BufferStateS { path: Some(file_path.to_owned()) },
             modified: false,
-            content: RopeBasedContentProvider::new(Some(&mut reader), highlight_settings_op),
+            content: RopeBasedContentProvider::new(contents, highlight_settings_op),
             mode: BufferOpenMode::ReadWrite,
         })))
     }
@@ -136,16 +143,12 @@ impl BufferState {
         self.ss.path.clone()
     }
 
-    fn proceed_with_save(&mut self, mut file: fs::File) -> Result<(), io::Error> {
-        self.content.save(file)
-    }
-
     /// Returns whether file exists. File with no path obviously does not.
-    pub fn exists(&self) -> bool {
-        self.get_path().map_or(false, |path| path.exists())
+    pub fn exists(&self, fs : &FileSystemType) -> bool {
+        self.get_path().map_or(false, |path| fs.is_file(path))
     }
 
-    pub fn save(&mut self, path: Option<PathBuf>) -> Result<(), io::Error> {
+    pub fn save(&mut self, fs : &FileSystemType, path: Option<PathBuf>) -> Result<(), io::Error> {
         if path.is_none() && self.ss.path.is_none() {
             return Err(io::Error::new(io::ErrorKind::NotFound, "No path provided."));
         }
@@ -160,8 +163,10 @@ impl BufferState {
             None => self.get_path().unwrap(),
         };
 
-        let mut file = fs::File::create(&final_path)?;
-        self.proceed_with_save(file)?;
+        let mut buf : Vec<u8> = Vec::new();
+        buf.resize(self.content.get_lines().len_bytes(), 0 as u8);
+        self.content.get_lines().write_to(&mut buf);
+        fs.create_file(&final_path, &buf)?;
 
         self.ss.path = Some(final_path);
 
@@ -169,8 +174,4 @@ impl BufferState {
         debug!("{:?} saved.", &self.ss.path);
         Ok(())
     }
-}
-
-fn path_to_reader(path: &Path) -> fs::File {
-    fs::File::open(path).expect(&format!("file {:?} did not exist!", path))
 }

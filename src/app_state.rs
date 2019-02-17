@@ -30,7 +30,6 @@ const DEBUG: bool = false;
 use ignore::gitignore;
 use serde_json;
 use std::env;
-use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -70,10 +69,13 @@ use std::sync::mpsc::Sender;
 use view_handle::ViewHandle;
 
 use std::borrow::*;
+use filesystem::*;
+use FileSystemType;
 
 pub struct AppState {
     buffers_to_load: VecDeque<PathBuf>,
     file_index: Arc<RefCell<FuzzyIndex>>,
+    filesystem : FileSystemType,
     /* because searches are mutating the cache TODO this can be solved with "interior
      * mutability", as other caches in this app */
     dir_and_files_tree: TreeNodeRef,
@@ -135,7 +137,7 @@ impl AppState {
     pub fn save_buffer_as(&mut self, id: &BufferId, path: PathBuf) -> Result<(), io::Error> {
         let buffer_ptr = self.loaded_buffers.get(id).unwrap();
         let mut buffer = (**buffer_ptr).borrow_mut();
-        buffer.save(Some(path))
+        buffer.save(&self.filesystem, Some(path))
     }
 
     /// As of this time, it does not re-open file that is already opened, just returns buffer id
@@ -160,7 +162,7 @@ impl AppState {
     fn open_file(&mut self, path: &Path) -> Result<BufferId, io::Error> {
         // TODO(njskalski): add delayed load (promise)
         let autohighlight: bool = self.settings_ref().auto_highlighting_enabled();
-        let buffer = BufferState::open(path, ExistPolicy::MustExist)?;
+        let buffer = BufferState::open(&self.filesystem,path, ExistPolicy::MustExist)?;
         let id = (*buffer).borrow().id();
         self.loaded_buffers.insert(id.clone(), buffer);
         Ok(id)
@@ -178,7 +180,7 @@ impl AppState {
             BufferState::new()
         } else {
             let file_path = self.buffers_to_load.pop_front().unwrap();
-            BufferState::open(&file_path, ExistPolicy::CanExist)?
+            BufferState::open(&self.filesystem, &file_path, ExistPolicy::CanExist)?
         };
 
         let id = (*buffer).borrow().id();
@@ -187,7 +189,12 @@ impl AppState {
         Ok(self.buffer_obs(&id).unwrap())
     }
 
-    pub fn new(directories: Vec<PathBuf>, files: Vec<PathBuf>, enable_gitignore: bool) -> Self {
+    pub fn new(
+        fs : FileSystemType,
+        directories: Vec<PathBuf>,
+        files: Vec<PathBuf>,
+        enable_gitignore: bool
+    ) -> Self {
         debug!(
             "dirs = {:?}\nfiles = {:?}\nenable_gitignore = {}",
             &directories, &files, enable_gitignore
@@ -198,7 +205,7 @@ impl AppState {
         let file_index_limit = settings.file_index_limit();
 
         for dir in &directories {
-            build_file_index(&mut files_to_index, dir, enable_gitignore, None, file_index_limit);
+            build_file_index(&fs, &mut files_to_index, dir, enable_gitignore, None, file_index_limit);
         }
 
         //        debug!("file index:\n{:?}", &files_to_index);
@@ -210,6 +217,7 @@ impl AppState {
             buffers_to_load: buffers_to_load,
             loaded_buffers: HashMap::new(),
             file_index: Arc::new(RefCell::new(FuzzyIndex::new(file_index_items))),
+            filesystem : fs,
             dir_and_files_tree: LazyTreeNode::new(directories.clone(), files).as_ref(),
             get_first_buffer_guard: Cell::new(false),
             directories: directories,
@@ -233,6 +241,7 @@ impl AppState {
 /// this method takes into account .git and other directives set in .gitignore. However it only
 /// takes into account most recent .gitignore
 fn build_file_index(
+    fs : &FileSystemType,
     mut index: &mut Vec<PathBuf>,
     dir: &Path,
     enable_gitignore: bool,
@@ -243,12 +252,12 @@ fn build_file_index(
         return;
     }
 
-    match fs::read_dir(dir) {
+    match fs.read_dir(dir) {
         Ok(read_dir) => {
             let gitignore_op: Option<gitignore::Gitignore> = if enable_gitignore {
                 let pathbuf = dir.join(Path::new(".gitignore"));
                 let gitignore_path = pathbuf.as_path();
-                if gitignore_path.exists() && gitignore_path.is_file() {
+                if fs.is_file(gitignore_path) {
                     let (gi, error_op) = gitignore::Gitignore::new(&gitignore_path);
                     if let Some(error) = error_op {
                         info!(
@@ -297,6 +306,7 @@ fn build_file_index(
                             let most_recent_gitignore =
                                 if gitignore_op.is_some() { gitignore_op.as_ref() } else { gi_op };
                             build_file_index(
+                                fs,
                                 &mut index,
                                 &path,
                                 enable_gitignore,

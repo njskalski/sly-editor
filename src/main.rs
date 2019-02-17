@@ -93,6 +93,7 @@ extern crate ncurses;
 extern crate serde;
 #[macro_use]
 extern crate yaml_rust;
+extern crate filesystem;
 
 use app_state::AppState;
 use cpuprofiler::PROFILER;
@@ -101,36 +102,19 @@ use interface::Interface;
 use std::borrow::Borrow;
 use std::borrow::BorrowMut;
 use std::env;
-use std::fs;
 use std::path;
 use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::fs;
+use filesystem::*;
 
-// Reason for it being string is that I want to be able to load filelists from remote locations
-fn get_file_list_from_dir(path: &Path) -> Vec<String> {
-    let mut file_list: Vec<String> = Vec::new();
+#[cfg(test)]
+pub type FileSystemType = FakeFileSystem;
 
-    let paths = fs::read_dir(path).unwrap();
+#[cfg(not(test))]
+pub type FileSystemType = OsFileSystem;
 
-    for p in paths {
-        match p {
-            Ok(dir_entry) => {
-                let inner_path = dir_entry.path();
-                if inner_path.is_dir() {
-                    file_list.append(get_file_list_from_dir(&inner_path).as_mut());
-                }
-                if inner_path.is_file() {
-                    file_list.push(inner_path.to_str().unwrap().to_string());
-                }
-            }
-            Err(e) => {
-                debug!("not able to process DirEntry: {:?}", e);
-            }
-        }
-    }
-    file_list
-}
 
 fn main() {
     //        setup_panic!();
@@ -203,7 +187,7 @@ fn main() {
         &directories, &files, git_files_included
     );
 
-    let app_state = AppState::new(directories, files, git_files_included == false);
+    let app_state = AppState::new(FileSystemType::new(),directories, files, git_files_included == false);
 
     let mut siv = Cursive::default();
     let mut interface = Interface::new(app_state, siv);
