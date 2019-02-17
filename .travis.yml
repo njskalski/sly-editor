@@ -4,7 +4,6 @@ os:
   - osx
 rust:
   - stable
-  - nightly
 script:
   - cargo build --verbose --all
   - cargo test --verbose --all
