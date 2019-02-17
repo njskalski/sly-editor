@@ -14,4 +14,41 @@ Interface:
 		- [x] arrows
 		- [x] pg-up pg-down
 	- [x] multicursors (as above)
-	
+	- [ ] clipboard
+		- [x] paste
+		- [ ] copy
+		- [ ] multiline
+	- [ ] selection
+		- [ ] single
+		- [ ] multi
+	- [x] typing
+	- [ ] undo
+		- [x] basic
+		- [ ] smart (merge insignifficant changes into bigger ones)
+	- [ ] redo
+- [ ] changing buffers
+	- [x] via bufferlist
+	- [ ] via keyboard next/prev
+- [ ] bookmarking
+	- [ ] anonymous
+	- [ ] named
+	- [ ] jumping
+	- [ ] updating position on inside changes
+	- [ ] updating position on outside changes
+- [ ] code navigation
+	- [ ] jump to symbol
+	- [ ] jump back
+	- [ ] cursor history
+
+- [ ] tinder-like browsing of "similar pages"
+	- [ ] basic
+	- [ ] with mid-processing
+- [ ] plugin support
+	- [ ] references fetch
+	- [ ] references mid-processing
+	- [ ] symbol navigation
+
+- [ ] language server protocol
+	- [ ] autocompletion
+	- [ ] building references graph
+	- [ ] multiple sources of data
