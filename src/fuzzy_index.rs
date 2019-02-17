@@ -33,13 +33,13 @@ use serde::de::Unexpected::Option as SerdeOption;
 use std::cell::*;
 use std::collections::HashMap;
 use std::collections::*;
+use std::fmt;
 use std::rc::Rc;
 use std::sync::mpsc;
 use std::sync::mpsc::*;
 use std::sync::Arc;
 use std::thread;
 use std::thread::ThreadId;
-use std::fmt;
 
 const MAX_CACHE_SIZE: usize = 30;
 pub const HARD_QUERY_LIMIT: usize = 50;
@@ -95,7 +95,7 @@ impl FuzzyIndexTrait for FuzzyIndex {
             }
         }
 
-//        debug!("returning {} results for query {}", results.len(), query);
+        //        debug!("returning {} results for query {}", results.len(), query);
         results
     }
 }
@@ -235,7 +235,7 @@ impl FuzzySearchTask {
         let (update_stream_sender, update_stream_receiver) = channel::<FuzzySearchTaskUpdate>();
 
         thread::spawn(move || {
-            let workerId : usize = uid::Id::<usize>::new().get();
+            let workerId: usize = uid::Id::<usize>::new().get();
             inot_op.as_ref().map(|inot| inot.worker_start(workerId));
 
             debug!("worker {} {:}: created", workerId, &query_copy);
@@ -255,7 +255,7 @@ impl FuzzySearchTask {
 
                 while let Ok(update) = update_stream_receiver.try_recv() {
                     /// this gets hit many time because "get_results_for" is called on display.
-//                    debug!("worker {} {:}: got update {:?}", workerId, &query_copy, &update);
+                    //                    debug!("worker {} {:}: got update {:?}", workerId, &query_copy, &update);
                     match update {
                         FuzzySearchTaskUpdate::NewLimit(new_limit) => {
                             if let Some(old_limit) = limit_op {
@@ -271,7 +271,7 @@ impl FuzzySearchTask {
                 }
 
                 inot_op.as_ref().map(|inot| {
-//                    debug!("worker {} {:}: refresh", workerId, &query_copy);
+                    //                    debug!("worker {} {:}: refresh", workerId, &query_copy);
                     inot.worker_refresh(workerId);
                 });
 

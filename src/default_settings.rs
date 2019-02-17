@@ -31,6 +31,7 @@ const default_settings_string: &'static str = r####"
       "toggle_syntax_highlighting" : ["ctrl","h"]
     },
     "global" : {
+      "all_commands_bar" : ["ctrl", "y"],
       "show_file_bar" : ["ctrl", "p"],
       "show_buffer_list" : ["ctrl", "o"],
       "command_mode" : ["ctrl", "e"],

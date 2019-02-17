@@ -16,8 +16,8 @@ limitations under the License.
 
 use fuzzy_view_item::*;
 use interface::InterfaceNotifier;
-use std::rc::Rc;
 use std::fmt::Debug;
+use std::rc::Rc;
 
 /*
 Index became a trait, because a default (fst-based) implementation cannot be modified after initial
@@ -29,7 +29,7 @@ I want to display available options immediately, and then expand on them as soon
 information.
 */
 
-pub trait FuzzyIndexTrait : Debug {
+pub trait FuzzyIndexTrait: Debug {
     /// This method should not block.
     //
     //TODO(njskalski) remove mut or write why it's impossible.

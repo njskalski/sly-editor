@@ -16,11 +16,11 @@ limitations under the License.
 
 #[cfg(test)]
 mod tests {
-    use test_utils::advanced_setup::AdvancedSetup;
-    use cursive::event::Key;
-    use cursive::event::Event;
-    use cursive::Vec2;
     use cursive::backend::puppet::observed::ObservedPieceInterface;
+    use cursive::event::Event;
+    use cursive::event::Key;
+    use cursive::Vec2;
+    use test_utils::advanced_setup::AdvancedSetup;
 
     #[test]
     fn first_interface_test() {
@@ -28,9 +28,9 @@ mod tests {
 
         let screen = s.last_screen().unwrap();
 
-//        assert_eq!(screen[Vec2::new(0,0)], 1);
+        //        assert_eq!(screen[Vec2::new(0,0)], 1);
 
-//        s.dump_debug();
+        //        s.dump_debug();
     }
 
     #[test]
@@ -40,7 +40,7 @@ mod tests {
         s.input().send(Some(Event::CtrlChar('s'))).unwrap();
         s.step();
 
-//        s.dump_debug();
+        //        s.dump_debug();
 
         let screen = s.last_screen().unwrap();
 
@@ -68,7 +68,6 @@ mod tests {
         assert_eq!(text[2].trim(), "3 .txt");
         assert_eq!(text[3].trim(), "");
     }
-
 
     #[test]
     fn fuzzy_buffer_list_displays() {

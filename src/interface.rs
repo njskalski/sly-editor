@@ -47,6 +47,7 @@ use std::any::Any;
 use std::cell::Ref;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::error;
 use std::error::Error;
 use std::ffi::OsStr;
@@ -58,10 +59,9 @@ use std::path::PathBuf;
 use std::rc::{Rc, Weak};
 use std::sync::mpsc;
 use std::sync::Arc;
+use std::thread::ThreadId;
 use std::time::Duration;
 use view_handle::ViewHandle;
-use std::thread::ThreadId;
-use std::collections::HashSet;
 
 const FILE_BAR_MARKER: &'static str = "file_bar";
 const BUFFER_LIST_MARKER: &'static str = "file_bar";
@@ -136,7 +136,7 @@ impl Interface {
             file_bar_handle: None,
             buffer_list_handle: None,
             lsp_clients: Vec::new(),
-            active_workers: HashSet::new()
+            active_workers: HashSet::new(),
         };
 
         // let known_actions = vec!["show_everything_bar"];
@@ -145,6 +145,11 @@ impl Interface {
         for (event, action) in keybindings {
             let ch = i.event_sink();
             match action.as_str() {
+                "all_commands_bar" => {
+                    i.siv.add_global_callback(event, move |_| {
+                        ch.send(IEvent::AllCommandsBar).unwrap();
+                    });
+                }
                 "show_file_bar" => {
                     i.siv.add_global_callback(event, move |_| {
                         ch.send(IEvent::ShowFileBar).unwrap();
@@ -251,6 +256,9 @@ impl Interface {
         while let Ok(msg) = self.channel.1.try_recv() {
             debug!("processing event {:?}", msg);
             match msg {
+                IEvent::AllCommandsBar => {
+                    self.all_commands_bar();
+                }
                 IEvent::ShowFileBar => {
                     self.show_file_bar();
                 }
@@ -290,6 +298,10 @@ impl Interface {
                 }
             }
         }
+    }
+
+    fn all_commands_bar(&mut self) {
+        debug!("all_commands_bar unimplemented");
     }
 
     /// consumes results of previous dialog choices.
@@ -583,16 +595,16 @@ pub struct InterfaceNotifier {
 }
 
 impl InterfaceNotifier {
-    pub fn worker_start(&self, workerId : usize) {
+    pub fn worker_start(&self, workerId: usize) {
         self.ichan.send(IEvent::WorkerStart(workerId));
     }
 
-    pub fn worker_refresh(&self, workerId : usize) {
-//        self.ichan.send(IEvent::WorkerRefresh(workerId));
+    pub fn worker_refresh(&self, workerId: usize) {
+        //        self.ichan.send(IEvent::WorkerRefresh(workerId));
         self.siv_cb_sink.send_timeout(Box::new(|s: &mut Cursive| {}), Duration::new(0, 0));
     }
 
-    pub fn worker_finished(&self, workedId : usize) {
+    pub fn worker_finished(&self, workedId: usize) {
         self.ichan.send(IEvent::WorkerFinished(workedId));
         self.siv_cb_sink.send_timeout(Box::new(|s: &mut Cursive| {}), Duration::new(0, 0));
     }

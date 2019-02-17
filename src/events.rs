@@ -30,6 +30,7 @@ pub type IChannel = mpsc::Sender<IEvent>;
 #[derive(Serialize, Deserialize, Debug)]
 pub enum IEvent {
     //Interface event
+    AllCommandsBar,
     QuitSly,
     ShowFileBar,
     ShowBufferList,
@@ -40,7 +41,7 @@ pub enum IEvent {
     FuzzyQueryBarSelected(String, String), /* marker (the word that search ran agains),
                                             * selection (value) */
     WorkerStart(usize),
-//    WorkerRefresh(usize),
+    //    WorkerRefresh(usize),
     WorkerFinished(usize),
     CloseWindow,
 

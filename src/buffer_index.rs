@@ -19,8 +19,8 @@ use fuzzy_index_trait::FuzzyIndexTrait;
 use fuzzy_view_item::*;
 use interface::InterfaceNotifier;
 use std::cmp;
-use std::rc::Rc;
 use std::fmt;
+use std::rc::Rc;
 
 pub struct BufferIndex {
     buffers: Vec<BufferStateObserver>,
@@ -67,5 +67,10 @@ fn buffer_to_item(buffer: &BufferStateObserver) -> ViewItem {
 
     let marker = buffer.buffer_id().to_string();
 
-    ViewItem::new(header, buffer.get_path().map(|path| path.to_string_lossy().to_string()), marker)
+    ViewItem::new(
+        header,
+        buffer.get_path().map(|path| path.to_string_lossy().to_string()),
+        marker,
+        None,
+    )
 }

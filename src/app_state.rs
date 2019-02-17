@@ -188,7 +188,10 @@ impl AppState {
     }
 
     pub fn new(directories: Vec<PathBuf>, files: Vec<PathBuf>, enable_gitignore: bool) -> Self {
-        debug!("dirs = {:?}\nfiles = {:?}\nenable_gitignore = {}", &directories, &files, enable_gitignore);
+        debug!(
+            "dirs = {:?}\nfiles = {:?}\nenable_gitignore = {}",
+            &directories, &files, enable_gitignore
+        );
         let settings = Settings::load_default();
         let mut files_to_index: Vec<PathBuf> = files.to_owned();
 

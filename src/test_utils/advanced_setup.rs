@@ -16,8 +16,10 @@ limitations under the License.
 
 use app_state::AppState;
 use cursive::backend;
+use cursive::backend::puppet::observed::ObservedCell;
 use cursive::backend::puppet::observed::ObservedScreen;
 use cursive::event::Event;
+use cursive::event::Key;
 use cursive::Cursive;
 use cursive::Vec2;
 use dir_tree::TreeNodeRef;
@@ -28,12 +30,10 @@ use ncurses::filter;
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::sync::mpsc;
+use std::time::Duration;
 use test_utils::basic_setup::BasicSetupSetupStruct;
 use test_utils::basic_setup::BasicSetupSetupTrait;
 use test_utils::fake_tree::{fake_dir, fake_file, fake_root};
-use std::time::Duration;
-use cursive::event::Key;
-use cursive::backend::puppet::observed::ObservedCell;
 
 pub struct AdvancedSetup {
     ss: Box<dyn BasicSetupSetupTrait>,
@@ -64,9 +64,9 @@ impl AdvancedSetup {
         siv.quit();
 
         let mut interface = Interface::new(app_state, siv);
-//        input.send(Some(Event::Refresh)).unwrap();
-//        interface.main_step();
-//        input.send(Some(Event::Refresh)).unwrap();
+        //        input.send(Some(Event::Refresh)).unwrap();
+        //        interface.main_step();
+        //        input.send(Some(Event::Refresh)).unwrap();
 
         AdvancedSetup {
             ss: Box::new(basicSetup),
@@ -133,7 +133,7 @@ impl AdvancedSetup {
         println!("x");
     }
 
-    pub fn type_letters(&self, s : &str) {
+    pub fn type_letters(&self, s: &str) {
         for letter in s.chars() {
             // TODO(njskalski): add shift probably
             self.input.send(Some(Event::Char(letter))).unwrap();
@@ -154,10 +154,10 @@ impl AdvancedSetup {
         });
     }
 
-//    pub fn head_window(&self) {
-//        let siv = self.interface.siv();
-//        siv.screen().get(0).unwrap().required_size()
-//    }
+    //    pub fn head_window(&self) {
+    //        let siv = self.interface.siv();
+    //        siv.screen().get(0).unwrap().required_size()
+    //    }
 
     pub fn hit_keystroke(&self, key: Key) {
         self.input.send(Some(Event::Key(key))).unwrap();
@@ -172,12 +172,12 @@ impl AdvancedSetup {
     }
 
     /// Active wait
-//    pub fn wait_workers_finish(&self) {
-//        self.refresh();
-//        while self.interface.has_running_workers() {
-//            self.interface.main_step();
-//        }
-//    }
+    //    pub fn wait_workers_finish(&self) {
+    //        self.refresh();
+    //        while self.interface.has_running_workers() {
+    //            self.interface.main_step();
+    //        }
+    //    }
 
     pub fn has_running_workers(&self) -> bool {
         self.interface.has_running_workers()

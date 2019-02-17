@@ -35,7 +35,10 @@ extern crate serde_derive;
 extern crate lazy_static;
 #[macro_use]
 mod utils;
+#[macro_use]
+mod macros;
 
+mod action;
 mod app_state;
 mod buffer_id;
 mod buffer_index;
@@ -53,6 +56,7 @@ mod fuzzy_query_view;
 mod fuzzy_view_item;
 mod interface;
 mod interface_tests;
+mod keyboard_shortcut;
 mod lsp_client;
 mod overlay_dialog;
 mod rich_content;
@@ -87,6 +91,8 @@ extern crate human_panic;
 extern crate crossbeam_channel;
 extern crate ncurses;
 extern crate serde;
+#[macro_use]
+extern crate yaml_rust;
 
 use app_state::AppState;
 use cpuprofiler::PROFILER;

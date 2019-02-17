@@ -20,10 +20,12 @@ limitations under the License.
 // TODO(njskalski) add validation if commands are known (plugins must be loaded first)
 // TODO(njskalski) parse more keys.
 
+use action::Action;
 use cursive;
 use cursive::event::{Event, Key};
 use cursive::theme;
 use default_settings::*;
+use fuzzy_view_item::ViewItem;
 use log;
 use serde_json as sj;
 use std::cell::RefCell;
@@ -262,6 +264,26 @@ impl Settings {
             file_index_limit: file_index_limit,
         })
     }
+
+    pub fn add_text_actions(&self, actions: &mut Vec<Action>) {
+        let yaml = load_yaml!("actions/text.yaml");
+        let mut text_actions = Action::from_yaml(yaml);
+        let keybindings = self.get_keybindings("text");
+
+
+        actions.append(&mut text_actions);
+    }
+
+    // TODO(njskalski): add cache.
+    pub fn get_actions(&self, contexts: &Vec<&str>) -> Vec<Rc<ViewItem>> {
+        let mut actions: Vec<Action> = vec![];
+
+        self.add_text_actions(&mut actions);
+
+        let mut result: Vec<Rc<ViewItem>> = vec![];
+
+        result
+    }
 }
 
 #[cfg(test)]
@@ -272,5 +294,11 @@ mod tests {
     #[test]
     fn default_settings_parses() {
         let settins = Settings::load_default();
+    }
+
+    #[test]
+    fn get_actions_text() {
+        let settings = Settings::load_default();
+        settings.get_actions(&vec!["text"]);
     }
 }

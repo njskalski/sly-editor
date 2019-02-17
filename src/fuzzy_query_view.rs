@@ -294,7 +294,8 @@ impl View for FuzzyQueryView {
     fn draw(&self, printer: &Printer) {
         ifdebug!("fqv redraw");
         //draw context
-        printer.print((2, 0), &format!("Context : {:?}    query: {:?}", &self.context, &self.query));
+        printer
+            .print((2, 0), &format!("Context : {:?}    query: {:?}", &self.context, &self.query));
 
         // debug!("size: {:?}", self.size);
         // debug!("items: {:?}", self.get_current_items());

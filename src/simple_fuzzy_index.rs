@@ -30,6 +30,9 @@ impl SimpleIndex {
     pub fn new(items: Vec<Rc<ViewItem>>) -> Self {
         SimpleIndex { items: items }
     }
+    pub fn add(&mut self, mut new_items: Vec<Rc<ViewItem>>) {
+        self.items.append(&mut new_items);
+    }
 }
 
 impl FuzzyIndexTrait for SimpleIndex {

@@ -1,6 +1,20 @@
 First checkbox shows implementation, curly braces indicate test written.
 
 Interface:
+- [ ] fuzzy bar
+	- [x] with simple index
+	- [x] with advanced index
+	- [x] async
+	- [x] simple find
+	- [ ] regex find
+	- [ ] highlight opened
+	- [ ] filter opened
+	- [ ] show keyboard shortcut
+	- [ ] force keyboard shortcut (learning mode)
+- [ ] all-commands bar
+	- [ ] display
+	- [ ] act
+	- [ ] keyboard shortcuts
 - [ ] loading files
 	- [x] on startup
 	- [x] via fuzzy file bar (ctrl-o)
@@ -39,6 +53,9 @@ Interface:
 	- [ ] jump to symbol
 	- [ ] jump back
 	- [ ] cursor history
+- [ ] colors
+	- [x] syntax highlighting
+	- [ ] select theme
 
 - [ ] tinder-like browsing of "similar pages"
 	- [ ] basic
