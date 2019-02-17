@@ -19,7 +19,6 @@ Interface:
 	- [x] on startup
 	- [x] via fuzzy file bar (ctrl-o)
 	- [x] via open file dialog
-	- [ ] big files and load errors
 - [ ] saving files
 	- [x] in-place
 	- [ ] via save-as dialog
@@ -58,15 +57,6 @@ Interface:
 - [ ] colors
 	- [x] syntax highlighting
 	- [ ] select theme
-
-- [ ] tinder-like browsing of "similar pages"
-	- [ ] basic
-	- [ ] with mid-processing
-- [ ] plugin support
-	- [ ] references fetch
-	- [ ] references mid-processing
-	- [ ] symbol navigation
-
 - [ ] language server protocol
 	- [ ] autocompletion
 	- [ ] building references graph
@@ -75,3 +65,12 @@ Interface:
 after MVP:
 
 - [ ] localized history
+- [ ] loading files
+    - [ ] big files and load errors
+- [ ] tinder-like browsing of "similar pages"
+    - [ ] basic
+    - [ ] with mid-processing
+- [ ] plugin support
+    - [ ] references fetch
+    - [ ] references mid-processing
+    - [ ] symbol navigation

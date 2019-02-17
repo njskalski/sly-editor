@@ -70,6 +70,25 @@ mod tests {
     }
 
     #[test]
+    fn save_new_file_via_dialog() {
+        let mut s = AdvancedSetup::new();
+
+        s.type_letters("some text");
+        s.input().send(Some(Event::Key(Key::Enter))).unwrap();
+        s.type_letters("some more text");
+        s.input().send(Some(Event::Key(Key::Enter))).unwrap();
+        s.step();
+
+        s.input().send(Some(Event::CtrlChar('s'))).unwrap();
+        s.step();
+        s.input().send(Some(Event::Key(Key::Enter))).unwrap();
+        s.step();
+
+        s.dump_debug();
+
+    }
+
+    #[test]
     fn fuzzy_buffer_list_displays() {
         let mut s = AdvancedSetup::new();
 
