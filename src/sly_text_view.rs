@@ -281,8 +281,8 @@ impl View for SlyTextView {
 
     fn on_event(&mut self, event: Event) -> EventResult {
         let text_keybindings = self.settings_ref().get_keybindings("text");
-        if text_keybindings.contains_key(&event) {
-            let action: &String = &text_keybindings[&event];
+        if text_keybindings.event_to_marker().contains_key(&event) {
+            let action: &String = &text_keybindings.event_to_marker()[&event];
 
             let mut consumed = true;
             match action.as_str() {
@@ -309,8 +309,8 @@ impl View for SlyTextView {
         }
 
         let text_view_keybindings = self.settings_ref().get_keybindings("text_view");
-        if text_view_keybindings.contains_key(&event) {
-            let action: &String = &text_view_keybindings[&event];
+        if text_view_keybindings.event_to_marker().contains_key(&event) {
+            let action: &String = &text_view_keybindings.event_to_marker()[&event];
 
             let mut consumed = true;
             match action.as_str() {

@@ -33,8 +33,46 @@ use std::collections::{HashMap, HashSet};
 use std::io::{Error, ErrorKind, Read};
 use std::iter::FromIterator;
 use std::rc::Rc;
+use serde_json::error::ErrorCode::KeyMustBeAString;
+use keyboard_shortcut::KeyboardShortcut;
 
-pub type KeybindingsType = HashMap<Event, String>;
+pub type EventToMarker = HashMap<Event, String>;
+pub type MarkerToEvent = HashMap<String, Event>;
+
+pub struct KeybindingsType {
+    event_to_marker: EventToMarker,
+    marker_to_event: MarkerToEvent,
+}
+
+impl std::fmt::Debug for KeybindingsType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.event_to_marker.fmt(f)
+    }
+}
+
+impl KeybindingsType {
+    pub fn from_event_to_marker(etm : EventToMarker) -> Self {
+        let mut marker_to_event : MarkerToEvent = HashMap::new();
+
+        for (event, marker) in &etm {
+            assert!(!marker_to_event.contains_key(marker));
+            marker_to_event.insert(marker.clone(), event.clone());
+        }
+
+        KeybindingsType {
+            event_to_marker : etm,
+            marker_to_event : marker_to_event
+        }
+    }
+
+    pub fn event_to_marker(&self) -> &EventToMarker {
+        &self.event_to_marker
+    }
+
+    pub fn marker_to_event(&self) -> &MarkerToEvent {
+        &self.marker_to_event
+    }
+}
 
 fn get_known_keys() -> HashSet<String> {
     let mut known_keys: HashSet<String> = HashSet::new();
@@ -142,6 +180,7 @@ impl Settings {
         self.file_index_limit
     }
 
+    // TODO(njskalski): add cache.
     pub fn get_keybindings(&self, context: &str) -> KeybindingsType {
         let known_keys = get_known_keys();
 
@@ -151,7 +190,7 @@ impl Settings {
                 _ => panic!("settings/keybindings/text is not an sj::Object!"),
             };
 
-        let mut result: KeybindingsType = HashMap::new();
+        let mut event_to_marker: EventToMarker = HashMap::new();
 
         for (name, object) in text_bindings.iter() {
             let option_name: &String = name;
@@ -211,10 +250,10 @@ impl Settings {
             };
 
             // debug!("assigning {:?} to action {:?}", event, option_name);
-            result.insert(event, option_name.clone());
+            event_to_marker.insert(event, option_name.clone());
         }
 
-        result
+        KeybindingsType::from_event_to_marker(event_to_marker)
     }
 
     pub fn load_default() -> Self {
@@ -265,11 +304,22 @@ impl Settings {
         })
     }
 
+    // TODO(njskalski): can be generalized.
     pub fn add_text_actions(&self, actions: &mut Vec<Action>) {
         let yaml = load_yaml!("actions/text.yaml");
         let mut text_actions = Action::from_yaml(yaml);
-        let keybindings = self.get_keybindings("text");
 
+        let keybindings = self.get_keybindings("text");
+        let mte = keybindings.marker_to_event();
+
+        for mut action in &mut text_actions {
+            let marker = action.marker().clone();
+            if mte.contains_key(&marker) {
+                action.set_ks(Some(KeyboardShortcut::new(mte[&marker].clone())));
+            }
+        }
+
+        dbg!(&text_actions);
 
         actions.append(&mut text_actions);
     }
@@ -277,12 +327,9 @@ impl Settings {
     // TODO(njskalski): add cache.
     pub fn get_actions(&self, contexts: &Vec<&str>) -> Vec<Rc<ViewItem>> {
         let mut actions: Vec<Action> = vec![];
-
         self.add_text_actions(&mut actions);
 
-        let mut result: Vec<Rc<ViewItem>> = vec![];
-
-        result
+        actions.iter().map(|a| Rc::new(a.view_item())).collect()
     }
 }
 
@@ -299,6 +346,9 @@ mod tests {
     #[test]
     fn get_actions_text() {
         let settings = Settings::load_default();
-        settings.get_actions(&vec!["text"]);
+        let actions = settings.get_actions(&vec!["text"]);
+
+        dbg!(&actions);
+        assert_eq!(actions.len(), 4);
     }
 }

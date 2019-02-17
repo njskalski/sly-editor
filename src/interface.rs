@@ -142,7 +142,8 @@ impl Interface {
         // let known_actions = vec!["show_everything_bar"];
         //TODO filter unknown actions
         let keybindings = i.settings_ref().get_keybindings("global");
-        for (event, action) in keybindings {
+        for (event, action) in keybindings.event_to_marker() {
+            let event = event.clone();
             let ch = i.event_sink();
             match action.as_str() {
                 "all_commands_bar" => {

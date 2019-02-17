@@ -14,9 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+use fuzzy_view_item::ViewItem;
 use keyboard_shortcut::KeyboardShortcut;
 use yaml_rust::yaml::Yaml;
 
+#[derive(Clone, Debug)]
 pub struct Action {
     marker: String,
     desc: Option<String>,
@@ -24,6 +26,15 @@ pub struct Action {
 }
 
 impl Action {
+    pub fn view_item(&self) -> ViewItem {
+        ViewItem::new(
+            self.marker.clone(),
+            None,
+            self.marker.clone(),
+            self.keyboard_shortcut.clone(),
+        )
+    }
+
     pub fn new(marker: String) -> Self {
         Action { marker, desc: None, keyboard_shortcut: None }
     }
@@ -34,6 +45,10 @@ impl Action {
 
     pub fn with_ks(self, ks: KeyboardShortcut) -> Self {
         Action { marker: self.marker, desc: self.desc, keyboard_shortcut: Some(ks) }
+    }
+
+    pub fn set_ks(&mut self, ks: Option<KeyboardShortcut>) {
+        self.keyboard_shortcut = ks;
     }
 
     pub fn marker(&self) -> &String {
@@ -51,7 +66,7 @@ impl Action {
     // TODO: any error notification?
     pub fn from_yaml(yaml: &yaml_rust::yaml::Yaml) -> Vec<Action> {
         let mut result: Vec<Action> = vec![];
-//        dbg!(yaml);
+        //        dbg!(yaml);
         for (marker, item) in yaml["actions"].as_hash().expect("actions is not a hash") {
             let marker = marker.as_str().expect("marker is not a string");
             result.push(Action::new(marker.to_owned()))

@@ -14,7 +14,37 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+use cursive::event::Event;
+use cursive::event::Event::*;
+
 #[derive(Clone, Debug)]
 pub struct KeyboardShortcut {
-    keys: Vec<String>,
+    event : Event
+}
+
+impl KeyboardShortcut {
+    pub fn new(event : Event) -> Self {
+        assert!(is_keyboard_event(&event));
+        KeyboardShortcut { event }
+    }
+}
+
+fn is_keyboard_event(event : &Event) -> bool {
+    match event {
+        &Char(_) => true,
+        &CtrlChar(_) => true,
+        &AltChar(_) => true,
+        &Key(_) => true,
+        &Shift(_) => true,
+        &Alt(_) => true,
+        &AltShift(_) => true,
+        &Ctrl(_) => true,
+        &CtrlShift(_) => true,
+        &CtrlAlt(_) => true,
+        &Exit => true, // this is Ctrl(c)
+        _ => {
+            println!("not keyboard event {:?}", event);
+            false
+        }
+    }
 }
