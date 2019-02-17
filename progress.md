@@ -1,4 +1,4 @@
-First checkbox shows implementation, second checkbox points that a test is written. Name of test is between curly braces after the description.
+First checkbox shows implementation, curly braces indicate test written.
 
 Interface:
 - [ ] loading files
@@ -10,8 +10,8 @@ Interface:
 	- [ ] via save-as dialog
 	- [ ] autosaving
 - [ ] editiong
-	- [x] - [ ] cursor navigation (written, but with small bug)
-		- [x] - [ ] arrows
-		- [x] - [ ] pg-up pg-down
-	- [x] - [ ] multicursors (as above)
+	- [x] cursor navigation (written, but with small bug)
+		- [x] arrows
+		- [x] pg-up pg-down
+	- [x] multicursors (as above)
 	
