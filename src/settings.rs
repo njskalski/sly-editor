@@ -325,7 +325,7 @@ impl Settings {
     }
 
     // TODO(njskalski): add cache.
-    pub fn get_actions(&self, contexts: &Vec<&str>) -> Vec<Rc<ViewItem>> {
+    pub fn get_all_commands(&self) -> Vec<Rc<ViewItem>> {
         let mut actions: Vec<Action> = vec![];
         self.add_text_actions(&mut actions);
 
@@ -344,9 +344,9 @@ mod tests {
     }
 
     #[test]
-    fn get_actions_text() {
+    fn get_all_commands() {
         let settings = Settings::load_default();
-        let actions = settings.get_actions(&vec!["text"]);
+        let actions = settings.get_all_commands();
 
         dbg!(&actions);
         assert_eq!(actions.len(), 4);

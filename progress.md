@@ -18,12 +18,13 @@ Interface:
 - [ ] loading files
 	- [x] on startup
 	- [x] via fuzzy file bar (ctrl-o)
-	- [ ] via open file dialog
+	- [x] via open file dialog
+	- [ ] big files and load errors
 - [ ] saving files
 	- [x] in-place
 	- [ ] via save-as dialog
 	- [ ] autosaving
-- [ ] editiong
+- [ ] edition
 	- [x] cursor navigation (written, but with small bug)
 		- [x] arrows
 		- [x] pg-up pg-down
@@ -35,6 +36,7 @@ Interface:
 	- [ ] selection
 		- [ ] single
 		- [ ] multi
+		- [ ] ctrl-a
 	- [x] typing
 	- [ ] undo
 		- [x] basic
@@ -69,3 +71,7 @@ Interface:
 	- [ ] autocompletion
 	- [ ] building references graph
 	- [ ] multiple sources of data
+
+after MVP:
+
+- [ ] localized history

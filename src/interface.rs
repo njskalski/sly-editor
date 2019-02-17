@@ -62,9 +62,11 @@ use std::sync::Arc;
 use std::thread::ThreadId;
 use std::time::Duration;
 use view_handle::ViewHandle;
+use simple_fuzzy_index::SimpleIndex;
 
 const FILE_BAR_MARKER: &'static str = "file_bar";
-const BUFFER_LIST_MARKER: &'static str = "file_bar";
+const BUFFER_LIST_MARKER: &'static str = "buffer_list";
+const ALL_COMMANDS_MARKER: &'static str = "all_commands";
 
 /*
 At this moment I have not decided on whether interface holds premise before siv or other way around.
@@ -82,6 +84,7 @@ pub struct Interface {
     done: bool,
     file_dialog_handle: Option<ViewHandle>,
     file_bar_handle: Option<ViewHandle>,
+    all_commands_bar_handle: Option<ViewHandle>,
     buffer_list_handle: Option<ViewHandle>,
     lsp_clients: Vec<LspClient>, //TODO(njskalski): temporary storage to avoid removal
     active_workers: HashSet<usize>,
@@ -135,6 +138,7 @@ impl Interface {
             file_dialog_handle: None,
             file_bar_handle: None,
             buffer_list_handle: None,
+            all_commands_bar_handle: None,
             lsp_clients: Vec::new(),
             active_workers: HashSet::new(),
         };
@@ -301,10 +305,6 @@ impl Interface {
         }
     }
 
-    fn all_commands_bar(&mut self) {
-        debug!("all_commands_bar unimplemented");
-    }
-
     /// consumes results of previous dialog choices.
     fn process_dialogs(&mut self) {
         if self.num_open_dialogs() > 1 {
@@ -373,6 +373,10 @@ impl Interface {
                 let handle = self.buffer_list_handle.take().unwrap();
                 self.remove_window::<FuzzyQueryView>(&handle); // TODO(njskalski): can cache here.
             }
+        }
+
+        if self.all_commands_bar_handle.is_some() {
+            debug!("handling all actions bar handle is not implemented");
         }
 
         // TODO(njskalski): add processing of file_bar and fuzzy stuff.
@@ -465,6 +469,7 @@ impl Interface {
         (if self.file_dialog_handle.is_some() { 1 } else { 0 })
             + (if self.buffer_list_handle.is_some() { 1 } else { 0 })
             + (if self.file_bar_handle.is_some() { 1 } else { 0 })
+            + (if self.all_commands_bar_handle.is_some() { 1 } else { 0 })
     }
 
     pub fn event_sink(&self) -> IChannel {
@@ -488,6 +493,30 @@ impl Interface {
             ),
         };
         self.show_file_dialog(FileDialogVariant::SaveAsFile(id, folder_op, file_op));
+    }
+
+    fn all_commands_bar(&mut self) {
+        debug!("all_commands_bar unimplemented");
+
+        if self.all_commands_bar_handle.is_some() {
+            debug!("show_file_bar: not showing all_commands_bar, because it's already opened.");
+            return;
+        }
+
+        let actions = self.settings_ref().get_all_commands();
+        let index = SimpleIndex::new(actions);
+
+        let mut all_commands_bar = FuzzyQueryView::new(
+            Arc::new(RefCell::new(index)),
+            ALL_COMMANDS_MARKER.to_string(),
+            self.event_sink(),
+            self.settings_rc().clone(),
+            self.inot(),
+        );
+
+        self.all_commands_bar_handle = Some(all_commands_bar.get_mut().handle().clone());
+        self.siv.add_layer(all_commands_bar);
+
     }
 
     fn show_open_file_dialog(&mut self) {

@@ -80,7 +80,22 @@ mod tests {
         let screen = s.last_screen().unwrap();
 
         assert_eq!(screen.find_occurences("Context : \"context\"    query: \"\"").len(), 1);
-        assert_eq!(screen.find_occurences("<unnamed> b1").len(), 1);
+        assert_eq!(screen.find_occurences("<unnamed>").len(), 1);
+    }
+
+    #[test]
+    fn all_commands_bar_displays() {
+        let mut s = AdvancedSetup::new();
+
+        s.input().send(Some(Event::CtrlChar('y'))).unwrap();
+        s.step();
+
+        let screen = s.last_screen().unwrap();
+
+        assert_eq!(screen.find_occurences("Context : \"context\"    query: \"\"").len(), 1);
+        /// some text stuff
+        assert_eq!(screen.find_occurences("paste").len(), 1);
+        assert_eq!(screen.find_occurences("redo").len(), 1);
     }
 
     #[test]
@@ -108,6 +123,6 @@ mod tests {
 
         // cannot test query results at this time, since the file index is empty without mocking
         // ::path.
-        s.dump_debug();
+//        s.dump_debug();
     }
 }
