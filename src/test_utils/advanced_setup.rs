@@ -39,12 +39,14 @@ pub mod tests {
     use test_utils::fake_tree::{fake_dir, fake_file, fake_root};
     use FileSystemType;
     use std::path::Path;
+    use events::IChannel;
 
     pub struct AdvancedSetup {
         ss: Box<dyn BasicSetupSetupTrait>,
         receiver: mpsc::Receiver<IEvent>,
         screen_sink: crossbeam_channel::Receiver<ObservedScreen>,
         input: crossbeam_channel::Sender<Option<Event>>,
+        ichannel : IChannel,
         interface: Interface,
         last_screen: RefCell<Option<ObservedScreen>>,
     }
@@ -82,11 +84,14 @@ pub mod tests {
             //        interface.main_step();
             //        input.send(Some(Event::Refresh)).unwrap();
 
+            let ichannel = interface.event_sink();
+
             AdvancedSetup {
                 ss: Box::new(basicSetup),
                 receiver,
                 screen_sink: sink,
                 input,
+                ichannel : ichannel,
                 interface,
                 last_screen: RefCell::new(None),
             }
@@ -94,6 +99,10 @@ pub mod tests {
 
         pub fn new() -> Self {
             Self::with_files(vec![])
+        }
+
+        pub fn ichannel(&self) -> &IChannel {
+            &self.ichannel
         }
 
         pub fn step(&mut self) {
@@ -271,7 +280,7 @@ pub mod tests {
         for c in filetree.children() {
             if c.is_file() {
                 let path = c.path().unwrap();
-                fs.create_file(path, "mock file content")
+                fs.create_file(path, &format!("mock file content of {:?}", path))
                     .expect(&format!("failed to create file {:?}", path));
             }
 

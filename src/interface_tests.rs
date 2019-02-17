@@ -20,8 +20,9 @@ mod tests {
     use cursive::event::Event;
     use cursive::event::Key;
     use cursive::Vec2;
-    use test_utils::advanced_setup::tests::AdvancedSetup;
     use filesystem::*;
+    use test_utils::advanced_setup::tests::AdvancedSetup;
+    use events::IEvent;
 
     #[test]
     fn first_interface_test() {
@@ -125,7 +126,10 @@ mod tests {
         assert_eq!(screen.find_occurences("some_filename.txt").len(), 1);
 
         // file does not exist yet.
-        assert_eq!(s.interface().state().filesystem().is_file("/home/laura/some_filename.txt"), false);
+        assert_eq!(
+            s.interface().state().filesystem().is_file("/home/laura/some_filename.txt"),
+            false
+        );
 
         s.input().send(Some(Event::Key(Key::Enter))).unwrap();
         s.step();
@@ -134,12 +138,17 @@ mod tests {
         // dialog closed
         assert_eq!(screen.find_occurences("Save file").len(), 0);
 
-//        dbg!(s.interface().state().filesystem());
+        //        dbg!(s.interface().state().filesystem());
 
         // save happened
-        assert_eq!(s.interface().state().filesystem().is_file("/home/laura/some_filename.txt"), true);
-        assert_eq!(s.interface().state().filesystem().read_file("/home/laura/some_filename.txt").unwrap(),
-            "some text\nsome more text\n".as_bytes().to_vec());
+        assert_eq!(
+            s.interface().state().filesystem().is_file("/home/laura/some_filename.txt"),
+            true
+        );
+        assert_eq!(
+            s.interface().state().filesystem().read_file("/home/laura/some_filename.txt").unwrap(),
+            "some text\nsome more text\n".as_bytes().to_vec()
+        );
     }
 
     #[test]
@@ -159,8 +168,10 @@ mod tests {
         s.input().send(Some(Event::CtrlChar('s'))).unwrap();
         s.step();
 
-        assert_eq!(s.interface().state().filesystem().read_file("/home/laura/file4.ini").unwrap(),
-                   "\nedited by laura\nmock file content".as_bytes().to_vec());
+        assert_eq!(
+            s.interface().state().filesystem().read_file("/home/laura/file4.ini").unwrap(),
+            "\nedited by laura\nmock file content of \"/home/laura/file4.ini\"".as_bytes().to_vec()
+        );
     }
 
     #[test]
@@ -205,6 +216,47 @@ mod tests {
     }
 
     #[test]
+    fn open_via_dialog() {
+        let mut s = AdvancedSetup::new();
+        s.step();
+
+        let screen = s.last_screen().unwrap();
+        assert_eq!(screen.find_occurences("mock").len(), 0); // no mock contents.
+
+        s.input().send(Some(Event::CtrlChar('d'))).unwrap();
+        s.step();
+
+        let screen = s.last_screen().unwrap();
+        // there is Dialog
+        assert_eq!(screen.find_occurences("Open file").len(), 1);
+
+        s.input().send(Some(Event::Key(Key::Enter))).unwrap();
+        s.step();
+        s.input().send(Some(Event::Key(Key::Down))).unwrap();
+        s.input().send(Some(Event::Key(Key::Enter))).unwrap();
+        s.step();
+        s.input().send(Some(Event::Key(Key::Tab))).unwrap();
+        s.step();
+
+        let screen = s.last_screen().unwrap();
+
+        // there is Dialog
+        assert_eq!(screen.find_occurences("▾ laura").len(), 1);
+        assert_eq!(screen.find_occurences("file4.ini").len(), 1);
+
+        s.hit_enter();
+        s.step();
+
+        let screen = s.last_screen().unwrap();
+
+        // dialog went away
+        assert_eq!(screen.find_occurences("Open file").len(), 0);
+
+        // and we have mock content
+        assert_eq!(screen.find_occurences("mock file content").len(), 1);
+    }
+
+    #[test]
     fn fuzzy_buffer_list_displays() {
         let mut s = AdvancedSetup::new();
 
@@ -216,6 +268,46 @@ mod tests {
 
         assert_eq!(screen.find_occurences("Context : \"context\"    query: \"\"").len(), 1);
         assert_eq!(screen.find_occurences("<unnamed>").len(), 1);
+    }
+
+//    #[test]
+    // TODO(njskalski): this fails now, since not all files passed are loaded. Some are just scheduled.
+    fn loads_listed_files() {
+        let mut s = AdvancedSetup::with_files(vec![
+            "/home/laura/subdirectory2/file2.txt",
+            "/home/laura/subdirectory2/file3.rs",
+        ]);
+
+        s.step();
+
+        let screen = s.last_screen().unwrap();
+        assert_eq!(screen.find_occurences("mock file content of \"/home/laura/subdirectory2/file2.txt\"").len(), 1);
+
+        s.input().send(Some(Event::CtrlChar('o'))).unwrap();
+        s.step();
+
+        let screen = s.last_screen().unwrap();
+        assert_eq!(screen.find_occurences("Context").len(), 1);
+
+        s.dump_debug();
+    }
+
+//    #[test]
+    // TODO(njskalski): this will not work prior fixing one above.
+    fn fuzzy_buffer_list_change_buffers() {
+        let mut s = AdvancedSetup::with_files(vec![
+            "/home/laura/subdirectory2/file2.txt",
+        ]);
+
+        s.input().send(Some(Event::CtrlChar('o'))).unwrap();
+        s.step();
+
+        s.dump_debug();
+
+//        let screen = s.last_screen().unwrap();
+//
+//        assert_eq!(screen.find_occurences("Context : \"context\"    query: \"\"").len(), 1);
+//        assert_eq!(screen.find_occurences("<unnamed>").len(), 1);
     }
 
     #[test]

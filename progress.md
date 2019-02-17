@@ -2,8 +2,8 @@ First checkbox shows implementation, curly braces indicate test written.
 
 Interface:
 - [ ] fuzzy bar
-	- [x] with simple index
-	- [x] with advanced index
+	- [x] with simple index {fuzzy_buffer_list_displays}
+	- [x] with advanced index {fuzzy_file_index_displays}
 	- [x] async
 	- [x] simple find
 	- [ ] regex find
@@ -12,13 +12,13 @@ Interface:
 	- [ ] show keyboard shortcut
 	- [ ] force keyboard shortcut (learning mode)
 - [ ] all-commands bar
-	- [x] display
+	- [x] display {all_commands_bar_displays}
 	- [ ] act
 	- [ ] keyboard shortcuts
 - [ ] loading files
 	- [x] on startup {open_via_startup}
 	- [x] via fuzzy file bar (ctrl-o) {open_via_fuzzy}
-	- [x] via open file dialog
+	- [x] via open file dialog {open_via_dialog}
 	- [ ] error handling
 - [ ] saving files
 	- [x] in-place {save_via_ctrls}

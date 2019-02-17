@@ -683,14 +683,15 @@ mod tests {
         {
             let screen = s.last_screen().unwrap();
             let hits = screen.find_occurences("▸");
-            assert_eq!(hits.len(), 4);
+
+            assert_eq!(hits.len(), 2);
 
             let subnodes: Vec<String> = hits
                 .iter()
                 .map(|hit| hit.expanded_line(0, 20).to_string().trim().to_owned())
                 .collect();
 
-            let expected = vec!["▸ laura", "▸ subdirectory1", "▸ subdirectory2", "▸ bob"];
+            let expected = vec!["▸ laura", "▸ bob"];
 
             assert_eq!(subnodes, expected);
         }

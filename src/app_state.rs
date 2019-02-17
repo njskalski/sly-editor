@@ -225,7 +225,7 @@ impl AppState {
             );
         }
 
-        //        debug!("file index:\n{:?}", &files_to_index);
+//        dbg!(&files);
 
         let file_index_items = file_list_to_items(&files_to_index);
         let buffers_to_load: VecDeque<PathBuf> = files.iter().map(|x| x.clone()).collect();
