@@ -20,11 +20,17 @@ use clipboard::ClipboardProvider;
 use std::error::Error;
 
 #[cfg(test)]
-pub fn default_clipboard() -> Result<ClipboardContext, Box<std::error::Error>> {
+pub type ClipboardType = NopClipboardContext;
+
+#[cfg(test)]
+pub fn default_clipboard() -> Result<ClipboardType, Box<std::error::Error>> {
     NopClipboardContext::new()
 }
 
 #[cfg(not(test))]
-pub fn default_clipboard() -> Result<ClipboardContext, Box<std::error::Error>> {
+pub type ClipboardType = ClipboardContext;
+
+#[cfg(not(test))]
+pub fn default_clipboard() -> Result<ClipboardType, Box<std::error::Error>> {
     ClipboardProvider::new()
 }

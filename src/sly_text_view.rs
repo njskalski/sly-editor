@@ -68,6 +68,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 use view_handle::ViewHandle;
 use abstract_clipboard::default_clipboard;
+use abstract_clipboard::ClipboardType;
 
 const INDEX_MARGIN: usize = 1;
 const PAGE_WIDTH: usize = 80;
@@ -84,7 +85,7 @@ pub struct SlyTextView {
     position: Vec2,               // position of upper left corner of view in file
     last_view_size: Option<Vec2>, //not sure if using properly
     settings: Rc<RefCell<Settings>>,
-    clipboard_context: clipboard::ClipboardContext,
+    clipboard_context: ClipboardType,
     special_char_mappings: HashMap<char, char>,
     handle: ViewHandle,
     syntax_highlighting: bool, //local override of global setting.
