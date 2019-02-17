@@ -8,6 +8,8 @@ script:
   - cargo build --verbose --all
   - cargo test --verbose --all
 dist: xenial
+env:
+  - RUST_BACKTRACE=1
 addons:
   apt:
     packages:
