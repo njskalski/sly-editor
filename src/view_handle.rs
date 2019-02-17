@@ -16,7 +16,13 @@ limitations under the License.
 
 use cursive;
 use std::fmt;
-use uid;
+use uid::Id as IdT;
+
+//docs: https://docs.rs/uid/0.1.4/uid/struct.Id.html
+#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct ViewHandleIdType(());
+
+type Id = IdT<ViewHandleIdType>;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ViewHandle {
@@ -25,7 +31,7 @@ pub struct ViewHandle {
 
 impl ViewHandle {
     pub fn new() -> Self {
-        ViewHandle { view_id: uid::Id::<usize>::new().get() }
+        ViewHandle { view_id: Id::new().get() }
     }
 
     pub fn view_id(&self) -> usize {

@@ -15,7 +15,13 @@ limitations under the License.
 */
 
 use std::fmt;
-use uid;
+use uid::Id as IdT;
+
+//docs: https://docs.rs/uid/0.1.4/uid/struct.Id.html
+#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct BufferIdIdType(());
+
+type Id = IdT<BufferIdIdType>;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct BufferId {
@@ -24,7 +30,7 @@ pub struct BufferId {
 
 impl BufferId {
     pub fn new() -> Self {
-        BufferId { id: uid::Id::<usize>::new().get() }
+        BufferId { id: Id::new().get() }
     }
 
     pub fn id(&self) -> usize {

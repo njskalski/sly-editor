@@ -216,6 +216,12 @@ struct FuzzySearchTask {
     has_inot: bool,
 }
 
+//docs: https://docs.rs/uid/0.1.4/uid/struct.Id.html
+#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct WorkerIdType(());
+
+type Id = uid::Id<WorkerIdType>;
+
 impl FuzzySearchTask {
     pub fn new(
         query: String,
@@ -235,7 +241,7 @@ impl FuzzySearchTask {
         let (update_stream_sender, update_stream_receiver) = channel::<FuzzySearchTaskUpdate>();
 
         thread::spawn(move || {
-            let workerId: usize = uid::Id::<usize>::new().get();
+            let workerId: usize = Id::new().get();
             inot_op.as_ref().map(|inot| inot.worker_start(workerId));
 
             debug!("worker {} {:}: created", workerId, &query_copy);
