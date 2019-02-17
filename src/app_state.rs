@@ -55,7 +55,6 @@ use buffer_id::BufferId;
 use buffer_index::BufferIndex;
 use buffer_state::ExistPolicy;
 use core::borrow::Borrow;
-use dir_tree::LazyTreeNode;
 use dir_tree::TreeNode;
 use dir_tree::TreeNodeRef;
 use settings::Settings;
@@ -98,6 +97,10 @@ impl AppState {
         Arc::new(RefCell::new(BufferIndex::new(observers)))
     }
 
+    pub fn filesystem(&self) -> &FileSystemType {
+        &self.filesystem
+    }
+
     /// Returns list of buffers. Rather stable.
     pub fn get_buffers(&self) -> Vec<BufferId> {
         self.loaded_buffers.keys().map(|k| k.clone()).collect()
@@ -132,6 +135,12 @@ impl AppState {
 
     pub fn buffer_obs(&self, id: &BufferId) -> Option<BufferStateObserver> {
         self.loaded_buffers.get(id).map(|b| BufferStateObserver::new(b.clone()))
+    }
+
+    pub fn save_buffer(&mut self, id: &BufferId) -> Result<(), io::Error> {
+        let buffer_ptr = self.loaded_buffers.get(id).unwrap();
+        let mut buffer = (**buffer_ptr).borrow_mut();
+        buffer.save(&self.filesystem, None)
     }
 
     pub fn save_buffer_as(&mut self, id: &BufferId, path: PathBuf) -> Result<(), io::Error> {
@@ -193,6 +202,7 @@ impl AppState {
         fs: FileSystemType,
         directories: Vec<PathBuf>,
         files: Vec<PathBuf>,
+        dir_and_files_tree : TreeNodeRef,
         enable_gitignore: bool,
     ) -> Self {
         debug!(
@@ -225,7 +235,7 @@ impl AppState {
             loaded_buffers: HashMap::new(),
             file_index: Arc::new(RefCell::new(FuzzyIndex::new(file_index_items))),
             filesystem: fs,
-            dir_and_files_tree: LazyTreeNode::new(directories.clone(), files).as_ref(),
+            dir_and_files_tree: dir_and_files_tree,
             get_first_buffer_guard: Cell::new(false),
             directories: directories,
             settings: Rc::new(RefCell::new(settings)),
@@ -258,6 +268,8 @@ fn build_file_index(
     if index.len() >= file_index_limit {
         return;
     }
+
+//    assert!(fs.is_dir(&dir));
 
     match fs.read_dir(dir) {
         Ok(read_dir) => {
@@ -296,7 +308,7 @@ fn build_file_index(
                             }
                         }
 
-                        if path.is_file() {
+                        if fs.is_file(path) {
                             if let Some(ref gitignore) = &gitignore_op {
                                 if gitignore.matched(path, false).is_ignore() {
                                     continue;

@@ -162,8 +162,13 @@ impl BufferState {
         };
 
         let mut buf: Vec<u8> = Vec::new();
-        buf.resize(self.content.get_lines().len_bytes(), 0 as u8);
+        buf.reserve(self.content.get_lines().len_bytes());
         self.content.get_lines().write_to(&mut buf);
+
+        if fs.is_file(&final_path) {
+            fs.remove_file(&final_path)?;
+        }
+
         fs.create_file(&final_path, &buf)?;
 
         self.ss.path = Some(final_path);

@@ -16,13 +16,15 @@ Interface:
 	- [ ] act
 	- [ ] keyboard shortcuts
 - [ ] loading files
-	- [x] on startup
-	- [x] via fuzzy file bar (ctrl-o)
+	- [x] on startup {open_via_startup}
+	- [x] via fuzzy file bar (ctrl-o) {open_via_fuzzy}
 	- [x] via open file dialog
+	- [ ] error handling
 - [ ] saving files
-	- [x] in-place
-	- [ ] via save-as dialog
+	- [x] in-place {save_via_ctrls}
+	- [x] via save-as dialog {save_new_file_via_dialog}
 	- [ ] autosaving
+	- [ ] error handling
 - [ ] edition
 	- [x] cursor navigation (written, but with small bug)
 		- [x] arrows

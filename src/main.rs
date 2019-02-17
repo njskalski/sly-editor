@@ -67,6 +67,7 @@ mod sly_text_view;
 mod sly_view;
 mod test_utils;
 mod view_handle;
+use dir_tree::TreeNode;
 
 #[cfg(target_os = "linux")]
 extern crate cpuprofiler;
@@ -113,6 +114,7 @@ use std::rc::Rc;
 
 #[cfg(target_os = "linux")]
 use cpuprofiler::PROFILER;
+use dir_tree::LazyTreeNode;
 
 #[cfg(target_os = "linux")]
 fn start_profiling() {
@@ -210,8 +212,10 @@ fn main() {
         &directories, &files, git_files_included
     );
 
+    let dir_file_tree = LazyTreeNode::new(directories.clone(), files.clone()).as_ref();
+
     let app_state =
-        AppState::new(FileSystemType::new(), directories, files, git_files_included == false);
+        AppState::new(FileSystemType::new(), directories, files, dir_file_tree,git_files_included == false);
 
     let mut siv = Cursive::default();
     let mut interface = Interface::new(app_state, siv);

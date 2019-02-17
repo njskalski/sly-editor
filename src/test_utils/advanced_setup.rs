@@ -28,15 +28,17 @@ pub mod tests {
     use dir_tree::TreeNodeVec;
     use events::IEvent;
     use filesystem::FakeFileSystem;
+    use filesystem::*;
     use interface::Interface;
     use ncurses::filter;
     use std::cell::RefCell;
     use std::path::PathBuf;
     use std::sync::mpsc;
     use std::time::Duration;
-    use test_utils::basic_setup::BasicSetupSetupStruct;
-    use test_utils::basic_setup::BasicSetupSetupTrait;
+    use test_utils::basic_setup::tests::*;
     use test_utils::fake_tree::{fake_dir, fake_file, fake_root};
+    use FileSystemType;
+    use std::path::Path;
 
     pub struct AdvancedSetup {
         ss: Box<dyn BasicSetupSetupTrait>,
@@ -48,11 +50,13 @@ pub mod tests {
     }
 
     impl AdvancedSetup {
-        pub fn new() -> Self {
+        pub fn with_files(files_to_open : Vec<&str>) -> Self {
             let basicSetup = BasicSetupSetupStruct::new();
 
             let (sender, receiver) = mpsc::channel::<IEvent>();
-            let filesystem = get_fake_filesystem();
+            let filetree = get_fake_filetree();
+
+            //            dbg!(&filetree);
 
             let size = Vec2::new(210, 50);
 
@@ -60,9 +64,15 @@ pub mod tests {
             let sink = backend.stream();
             let input = backend.input();
 
-            let (dirs, files) = filesystem_to_lists(&filesystem);
+            let (dirs, _) = filesystem_to_lists(&filetree);
+
+            let files : Vec<PathBuf> = files_to_open.iter().map(|p| Path::new(p).to_owned()).collect();
+
             let filesystem = FakeFileSystem::new();
-            let app_state = AppState::new(filesystem, dirs, vec![], false);
+
+            fill_filesystem(&filetree, &filesystem);
+
+            let app_state = AppState::new(filesystem, dirs, files, filetree, false);
 
             let mut siv = Cursive::new(move || backend);
             siv.quit();
@@ -80,6 +90,10 @@ pub mod tests {
                 interface,
                 last_screen: RefCell::new(None),
             }
+        }
+
+        pub fn new() -> Self {
+            Self::with_files(vec![])
         }
 
         pub fn step(&mut self) {
@@ -167,6 +181,10 @@ pub mod tests {
             self.input.send(Some(Event::Key(key))).unwrap();
         }
 
+        pub fn hit_enter(&self) {
+            self.hit_keystroke(Key::Enter);
+        }
+
         pub fn refresh(&self) {
             self.input.send(Some(Event::Refresh)).unwrap();
         }
@@ -200,16 +218,24 @@ pub mod tests {
             - directory2 (/home/bob)
                 - .file6.hidden
     */
-    fn get_fake_filesystem() -> TreeNodeRef {
+    pub fn get_fake_filetree() -> TreeNodeRef {
         fake_root(vec![
-            fake_dir("/home/laura", vec![]),
-            fake_dir("/home/laura/subdirectory1", vec![]),
             fake_dir(
-                "/home/laura/subdirectory2",
-                vec![fake_file("file1"), fake_file("file2.txt"), fake_file("file3.rs")],
+                "/home/laura",
+                vec![
+                    fake_dir("/home/laura/subdirectory1", vec![]),
+                    fake_dir(
+                        "/home/laura/subdirectory2",
+                        vec![
+                            fake_file("/home/laura/subdirectory2/file1"),
+                            fake_file("/home/laura/subdirectory2/file2.txt"),
+                            fake_file("/home/laura/subdirectory2/file3.rs"),
+                        ],
+                    ),
+                    fake_file("/home/laura/file4.ini"),
+                ],
             ),
-            fake_file("file4.ini"),
-            fake_dir("/home/bob", vec![fake_file(".file6.hidden")]),
+            fake_dir("/home/bob", vec![fake_file("/home/bob/.file6.hidden")]),
         ])
     }
 
@@ -239,5 +265,22 @@ pub mod tests {
         fill_files(&mut files, root.as_ref().children());
 
         (dirs, files)
+    }
+
+    fn fill_filesystem(filetree: &TreeNodeRef, fs: &FileSystemType) {
+        for c in filetree.children() {
+            if c.is_file() {
+                let path = c.path().unwrap();
+                fs.create_file(path, "mock file content")
+                    .expect(&format!("failed to create file {:?}", path));
+            }
+
+            if c.is_dir() {
+                let path = c.path().unwrap();
+                fs.create_dir_all(path).expect(&format!("failed to create dir {:?}", path));
+
+                fill_filesystem(&c, fs);
+            }
+        }
     }
 }

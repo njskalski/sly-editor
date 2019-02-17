@@ -219,7 +219,7 @@ impl Interface {
 
         // inserting new view
         self.active_editor_handle = new_editor.handle();
-        self.siv.screen_mut().add_layer(new_editor);
+        self.siv.screen_mut().add_fullscreen_layer(new_editor);
 
         // returning old view
         old_view.unwrap()
@@ -320,7 +320,10 @@ impl Interface {
                     Ok(FileDialogResult::FileSave(buffer_id, path)) => {
                         match self.state.save_buffer_as(&buffer_id, path) {
                             Ok(()) => {}
-                            Err(e) => error!("file save failed, because \"{}\"", e),
+                            Err(e) => {
+                                dbg!(&e);
+                                error!("file save failed, because \"{}\"", e)
+                            },
                         }
                     }
                     Ok(FileDialogResult::FileOpen(path)) => {
@@ -328,6 +331,7 @@ impl Interface {
                         debug!("buffer_id {:?}", buf_id);
                     }
                     Err(e) => {
+                        dbg!(&e);
                         error!("opening file failed, because \"{}\"", e);
                     }
                 }
@@ -590,12 +594,16 @@ impl Interface {
     fn save_current_buffer(&mut self) {
         let path = self.active_editor().buffer_obs().get_path();
         if path.is_none() {
-            self.show_save_as();
+            self.show_save_as()
         } else {
-            let editor = self.active_editor();
-            let mut buffer = editor.buffer_obs().borrow_state();
-            let buffer_id = buffer.id();
-            debug!("save_current_buffer unimplemented ");
+            let buffer_id = self.active_editor().buffer_obs().buffer_id();
+            match self.state.save_buffer(&buffer_id) {
+                Ok(()) => {}
+                Err(e) => {
+                    dbg!(&e);
+                    error!("file save failed, because \"{}\"", e)
+                },
+            }
         }
     }
 

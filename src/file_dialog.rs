@@ -78,7 +78,6 @@ use std::fmt;
 use std::ops::Deref;
 use std::path::PathBuf;
 use view_handle::ViewHandle;
-//use lazy_dir_tree::LazyTreeNode;
 
 // TODO(njskalski) this view took longer than anticipated to implement, so I rushed to the end
 // sacrificing quality a refactor is required.
@@ -605,7 +604,7 @@ mod tests {
     use std::sync::mpsc::Receiver;
     use std::time::Duration;
 
-    use test_utils::basic_setup::BasicSetup;
+    use test_utils::basic_setup::tests::BasicSetup;
 
     #[test]
     fn is_prefix_of_test() {
