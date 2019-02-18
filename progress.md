@@ -27,6 +27,7 @@ Interface:
 	- [x] via save-as dialog {save_new_file_via_dialog}
 	- [ ] autosaving
 	- [ ] error handling
+	- [ ] escalate to root to save!
 - [ ] edition
 	- [x] cursor navigation (written, but with small bug)
 		- [x] arrows
