@@ -16,7 +16,9 @@ Interface:
 	- [ ] act
 	- [ ] keyboard shortcuts
 - [ ] loading files
-	- [x] on startup {open_via_startup}
+	- [x] single on startup {open_via_startup}
+	- [ ] multiple on startup
+	- [ ] async multiple on startup
 	- [x] via fuzzy file bar (ctrl-o) {open_via_fuzzy}
 	- [x] via open file dialog {open_via_dialog}
 	- [ ] error handling
