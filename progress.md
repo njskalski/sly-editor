@@ -6,6 +6,7 @@ Interface:
 	- [x] with advanced index {fuzzy_file_index_displays}
 	- [x] async
 	- [x] simple find
+	- [ ] copy/paste support (common model for all windows)
 	- [ ] regex find
 	- [ ] highlight opened
 	- [ ] filter opened
