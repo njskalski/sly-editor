@@ -54,6 +54,8 @@ pub struct BufferStateS {
     path: Option<PathBuf>,
 }
 
+pub type BufferStateRef = Rc<RefCell<BufferState>>;
+
 pub struct BufferState {
     id: BufferId,
     ss: BufferStateS,
@@ -63,7 +65,7 @@ pub struct BufferState {
 }
 
 impl BufferState {
-    pub fn new() -> Rc<RefCell<Self>> {
+    pub fn new() -> BufferStateRef {
         Rc::new(RefCell::new(BufferState {
             id: BufferId::new(),
             ss: BufferStateS { path: None },

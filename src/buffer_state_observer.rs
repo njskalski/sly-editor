@@ -30,15 +30,16 @@ use cursive;
 use rich_content::RichContent;
 use std::cell::RefMut;
 use view_handle::ViewHandle;
+use buffer_state::BufferStateRef;
 
 #[derive(Clone)]
 pub struct BufferStateObserver {
     buffer_id: BufferId,
-    buffer_state: Rc<RefCell<BufferState>>,
+    buffer_state: BufferStateRef,
 }
 
 impl BufferStateObserver {
-    pub fn new(buffer_state: Rc<RefCell<BufferState>>) -> Self {
+    pub fn new(buffer_state: BufferStateRef) -> Self {
         let buffer_id = (*buffer_state).borrow().id();
         BufferStateObserver { buffer_id, buffer_state }
     }

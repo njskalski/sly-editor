@@ -70,6 +70,7 @@ use view_handle::ViewHandle;
 use filesystem::*;
 use std::borrow::*;
 use FileSystemType;
+use buffer_state::BufferStateRef;
 
 pub struct AppState {
     buffers_to_load: VecDeque<PathBuf>,
@@ -82,7 +83,7 @@ pub struct AppState {
     directories: Vec<PathBuf>,
     /* it's a straigthforward copy of arguments used to guess "workspace" parameter for
      * languageserver */
-    loaded_buffers: HashMap<BufferId, Rc<RefCell<BufferState>>>,
+    loaded_buffers: HashMap<BufferId, BufferStateRef>,
     settings: Rc<RefCell<Settings>>,
 }
 
@@ -184,7 +185,7 @@ impl AppState {
         }
         self.get_first_buffer_guard.set(true);
 
-        let buffer: Rc<RefCell<BufferState>> = if self.buffers_to_load.is_empty() {
+        let buffer: BufferStateRef = if self.buffers_to_load.is_empty() {
             /// if there is no buffer to load, we create an unnamed one.
             BufferState::new()
         } else {

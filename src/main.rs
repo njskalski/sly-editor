@@ -56,7 +56,6 @@ mod fuzzy_index_trait;
 mod fuzzy_query_view;
 mod fuzzy_view_item;
 mod interface;
-mod interface_tests;
 mod keyboard_shortcut;
 mod lsp_client;
 mod overlay_dialog;
@@ -68,6 +67,9 @@ mod sly_view;
 mod test_utils;
 mod view_handle;
 use dir_tree::TreeNode;
+
+#[cfg(test)]
+mod tests;
 
 #[cfg(target_os = "linux")]
 extern crate cpuprofiler;
