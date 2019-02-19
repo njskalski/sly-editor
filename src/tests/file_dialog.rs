@@ -24,11 +24,11 @@ use std::sync::mpsc;
 use std::sync::mpsc::Receiver;
 use std::time::Duration;
 
-use test_utils::basic_setup::tests::BasicSetup;
-use std::path::Path;
-use file_dialog::FileDialogVariant;
 use buffer_id::BufferId;
 use cursive::event::Key;
+use file_dialog::FileDialogVariant;
+use std::path::Path;
+use test_utils::basic_setup::tests::BasicSetup;
 use utils::is_prefix_of;
 
 #[test]

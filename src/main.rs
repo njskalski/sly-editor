@@ -38,15 +38,16 @@ mod utils;
 #[macro_use]
 mod macros;
 
+mod abstract_clipboard;
 mod action;
 mod app_state;
 mod buffer_id;
 mod buffer_index;
 mod buffer_state;
 mod buffer_state_observer;
-mod abstract_clipboard;
 mod color_view_wrapper;
 mod content_provider;
+mod cursor_set;
 mod default_settings;
 mod dir_tree;
 mod events;
@@ -140,8 +141,7 @@ fn start_profiling() {
 }
 
 #[cfg(not(target_os = "linux"))]
-fn stop_profiling() {
-}
+fn stop_profiling() {}
 
 #[cfg(test)]
 pub type FileSystemType = FakeFileSystem;
@@ -216,8 +216,13 @@ fn main() {
 
     let dir_file_tree = LazyTreeNode::new(directories.clone(), files.clone()).as_ref();
 
-    let app_state =
-        AppState::new(FileSystemType::new(), directories, files, dir_file_tree,git_files_included == false);
+    let app_state = AppState::new(
+        FileSystemType::new(),
+        directories,
+        files,
+        dir_file_tree,
+        git_files_included == false,
+    );
 
     let mut siv = Cursive::default();
     let mut interface = Interface::new(app_state, siv);

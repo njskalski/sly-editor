@@ -26,33 +26,33 @@ pub mod tests {
     use cursive::Vec2;
     use dir_tree::TreeNodeRef;
     use dir_tree::TreeNodeVec;
+    use events::IChannel;
     use events::IEvent;
     use filesystem::FakeFileSystem;
     use filesystem::*;
     use interface::Interface;
     use ncurses::filter;
     use std::cell::RefCell;
+    use std::path::Path;
     use std::path::PathBuf;
     use std::sync::mpsc;
     use std::time::Duration;
     use test_utils::basic_setup::tests::*;
     use test_utils::fake_tree::{fake_dir, fake_file, fake_root};
     use FileSystemType;
-    use std::path::Path;
-    use events::IChannel;
 
     pub struct AdvancedSetup {
         ss: Box<dyn BasicSetupSetupTrait>,
         receiver: mpsc::Receiver<IEvent>,
         screen_sink: crossbeam_channel::Receiver<ObservedScreen>,
         input: crossbeam_channel::Sender<Option<Event>>,
-        ichannel : IChannel,
+        ichannel: IChannel,
         interface: Interface,
         last_screen: RefCell<Option<ObservedScreen>>,
     }
 
     impl AdvancedSetup {
-        pub fn with_files(files_to_open : Vec<&str>) -> Self {
+        pub fn with_files(files_to_open: Vec<&str>) -> Self {
             let basicSetup = BasicSetupSetupStruct::new();
 
             let (sender, receiver) = mpsc::channel::<IEvent>();
@@ -68,7 +68,8 @@ pub mod tests {
 
             let (dirs, _) = filesystem_to_lists(&filetree);
 
-            let files : Vec<PathBuf> = files_to_open.iter().map(|p| Path::new(p).to_owned()).collect();
+            let files: Vec<PathBuf> =
+                files_to_open.iter().map(|p| Path::new(p).to_owned()).collect();
 
             let filesystem = FakeFileSystem::new();
 
@@ -91,7 +92,7 @@ pub mod tests {
                 receiver,
                 screen_sink: sink,
                 input,
-                ichannel : ichannel,
+                ichannel: ichannel,
                 interface,
                 last_screen: RefCell::new(None),
             }

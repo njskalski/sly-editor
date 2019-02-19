@@ -77,8 +77,8 @@ use std::error;
 use std::fmt;
 use std::ops::Deref;
 use std::path::PathBuf;
-use view_handle::ViewHandle;
 use utils::is_prefix_of;
+use view_handle::ViewHandle;
 
 // TODO(njskalski) this view took longer than anticipated to implement, so I rushed to the end
 // sacrificing quality a refactor is required.

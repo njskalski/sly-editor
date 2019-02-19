@@ -14,7 +14,3 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-pub mod file_dialog;
-pub mod interface;
-pub mod sly_text_view;
-pub mod cursor_set;

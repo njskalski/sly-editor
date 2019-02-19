@@ -323,7 +323,7 @@ impl Interface {
                             Err(e) => {
                                 dbg!(&e);
                                 error!("file save failed, because \"{}\"", e)
-                            },
+                            }
                         }
                     }
                     Ok(FileDialogResult::FileOpen(path)) => {
@@ -602,7 +602,7 @@ impl Interface {
                 Err(e) => {
                     dbg!(&e);
                     error!("file save failed, because \"{}\"", e)
-                },
+                }
             }
         }
     }

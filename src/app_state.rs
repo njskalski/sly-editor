@@ -67,10 +67,10 @@ use std::sync::mpsc::Receiver;
 use std::sync::mpsc::Sender;
 use view_handle::ViewHandle;
 
+use buffer_state::BufferStateRef;
 use filesystem::*;
 use std::borrow::*;
 use FileSystemType;
-use buffer_state::BufferStateRef;
 
 pub struct AppState {
     buffers_to_load: VecDeque<PathBuf>,
@@ -203,7 +203,7 @@ impl AppState {
         fs: FileSystemType,
         directories: Vec<PathBuf>,
         files: Vec<PathBuf>,
-        dir_and_files_tree : TreeNodeRef,
+        dir_and_files_tree: TreeNodeRef,
         enable_gitignore: bool,
     ) -> Self {
         debug!(
@@ -226,7 +226,7 @@ impl AppState {
             );
         }
 
-//        dbg!(&files);
+        //        dbg!(&files);
 
         let file_index_items = file_list_to_items(&files_to_index);
         let buffers_to_load: VecDeque<PathBuf> = files.iter().map(|x| x.clone()).collect();
@@ -270,7 +270,7 @@ fn build_file_index(
         return;
     }
 
-//    assert!(fs.is_dir(&dir));
+    //    assert!(fs.is_dir(&dir));
 
     match fs.read_dir(dir) {
         Ok(read_dir) => {

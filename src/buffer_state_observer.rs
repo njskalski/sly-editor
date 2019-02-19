@@ -25,12 +25,12 @@ use buffer_state::BufferState;
 use content_provider::RopeBasedContentProvider;
 
 use buffer_id::BufferId;
+use buffer_state::BufferStateRef;
 use content_provider;
 use cursive;
 use rich_content::RichContent;
 use std::cell::RefMut;
 use view_handle::ViewHandle;
-use buffer_state::BufferStateRef;
 
 #[derive(Clone)]
 pub struct BufferStateObserver {

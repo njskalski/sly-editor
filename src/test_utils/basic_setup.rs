@@ -34,9 +34,9 @@ pub mod tests {
     use std::rc::Rc;
     use std::sync::mpsc;
     use std::time::Duration;
+    use test_utils::advanced_setup::tests::get_fake_filetree;
     use test_utils::fake_tree::{fake_dir, fake_file, fake_root};
     use view_handle::ViewHandle;
-    use test_utils::advanced_setup::tests::get_fake_filetree;
 
     pub trait BasicSetupSetupTrait {
         fn settings(&self) -> &Rc<Settings>;
@@ -79,9 +79,9 @@ pub mod tests {
 
     impl BasicSetup {
         pub fn new<C, V>(constructor: C) -> Self
-            where
-                C: FnOnce(&BasicSetupSetupTrait, IChannel) -> V,
-                V: SlyView + cursive::view::View,
+        where
+            C: FnOnce(&BasicSetupSetupTrait, IChannel) -> V,
+            V: SlyView + cursive::view::View,
         {
             let basicSetup = BasicSetupSetupStruct::new();
 

@@ -33,6 +33,8 @@ limitations under the License.
 
 use time;
 
+use abstract_clipboard::default_clipboard;
+use abstract_clipboard::ClipboardType;
 use buffer_state_observer::BufferStateObserver;
 use clipboard;
 use clipboard::ClipboardProvider;
@@ -67,8 +69,6 @@ use unicode_segmentation;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 use view_handle::ViewHandle;
-use abstract_clipboard::default_clipboard;
-use abstract_clipboard::ClipboardType;
 
 const INDEX_MARGIN: usize = 1;
 const PAGE_WIDTH: usize = 80;
