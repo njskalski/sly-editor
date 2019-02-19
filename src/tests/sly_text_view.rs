@@ -25,7 +25,7 @@ use test_utils::basic_setup::tests::BasicSetup;
 
 fn basic_setup() -> (BasicSetup, BufferStateRef) {
     let settings = Rc::new(RefCell::new(Settings::load_default()));
-    let buffer = BufferState::new();
+    let buffer = Rc::new(RefCell::new(BufferState::new()));
     let observer = BufferStateObserver::new(buffer.clone());
 
     let setup =

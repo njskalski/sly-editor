@@ -172,7 +172,7 @@ impl AppState {
     fn open_file(&mut self, path: &Path) -> Result<BufferId, io::Error> {
         // TODO(njskalski): add delayed load (promise)
         let autohighlight: bool = self.settings_ref().auto_highlighting_enabled();
-        let buffer = BufferState::open(&self.filesystem, path, ExistPolicy::MustExist)?;
+        let buffer = Rc::new(RefCell::new(BufferState::open(&self.filesystem, path, ExistPolicy::MustExist)?));
         let id = (*buffer).borrow().id();
         self.loaded_buffers.insert(id.clone(), buffer);
         Ok(id)
@@ -187,10 +187,10 @@ impl AppState {
 
         let buffer: BufferStateRef = if self.buffers_to_load.is_empty() {
             /// if there is no buffer to load, we create an unnamed one.
-            BufferState::new()
+            Rc::new(RefCell::new(BufferState::new()))
         } else {
             let file_path = self.buffers_to_load.pop_front().unwrap();
-            BufferState::open(&self.filesystem, &file_path, ExistPolicy::CanExist)?
+            Rc::new(RefCell::new(BufferState::open(&self.filesystem, &file_path, ExistPolicy::CanExist)?))
         };
 
         let id = (*buffer).borrow().id();

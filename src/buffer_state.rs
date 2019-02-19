@@ -65,14 +65,26 @@ pub struct BufferState {
 }
 
 impl BufferState {
-    pub fn new() -> BufferStateRef {
-        Rc::new(RefCell::new(BufferState {
+    pub fn new() -> BufferState {
+        BufferState {
             id: BufferId::new(),
             ss: BufferStateS { path: None },
             modified: false,
             content: RopeBasedContentProvider::new(None, None),
             mode: BufferOpenMode::ReadWrite,
-        }))
+        }
+    }
+
+    pub fn from_text<T: AsRef<str>>(s : T) -> BufferState {
+        let text = s.as_ref();
+
+        BufferState {
+            id: BufferId::new(),
+            ss: BufferStateS { path: None },
+            modified: false,
+            content: RopeBasedContentProvider::new(Some(text.as_bytes().to_vec()), None),
+            mode: BufferOpenMode::ReadWrite,
+        }
     }
 
     pub fn modified(&self) -> bool {
@@ -87,7 +99,7 @@ impl BufferState {
         fs: &FileSystemType,
         file_path: &Path,
         creation_policy: ExistPolicy,
-    ) -> Result<Rc<RefCell<Self>>, io::Error> {
+    ) -> Result<Self, io::Error> {
         debug!("reading file {:?}, creation_policy = {:?}", file_path, creation_policy);
 
         let exists = fs.is_file(file_path);
@@ -110,13 +122,13 @@ impl BufferState {
 
         let contents = if exists { Some(fs.read_file(&file_path)?) } else { None };
 
-        Ok(Rc::new(RefCell::new(BufferState {
+        Ok(BufferState {
             id: BufferId::new(),
             ss: BufferStateS { path: Some(file_path.to_owned()) },
             modified: false,
             content: RopeBasedContentProvider::new(contents, highlight_settings_op),
             mode: BufferOpenMode::ReadWrite,
-        })))
+        })
     }
 
     pub fn get_content(&self) -> &RopeBasedContentProvider {
