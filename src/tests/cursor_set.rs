@@ -49,16 +49,18 @@ fn buffer_cursors_to_text<T: Borrow<BufferState>>(b: T, cs: &CursorSet) -> Strin
 
     let mut prev: usize = 0;
     for a in anchors {
-        output.push_str(&buffer[prev..a]);
+        output.push_str(&buffer[prev..std::cmp::min(a, buffer.len())]);
         output.push_str("#");
         prev = a;
     }
-    output.push_str(&buffer[prev..]);
+    if prev < buffer.len() {
+        output.push_str(&buffer[prev..]);
+    }
 
     output
 }
 
-fn a_to_c(anchors : Vec<usize>) -> CursorSet {
+fn a_to_c(anchors: Vec<usize>) -> CursorSet {
     CursorSet::new(anchors.iter().map(|a| (*a).into()).collect())
 }
 
@@ -100,16 +102,18 @@ fn buffer_cursors_to_text_2() {
     assert_eq!(output, "#text#".to_owned());
 }
 
-fn apply(input : &str, f : fn(&mut CursorSet)->()) -> String {
+fn apply(input: &str, f: fn(&mut CursorSet, &str) -> ()) -> String {
     let (bs, mut cs) = get_buffer(input);
-    f(&mut cs);
+    f(&mut cs, &input);
+    dbg!(&cs);
     buffer_cursors_to_text(&bs, &cs)
 }
 
 #[test]
 fn one_cursor_move_left() {
-
-    let f = |c : &mut CursorSet| { c.move_left(); };
+    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, _| {
+        c.move_left();
+    };
 
     assert_eq!(apply("text", f), "text");
     assert_eq!(apply("te#xt", f), "t#ext");
@@ -120,10 +124,41 @@ fn one_cursor_move_left() {
 
 #[test]
 fn multiple_cursor_move_left() {
-
-    let f = |c : &mut CursorSet| { c.move_left(); };
+    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, _| {
+        c.move_left();
+        c.reduce();
+    };
 
     assert_eq!(apply("te#x#t", f), "t#e#xt");
     assert_eq!(apply("#t#ext", f), "#text");
     assert_eq!(apply("#text\n#", f), "#text#\n");
+}
+
+
+#[test]
+fn one_cursor_move_right() {
+    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, s| {
+        let bs = BufferState::from_text(s);
+        c.move_right(&bs);
+        c.reduce();
+    };
+
+    assert_eq!(apply("text", f), "text");
+    assert_eq!(apply("te#xt", f), "tex#t");
+    assert_eq!(apply("t#ext", f), "te#xt");
+    assert_eq!(apply("#text", f), "t#ext");
+    assert_eq!(apply("text\n#", f), "text\n#");
+}
+#[test]
+fn multiple_cursor_move_right() {
+    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, s| {
+        let bs = BufferState::from_text(s);
+        c.move_right(&bs);
+        c.reduce();
+    };
+
+    assert_eq!(apply("te#x#t", f), "tex#t#");
+    assert_eq!(apply("#t#ext", f), "t#e#xt");
+    assert_eq!(apply("#text\n#", f), "t#ext\n#");
+    assert_eq!(apply("text#\n#", f), "text\n#");
 }

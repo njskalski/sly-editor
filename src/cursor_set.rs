@@ -22,11 +22,13 @@ use buffer_state::BufferState;
 use std::borrow::Borrow;
 use std::collections::HashSet;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Selection {
     pub b : usize, //begin inclusive
     pub e : usize, //end EXCLUSIVE (as *everywhere*)
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Cursor {
     pub s : Option<Selection>, // selection
     pub a: usize, //anchor
@@ -68,6 +70,7 @@ impl Into<Cursor> for usize {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CursorSet {
     set : Vec<Cursor>
 }
@@ -101,16 +104,35 @@ impl CursorSet {
         for mut c in &mut self.set {
             c.clear_both();
             //we allow anchor after last char (so you can backspace last char)
-            if c.a <= len {
+            if c.a < len {
                 c.a += 1;
             };
         }
     }
 
     /// TODO(njskalski): how to reduce selections? Overlapping selections?
-//    pub fn reduce(&mut self) {
+    pub fn reduce(&mut self) {
+        let mut curs : HashSet<usize> = HashSet::new();
+
+        let mut old_curs : Vec<Cursor> = vec![];
+        std::mem::swap(&mut old_curs, &mut self.set);
+
+        for mut c in &old_curs {
+            let mut found = false;
+            for oc in &self.set {
+                if c.a == oc.a {
+                    found = true;
+                    break;
+                }
+            }
+
+            if !found {
+                self.set.push(c.clone());
+            }
+        }
+
 //        self.set.sort();
 //        self.set.dedup();
-//    }
+    }
 
 }
