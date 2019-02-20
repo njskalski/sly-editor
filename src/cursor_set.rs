@@ -88,24 +88,33 @@ impl CursorSet {
 impl CursorSet {
 
     pub fn move_left(&mut self) {
+        self.move_left_by(1);
+    }
+
+    pub fn move_left_by(&mut self, l : usize) {
         for mut c in &mut self.set {
             c.clear_both();
             if c.a > 0 {
-                c.a -= 1;
+                c.a -= std::cmp::min(c.a, l);
             };
         }
     }
 
     pub fn move_right<T : Borrow<BufferState>>(&mut self, buf : T) {
+        self.move_right_by(buf, 1);
+    }
+
+
+
+    pub fn move_right_by<T : Borrow<BufferState>>(&mut self, buf : T, l : usize) {
         let bs : &BufferState = buf.borrow();
         let len = bs.get_content().get_lines().len_chars();
-
 
         for mut c in &mut self.set {
             c.clear_both();
             //we allow anchor after last char (so you can backspace last char)
             if c.a < len {
-                c.a += 1;
+                c.a = std::cmp::min(c.a + l, len);
             };
         }
     }
@@ -113,6 +122,8 @@ impl CursorSet {
     /// TODO(njskalski): how to reduce selections? Overlapping selections?
     pub fn reduce(&mut self) {
         let mut curs : HashSet<usize> = HashSet::new();
+
+        dbg!(&self.set);
 
         let mut old_curs : Vec<Cursor> = vec![];
         std::mem::swap(&mut old_curs, &mut self.set);
@@ -130,6 +141,8 @@ impl CursorSet {
                 self.set.push(c.clone());
             }
         }
+
+        dbg!(&self.set);
 
 //        self.set.sort();
 //        self.set.dedup();

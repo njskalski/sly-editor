@@ -26,6 +26,8 @@ fn get_buffer(s: &str) -> (BufferState, CursorSet) {
     let mut cursors: Vec<usize> = vec![];
     let mut text = String::new();
 
+    dbg!(s);
+
     for c in s.chars() {
         if c == '#' {
             cursors.push(text.len());
@@ -33,6 +35,8 @@ fn get_buffer(s: &str) -> (BufferState, CursorSet) {
             text.push(c);
         }
     }
+
+    dbg!(&cursors);
 
     let cursors: Vec<Cursor> = cursors.iter().map(|a| (*a).into()).collect();
 
@@ -49,7 +53,13 @@ fn buffer_cursors_to_text<T: Borrow<BufferState>>(b: T, cs: &CursorSet) -> Strin
 
     let mut prev: usize = 0;
     for a in anchors {
-        output.push_str(&buffer[prev..std::cmp::min(a, buffer.len())]);
+        if prev < buffer.len() {
+            output.push_str(&buffer[prev..std::cmp::min(a, buffer.len())]);
+        }
+
+        if output.chars().last() == Some('#') {
+            continue; // reducing
+        }
         output.push_str("#");
         prev = a;
     }
@@ -105,7 +115,6 @@ fn buffer_cursors_to_text_2() {
 fn apply(input: &str, f: fn(&mut CursorSet, &str) -> ()) -> String {
     let (bs, mut cs) = get_buffer(input);
     f(&mut cs, &input);
-    dbg!(&cs);
     buffer_cursors_to_text(&bs, &cs)
 }
 
@@ -123,6 +132,19 @@ fn one_cursor_move_left() {
 }
 
 #[test]
+fn one_cursor_move_left_some() {
+    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, _| {
+        c.move_left_by(3);
+    };
+
+    assert_eq!(apply("text", f), "text");
+    assert_eq!(apply("te#xt", f), "#text");
+    assert_eq!(apply("t#ext", f), "#text");
+    assert_eq!(apply("#text", f), "#text");
+    assert_eq!(apply("text\n#", f), "te#xt\n");
+}
+
+#[test]
 fn multiple_cursor_move_left() {
     let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, _| {
         c.move_left();
@@ -134,6 +156,17 @@ fn multiple_cursor_move_left() {
     assert_eq!(apply("#text\n#", f), "#text#\n");
 }
 
+#[test]
+fn multiple_cursor_move_left_some() {
+    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, _| {
+        c.move_left_by(3);
+        c.reduce();
+    };
+
+    assert_eq!(apply("te#x#t", f), "#text");
+    assert_eq!(apply("#t#ext", f), "#text");
+    assert_eq!(apply("#text\n#", f), "#te#xt\n");
+}
 
 #[test]
 fn one_cursor_move_right() {
@@ -149,6 +182,22 @@ fn one_cursor_move_right() {
     assert_eq!(apply("#text", f), "t#ext");
     assert_eq!(apply("text\n#", f), "text\n#");
 }
+
+#[test]
+fn one_cursor_move_right_some() {
+    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, s| {
+        let bs = BufferState::from_text(s);
+        c.move_right_by(&bs, 3);
+        c.reduce();
+    };
+
+    assert_eq!(apply("text", f), "text");
+    assert_eq!(apply("te#xt", f), "text#");
+    assert_eq!(apply("t#ext", f), "text#");
+    assert_eq!(apply("#text", f), "tex#t");
+    assert_eq!(apply("text\n#", f), "text\n#");
+}
+
 #[test]
 fn multiple_cursor_move_right() {
     let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, s| {
@@ -160,5 +209,19 @@ fn multiple_cursor_move_right() {
     assert_eq!(apply("te#x#t", f), "tex#t#");
     assert_eq!(apply("#t#ext", f), "t#e#xt");
     assert_eq!(apply("#text\n#", f), "t#ext\n#");
+    assert_eq!(apply("text#\n#", f), "text\n#");
+}
+
+#[test]
+fn multiple_cursor_move_right_some() {
+    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, s| {
+        let bs = BufferState::from_text(s);
+        c.move_right_by(&bs, 3);
+        c.reduce();
+    };
+
+    assert_eq!(apply("te#x#t", f), "text#");
+    assert_eq!(apply("#t#ext", f), "tex#t#");
+    assert_eq!(apply("#text\n#", f), "tex#t\n#");
     assert_eq!(apply("text#\n#", f), "text\n#");
 }
