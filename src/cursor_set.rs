@@ -104,8 +104,6 @@ impl CursorSet {
         self.move_right_by(buf, 1);
     }
 
-
-
     pub fn move_right_by<T : Borrow<BufferState>>(&mut self, buf : T, l : usize) {
         let bs : &BufferState = buf.borrow();
         let len = bs.get_content().get_lines().len_chars();
@@ -118,6 +116,13 @@ impl CursorSet {
             };
         }
     }
+
+    // pub fn move_down_by<T : Borrow<BufferState>>(&mut self, buf :T, l :usize) {
+    //     let bs : &BufferState = buf.borrow();
+    //     let cur_line = bs.get_content().get_lines().char_to_line();
+    //     let new_line = cur_line + l;
+
+    // }
 
     /// TODO(njskalski): how to reduce selections? Overlapping selections?
     pub fn reduce(&mut self) {

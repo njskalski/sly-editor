@@ -225,3 +225,17 @@ fn multiple_cursor_move_right_some() {
     assert_eq!(apply("#text\n#", f), "tex#t\n#");
     assert_eq!(apply("text#\n#", f), "text\n#");
 }
+
+#[test]
+fn single_cursor_move_down1() {
+    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, s| {
+        let bs = BufferState::from_text(s);
+        c.move_right_by(&bs, 3);
+        c.reduce();
+    };
+
+    assert_eq!(apply("te#x#t", f), "text#");
+    assert_eq!(apply("#t#ext", f), "tex#t#");
+    assert_eq!(apply("#text\n#", f), "tex#t\n#");
+    assert_eq!(apply("text#\n#", f), "text\n#");
+}
