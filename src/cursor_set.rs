@@ -117,14 +117,35 @@ impl CursorSet {
         }
     }
 
-    // pub fn move_down_by<T : Borrow<BufferState>>(&mut self, buf :T, l :usize) {
-    //     let bs : &BufferState = buf.borrow();
-    //     let cur_line = bs.get_content().get_lines().char_to_line();
-    //     let new_line = cur_line + l;
+    pub fn move_down_by<T : Borrow<BufferState>>(&mut self, buf :T, l :usize) {
+        let bs : &BufferState = buf.borrow();
+        let last_line = bs.get_content().get_lines().len_lines();
 
-    // }
+        for mut c in &mut self.set {
+            let cur_line = bs.get_content().get_lines().char_to_line(c.a);
+            let new_line = std::cmp::min(cur_line + l, last_line);
+            let line_begin = bs.get_content().get_lines().line_to_char(new_line);
+
+//            let line_end = bs.get_content().n
+
+            let current_column_pref = c.a - line_begin;
+
+            c.clear_selection();
+
+            if c.preferred_column.is_none() {
+                c.preffered_column = Some(current_column_pref);
+            }
+
+
+
+
+        }
+
+    }
 
     /// TODO(njskalski): how to reduce selections? Overlapping selections?
+    /// TODO(njskalski): it would make a sense not to reduce cursors that have identical .a but different .preferred_column.
+    /// Yet we want not to put characters twice for overlapping cursors.
     pub fn reduce(&mut self) {
         let mut curs : HashSet<usize> = HashSet::new();
 
