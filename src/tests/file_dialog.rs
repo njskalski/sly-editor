@@ -59,7 +59,7 @@ fn basic_setup(variant: FileDialogVariant) -> BasicSetup {
 #[test]
 fn displays_open_file_header() {
     let mut s = basic_setup(FileDialogVariant::OpenFile(None));
-    let screen = s.last_screen().unwrap();
+    let mut screen = s.last_screen().unwrap();
     assert_eq!(screen.find_occurences("Open file").len(), 1);
     assert_eq!(screen.find_occurences("Save file").len(), 0);
 }

@@ -78,12 +78,10 @@ pub mod tests {
             let app_state = AppState::new(filesystem, dirs, files, filetree, false);
 
             let mut siv = Cursive::new(move || backend);
-            siv.quit();
 
             let mut interface = Interface::new(app_state, siv);
-            //        input.send(Some(Event::Refresh)).unwrap();
-            //        interface.main_step();
-            //        input.send(Some(Event::Refresh)).unwrap();
+            input.send(Some(Event::Refresh)).unwrap();
+            interface.main_step();
 
             let ichannel = interface.event_sink();
 
@@ -108,9 +106,15 @@ pub mod tests {
 
         pub fn step(&mut self) {
             self.refresh();
+
             while !self.input.is_empty() {
                 self.interface.main_step();
             }
+        }
+
+        pub fn step2(&mut self) {
+            self.step();
+            self.step();
         }
 
         pub fn interface(&mut self) -> &mut Interface {

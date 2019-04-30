@@ -103,7 +103,7 @@ pub mod tests {
             siv.add_fullscreen_layer(view);
 
             siv.focus_id(&handle.to_string());
-            siv.quit();
+
             input.send(Some(Event::Refresh)).unwrap();
             siv.step();
 

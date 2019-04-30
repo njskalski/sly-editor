@@ -311,6 +311,7 @@ fn all_commands_bar_displays() {
 
     s.input().send(Some(Event::CtrlChar('y'))).unwrap();
     s.step();
+    s.dump_debug();
 
     let screen = s.last_screen().unwrap();
 
