@@ -17,10 +17,13 @@ limitations under the License.
 // Cursor == (Selection, Anchor), thanks Kakoune!
 // both positions and anchor are counted in CHARS not offsets.
 
+use ropey::Rope;
 use fuzzy_query_view::FuzzyQueryResult::Selected;
 use buffer_state::BufferState;
 use std::borrow::Borrow;
 use std::collections::HashSet;
+
+const NEWLINE_LENGTH : usize = 1; // TODO(njskalski): add support for multisymbol newlines?
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Selection {
@@ -120,24 +123,46 @@ impl CursorSet {
 
     pub fn move_down_by<T : Borrow<BufferState>>(&mut self, buf :T, l :usize) {
         let bs : &BufferState = buf.borrow();        
-        let last_line = bs.get_content().get_lines().len_lines();
-
+        let rope : &Rope = bs.get_content().get_lines();
+        let last_line = rope.len_lines();
+        
         for mut c in &mut self.set {
-            let cur_line = bs.get_content().get_lines().char_to_line(c.a);
+            //getting data
+            let cur_line = rope.char_to_line(c.a);
             let new_line = std::cmp::min(cur_line + l, last_line);
-            let line_begin = bs.get_content().get_lines().line_to_char(new_line);
-            let current_column = c.a - line_begin;
+            let old_line_begin = rope.line_to_char(new_line);
+            let current_column = c.a - old_line_begin;                
 
+            let last_index_in_new_line = if new_line == last_line {
+                rope.len_chars()
+            } else {
+                rope.char_to_line(new_line+1) - NEWLINE_LENGTH
+            };
+
+            let new_line_begin = rope.line_to_char(new_line);
+            let new_line_num_columns = last_index_in_new_line - new_line_begin; //TODO test
+
+            //setting data
+            
             c.clear_selection();
 
-
-
-
-            if c.preferred_column.is_none() {
-
+            if let Some(preferred_column) = c.preferred_column {
+                assert!(preferred_column >= current_column);
+                if preferred_column <= new_line_num_columns {
+                    c.clear_pc();
+                    c.a = new_line_begin + preferred_column;
+                } else {
+                    c.a = new_line_begin + new_line_num_columns;
+                }
+            } else {
+                if new_line_num_columns < current_column {
+                    c.a = new_line_begin + new_line_num_columns;
+                    c.preferred_column = Some(current_column);
+                } else {
+                    c.a = new_line_begin + current_column;
+                }
             }
         }
-
     }
 
     /// TODO(njskalski): how to reduce selections? Overlapping selections?
