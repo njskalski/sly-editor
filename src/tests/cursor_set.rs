@@ -227,10 +227,10 @@ fn multiple_cursor_move_right_some() {
 }
 
 #[test]
-fn single_cursor_move_down1() {
+fn single_cursor_move_down_by_1() {
     let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, s| {
         let bs = BufferState::from_text(s);
-        c.move_right_by(&bs, 3);
+        c.move_down_by(&bs, 1);
         c.reduce();
     };
 
