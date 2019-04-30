@@ -38,7 +38,7 @@ fn save_dialog_displays() {
     let mut s = AdvancedSetup::new();
 
     s.input().send(Some(Event::CtrlChar('s'))).unwrap();
-    s.step();
+    s.step2();
 
     //        s.dump_debug();
 
@@ -55,7 +55,7 @@ fn basic_typing() {
     s.input().send(Some(Event::Key(Key::Enter))).unwrap();
     s.input().send(Some(Event::Key(Key::Enter))).unwrap();
     s.type_letters(".txt");
-    s.step();
+    s.step2();
 
     let screen = s.last_screen().unwrap();
     let piece = screen.piece(Vec2::new(0, 0), Vec2::new(6, 4));
@@ -77,15 +77,15 @@ fn save_dialog_displays_filelist_on_dir_select() {
     s.input().send(Some(Event::Key(Key::Enter))).unwrap();
     s.type_letters("some more text");
     s.input().send(Some(Event::Key(Key::Enter))).unwrap();
-    s.step();
+    s.step2();
 
     s.input().send(Some(Event::CtrlChar('s'))).unwrap();
-    s.step();
+    s.step2();
     s.input().send(Some(Event::Key(Key::Enter))).unwrap();
-    s.step();
+    s.step2();
     s.input().send(Some(Event::Key(Key::Down))).unwrap();
     s.input().send(Some(Event::Key(Key::Enter))).unwrap();
-    s.step();
+    s.step2();
 
     let screen = s.last_screen().unwrap();
     assert_eq!(screen.find_occurences("file4.ini").len(), 1);
@@ -99,22 +99,22 @@ fn save_new_file_via_dialog() {
     s.input().send(Some(Event::Key(Key::Enter))).unwrap();
     s.type_letters("some more text");
     s.input().send(Some(Event::Key(Key::Enter))).unwrap();
-    s.step();
+    s.step2();
 
     s.input().send(Some(Event::CtrlChar('s'))).unwrap();
-    s.step();
+    s.step2();
     s.input().send(Some(Event::Key(Key::Enter))).unwrap();
-    s.step();
+    s.step2();
     s.input().send(Some(Event::Key(Key::Down))).unwrap();
     s.input().send(Some(Event::Key(Key::Enter))).unwrap();
-    s.step();
+    s.step2();
     s.input().send(Some(Event::Key(Key::Tab))).unwrap();
-    s.step();
+    s.step2();
     s.input().send(Some(Event::Key(Key::Tab))).unwrap();
-    s.step();
+    s.step2();
 
     s.type_letters("some_filename.txt");
-    s.step();
+    s.step2();
 
     let screen = s.last_screen().unwrap();
     // there is dialog
@@ -127,7 +127,7 @@ fn save_new_file_via_dialog() {
     assert_eq!(s.interface().state().filesystem().is_file("/home/laura/some_filename.txt"), false);
 
     s.input().send(Some(Event::Key(Key::Enter))).unwrap();
-    s.step();
+    s.step2();
 
     let screen = s.last_screen().unwrap();
     // dialog closed
@@ -146,7 +146,7 @@ fn save_new_file_via_dialog() {
 #[test]
 fn save_via_ctrls() {
     let mut s = AdvancedSetup::with_files(vec!["/home/laura/file4.ini"]);
-    s.step();
+    s.step2();
 
     let screen = s.last_screen().unwrap();
     // there is fuzzy
@@ -155,10 +155,10 @@ fn save_via_ctrls() {
     s.hit_enter();
     s.type_letters("edited by laura");
     s.hit_enter();
-    s.step();
+    s.step2();
 
     s.input().send(Some(Event::CtrlChar('s'))).unwrap();
-    s.step();
+    s.step2();
 
     assert_eq!(
         s.interface().state().filesystem().read_file("/home/laura/file4.ini").unwrap(),
@@ -169,7 +169,7 @@ fn save_via_ctrls() {
 #[test]
 fn open_via_startup() {
     let mut s = AdvancedSetup::with_files(vec!["/home/laura/file4.ini"]);
-    s.step();
+    s.step2();
 
     let screen = s.last_screen().unwrap();
     // there is fuzzy
@@ -181,17 +181,17 @@ fn open_via_fuzzy() {
     let mut s = AdvancedSetup::new();
 
     s.input().send(Some(Event::CtrlChar('p'))).unwrap();
-    s.step();
+    s.step2();
 
     let screen = s.last_screen().unwrap();
     // there is fuzzy
     assert_eq!(screen.find_occurences("Context").len(), 1);
 
     s.type_letters(".txt");
-    s.step();
+    s.step2();
 
     while s.has_running_workers() {
-        s.step();
+        s.step2();
     }
 
     let screen = s.last_screen().unwrap();
@@ -200,7 +200,7 @@ fn open_via_fuzzy() {
     assert_eq!(screen.find_occurences("txt").len(), 2); //file.txt and query: ".txt".
     assert_eq!(screen.find_occurences("file2.txt").len(), 1);
     s.hit_enter();
-    s.step();
+    s.step2();
 
     let screen = s.last_screen().unwrap();
     assert_eq!(screen.find_occurences("1 mock file content ").len(), 1); // file content there
@@ -210,25 +210,25 @@ fn open_via_fuzzy() {
 #[test]
 fn open_via_dialog() {
     let mut s = AdvancedSetup::new();
-    s.step();
+    s.step2();
 
     let screen = s.last_screen().unwrap();
     assert_eq!(screen.find_occurences("mock").len(), 0); // no mock contents.
 
     s.input().send(Some(Event::CtrlChar('d'))).unwrap();
-    s.step();
+    s.step2();
 
     let screen = s.last_screen().unwrap();
     // there is Dialog
     assert_eq!(screen.find_occurences("Open file").len(), 1);
 
     s.input().send(Some(Event::Key(Key::Enter))).unwrap();
-    s.step();
+    s.step2();
     s.input().send(Some(Event::Key(Key::Down))).unwrap();
     s.input().send(Some(Event::Key(Key::Enter))).unwrap();
-    s.step();
+    s.step2();
     s.input().send(Some(Event::Key(Key::Tab))).unwrap();
-    s.step();
+    s.step2();
 
     let screen = s.last_screen().unwrap();
 
@@ -237,7 +237,7 @@ fn open_via_dialog() {
     assert_eq!(screen.find_occurences("file4.ini").len(), 1);
 
     s.hit_enter();
-    s.step();
+    s.step2();
 
     let screen = s.last_screen().unwrap();
 
@@ -254,7 +254,7 @@ fn fuzzy_buffer_list_displays() {
 
     s.input().send(Some(Event::CtrlChar('o'))).unwrap();
 
-    s.step();
+    s.step2();
 
     let screen = s.last_screen().unwrap();
 
@@ -270,7 +270,7 @@ fn loads_listed_files() {
         "/home/laura/subdirectory2/file3.rs",
     ]);
 
-    s.step();
+    s.step2();
 
     let screen = s.last_screen().unwrap();
     assert_eq!(
@@ -281,7 +281,7 @@ fn loads_listed_files() {
     );
 
     s.input().send(Some(Event::CtrlChar('o'))).unwrap();
-    s.step();
+    s.step2();
 
     let screen = s.last_screen().unwrap();
     assert_eq!(screen.find_occurences("Context").len(), 1);
@@ -295,7 +295,7 @@ fn fuzzy_buffer_list_change_buffers() {
     let mut s = AdvancedSetup::with_files(vec!["/home/laura/subdirectory2/file2.txt"]);
 
     s.input().send(Some(Event::CtrlChar('o'))).unwrap();
-    s.step();
+    s.step2();
 
     s.dump_debug();
 
@@ -310,7 +310,7 @@ fn all_commands_bar_displays() {
     let mut s = AdvancedSetup::new();
 
     s.input().send(Some(Event::CtrlChar('y'))).unwrap();
-    s.step();
+    s.step2();
     s.dump_debug();
 
     let screen = s.last_screen().unwrap();
@@ -326,14 +326,14 @@ fn fuzzy_file_index_displays() {
     let mut s = AdvancedSetup::new();
 
     s.input().send(Some(Event::CtrlChar('p'))).unwrap();
-    s.step();
+    s.step2();
 
     let screen = s.last_screen().unwrap();
 
     assert_eq!(screen.find_occurences("Context : \"context\"    query: \"\"").len(), 1);
 
     s.type_letters("fi");
-    s.step(); // needed to process keystrokes
+    s.step2(); // needed to process keystrokes
 
     let screen = s.last_screen().unwrap();
     assert_eq!(screen.find_occurences("query: \"fi\"").len(), 1);
@@ -341,7 +341,7 @@ fn fuzzy_file_index_displays() {
     println!("fi : {:?}", s.interface().state().get_file_index());
 
     while s.has_running_workers() {
-        s.step();
+        s.step2();
     }
 
     // cannot test query results at this time, since the file index is empty without mocking
