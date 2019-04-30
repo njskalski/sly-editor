@@ -94,7 +94,6 @@ fn expands_root() {
     }
 
     s.hit_keystroke(Key::Enter);
-    s.hit_keystroke(Key::Enter);
 
     {
         let screen = s.last_screen().unwrap();
