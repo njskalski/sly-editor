@@ -226,16 +226,75 @@ fn multiple_cursor_move_right_some() {
     assert_eq!(apply("text#\n#", f), "text\n#");
 }
 
-//#[test]
-//fn single_cursor_move_down_by_1() {
-//    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, s| {
-//        let bs = BufferState::from_text(s);
-//        c.move_down_by(&bs, 1);
-//        c.reduce();
-//    };
-//
-//    assert_eq!(apply("te#x#t", f), "text#");
-//    assert_eq!(apply("#t#ext", f), "tex#t#");
-//    assert_eq!(apply("#text\n#", f), "tex#t\n#");
-//    assert_eq!(apply("text#\n#", f), "text\n#");
-//}
+#[test]
+fn single_cursor_move_down_by_1() {
+    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, s| {
+        let bs = BufferState::from_text(s);
+        c.move_down_by(&bs, 1);
+        c.reduce();
+    };
+
+    assert_eq!(apply("te#x#t", f), "text#");
+    assert_eq!(apply("#t#ext", f), "text#");
+    assert_eq!(apply("#text\n#", f), "text\n#");
+    assert_eq!(apply("text#\n#", f), "text\n#");
+
+    assert_eq!(apply("aaaa\nbbbb", f), "aaaa\nbbbb");
+    assert_eq!(apply("a#aaa\nbbbb", f), "aaaa\nb#bbb");
+    assert_eq!(apply("aaaa#\nbbbb", f), "aaaa\nbbbb#");
+    assert_eq!(apply("aaaa\nbb#bb", f), "aaaa\nbbbb#");
+}
+
+#[test]
+fn single_cursor_move_down_by_some() {
+    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, s| {
+        let bs = BufferState::from_text(s);
+        c.move_down_by(&bs, 3);
+        c.reduce();
+    };
+
+    {
+        let text = concat!("t#here was a man\n",
+            "called paul\n",
+            "who went to a fancy\n",
+            "dress ball\n",
+            "he just went for fun\n",
+            "dressed up as bone\n",
+            "and dog eat him up in the hall.\n"
+            );
+
+        let new_text = concat!("there was a man\n",
+            "called paul\n",
+            "who went to a fancy\n",
+            "d#ress ball\n",
+            "he just went for fun\n",
+            "dressed up as bone\n",
+            "and dog eat him up in the hall.\n"
+            );
+
+        assert_eq!(apply(text, f), new_text);
+    }
+
+
+    {
+        let text = concat!("t#here was a ma#n\n",
+            "calle#d paul\n",
+            "who went to a fancy\n",
+            "dress ball\n",
+            "he just went for fun\n",
+            "dressed up as bone\n",
+            "and dog eat him up in the hall.\n"
+            );
+
+        let new_text = concat!("there was a man\n",
+            "called paul\n",
+            "who went to a fancy\n",
+            "d#ress ball#\n",
+            "he ju#st went for fun\n",
+            "dressed up as bone\n",
+            "and dog eat him up in the hall.\n"
+            );
+
+        assert_eq!(apply(text, f), new_text);
+    }
+}

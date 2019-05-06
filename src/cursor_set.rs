@@ -125,18 +125,18 @@ impl CursorSet {
         let bs : &BufferState = buf.borrow();        
         let rope : &Rope = bs.get_content().get_lines();
         let last_line = rope.len_lines();
-        
-        for mut c in &mut self.set {
+
+        for mut c in &mut self.set  {
             //getting data
             let cur_line = rope.char_to_line(c.a);
             let new_line = std::cmp::min(cur_line + l, last_line);
-            let old_line_begin = rope.line_to_char(new_line);
-            let current_column = c.a - old_line_begin;                
+            let cur_line_begin = rope.line_to_char(cur_line);
+            let current_column = c.a - cur_line_begin;
 
             let last_index_in_new_line = if new_line == last_line {
                 rope.len_chars()
             } else {
-                rope.char_to_line(new_line+1) - NEWLINE_LENGTH
+                rope.line_to_char(new_line+1) - NEWLINE_LENGTH
             };
 
             let new_line_begin = rope.line_to_char(new_line);
