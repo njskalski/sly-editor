@@ -22,7 +22,7 @@ use cursor_set::CursorSet;
 use serde::de::Unexpected::Str;
 use std::borrow::Borrow;
 
-fn get_buffer(s: &str) -> (BufferState, CursorSet) {
+fn text_to_buffer_cursors(s: &str) -> (BufferState, CursorSet) {
     let mut cursors: Vec<usize> = vec![];
     let mut text = String::new();
 
@@ -76,7 +76,7 @@ fn a_to_c(anchors: Vec<usize>) -> CursorSet {
 
 #[test]
 fn get_buffer_test_1() {
-    let (bs, cs) = get_buffer("te#xt");
+    let (bs, cs) = text_to_buffer_cursors("te#xt");
     let text = bs.get_content().get_lines().to_string();
 
     assert_eq!(text, "text".to_owned());
@@ -85,7 +85,7 @@ fn get_buffer_test_1() {
 
 #[test]
 fn get_buffer_test_2() {
-    let (bs, cs) = get_buffer("#text#");
+    let (bs, cs) = text_to_buffer_cursors("#text#");
     let text = bs.get_content().get_lines().to_string();
 
     assert_eq!(text, "text".to_owned());
@@ -112,8 +112,25 @@ fn buffer_cursors_to_text_2() {
     assert_eq!(output, "#text#".to_owned());
 }
 
+#[test]
+fn text_to_buffer_cursors_and_back() {
+    let text = concat!("t#here was a man\n",
+            "called paul\n",
+            "#who went to a fancy\n",
+            "dr#ess ball\n",
+            "he just went for fun\n",
+            "dressed up as bone\n",
+            "and dog ea#t h#im up in the# hall.\n"
+            );
+
+    let (buffer, cursors) = text_to_buffer_cursors(text);
+    let back = buffer_cursors_to_text(&buffer, &cursors);
+
+    assert_eq!(text, back);
+}
+
 fn apply(input: &str, f: fn(&mut CursorSet, &str) -> ()) -> String {
-    let (bs, mut cs) = get_buffer(input);
+    let (bs, mut cs) = text_to_buffer_cursors(input);
     f(&mut cs, &input);
     buffer_cursors_to_text(&bs, &cs)
 }
@@ -234,12 +251,16 @@ fn single_cursor_move_down_by_1() {
         c.reduce();
     };
 
+    // noop
+    assert_eq!(apply("aaaa\nbbbb", f), "aaaa\nbbbb");
+
+    // moving down the line
     assert_eq!(apply("te#x#t", f), "text#");
     assert_eq!(apply("#t#ext", f), "text#");
     assert_eq!(apply("#text\n#", f), "text\n#");
     assert_eq!(apply("text#\n#", f), "text\n#");
 
-    assert_eq!(apply("aaaa\nbbbb", f), "aaaa\nbbbb");
+    // moving withing the line
     assert_eq!(apply("a#aaa\nbbbb", f), "aaaa\nb#bbb");
     assert_eq!(apply("aaaa#\nbbbb", f), "aaaa\nbbbb#");
     assert_eq!(apply("aaaa\nbb#bb", f), "aaaa\nbbbb#");

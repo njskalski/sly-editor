@@ -17,6 +17,8 @@ limitations under the License.
 // Cursor == (Selection, Anchor), thanks Kakoune!
 // both positions and anchor are counted in CHARS not offsets.
 
+// The cursor points to a index where a NEW character will be included.
+
 use ropey::Rope;
 use fuzzy_query_view::FuzzyQueryResult::Selected;
 use buffer_state::BufferState;
@@ -139,7 +141,9 @@ impl CursorSet {
                 rope.line_to_char(new_line+1) - NEWLINE_LENGTH
             };
 
-            let new_line_begin = rope.line_to_char(new_line);
+            let mut new_line_begin = rope.line_to_char(new_line);
+            if new_line_begin > 0 { new_line_begin -= 1};
+
             let new_line_num_columns = last_index_in_new_line - new_line_begin; //TODO test
 
             //setting data
