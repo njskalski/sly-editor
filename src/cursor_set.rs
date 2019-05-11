@@ -22,11 +22,16 @@ limitations under the License.
 
 // Cursor pointing to a newline character is visualized as an option to append preceding it line.
 
+// So Cursor can point 1 character BEYOND length of buffer!
+
+// Newline is always an end of previous line, not a beginning of new.
+
 use ropey::Rope;
 use fuzzy_query_view::FuzzyQueryResult::Selected;
 use buffer_state::BufferState;
 use std::borrow::Borrow;
 use std::collections::HashSet;
+use serde::de::Unexpected::NewtypeStruct;
 
 const NEWLINE_LENGTH : usize = 1; // TODO(njskalski): add support for multisymbol newlines?
 
@@ -147,11 +152,11 @@ impl CursorSet {
             let last_char_idx_in_new_line = if new_line == last_line {
                 rope.len_chars()
             } else {
-                rope.line_to_char(new_line+1)
+                rope.line_to_char(new_line+1) - NEWLINE_LENGTH
             };
 
             let new_line_begin = rope.line_to_char(new_line);
-            let new_line_num_chars = last_char_idx_in_new_line - new_line_begin;
+            let new_line_num_chars = last_char_idx_in_new_line + 1 - new_line_begin ;
 
             //setting data
             
@@ -166,12 +171,11 @@ impl CursorSet {
                     c.a = new_line_begin + new_line_num_chars;
                 }
             } else {
-                if new_line_num_chars < current_char_idx + 1{
-                    if new_line_num_chars > 0 {
-                        c.a = new_line_begin + new_line_num_chars - 1;
-                    } else {
-                        c.a = new_line_begin;
-                    }
+                // inequality below is interesting.
+                // The line with characters 012 is 3 characters long. So if current char idx is 3
+                // it means that line below needs at least 4 character to host it without shift left.
+                if new_line_num_chars <= current_char_idx {
+                    c.a = last_char_idx_in_new_line;
                     c.preferred_column = Some(current_char_idx);
                 } else {
                     c.a = new_line_begin + current_char_idx;

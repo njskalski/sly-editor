@@ -114,6 +114,16 @@ fn buffer_cursors_to_text_2() {
 }
 
 #[test]
+fn buffer_cursors_to_text_3() {
+    let cursors = a_to_c(vec![1]);
+    let buffer = BufferState::from_text("text");
+
+    let output = buffer_cursors_to_text(&buffer, &cursors);
+
+    assert_eq!(output, "t#ext".to_owned());
+}
+
+#[test]
 fn text_to_buffer_cursors_and_back() {
     let text = concat!("t#here was a man\n",
             "called paul\n",
