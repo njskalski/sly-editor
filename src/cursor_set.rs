@@ -17,7 +17,10 @@ limitations under the License.
 // Cursor == (Selection, Anchor), thanks Kakoune!
 // both positions and anchor are counted in CHARS not offsets.
 
-// The cursor points to a index where a NEW character will be included.
+// The cursor points to a index where a NEW character will be included, or old character will be
+// REPLACED.
+
+// Cursor pointing to a newline character is visualized as an option to append preceding it line.
 
 use ropey::Rope;
 use fuzzy_query_view::FuzzyQueryResult::Selected;
@@ -106,12 +109,11 @@ impl CursorSet {
         }
     }
 
-    pub fn move_right<T : Borrow<BufferState>>(&mut self, buf : T) {
-        self.move_right_by(buf, 1);
+    pub fn move_right(&mut self, bs : &BufferState) {
+        self.move_right_by(bs, 1);
     }
 
-    pub fn move_right_by<T : Borrow<BufferState>>(&mut self, buf : T, l : usize) {
-        let bs : &BufferState = buf.borrow();
+    pub fn move_right_by(&mut self, bs : &BufferState, l : usize) {
         let len = bs.get_content().get_lines().len_chars();
 
         for mut c in &mut self.set {
@@ -123,8 +125,13 @@ impl CursorSet {
         }
     }
 
-    pub fn move_down_by<T : Borrow<BufferState>>(&mut self, buf :T, l :usize) {
-        let bs : &BufferState = buf.borrow();        
+    pub fn move_down_by(&mut self, bs : &BufferState, l :usize) {
+        if l == 0 {
+            return;
+        }
+
+        let string = bs.get_content().get_lines().to_string();
+
         let rope : &Rope = bs.get_content().get_lines();
         let last_line = rope.len_lines();
 
@@ -132,38 +139,42 @@ impl CursorSet {
             //getting data
             let cur_line = rope.char_to_line(c.a);
             let new_line = std::cmp::min(cur_line + l, last_line);
-            let cur_line_begin = rope.line_to_char(cur_line);
-            let current_column = c.a - cur_line_begin;
+            let cur_line_begin_char_idx = rope.line_to_char(cur_line);
+            let current_char_idx = c.a - cur_line_begin_char_idx;
 
-            let last_index_in_new_line = if new_line == last_line {
+
+            // This is actually right. Ropey counts '\n' as last character of current line.
+            let last_char_idx_in_new_line = if new_line == last_line {
                 rope.len_chars()
             } else {
-                rope.line_to_char(new_line+1) - NEWLINE_LENGTH
+                rope.line_to_char(new_line+1)
             };
 
-            let mut new_line_begin = rope.line_to_char(new_line);
-            if new_line_begin > 0 { new_line_begin -= 1};
-
-            let new_line_num_columns = last_index_in_new_line - new_line_begin; //TODO test
+            let new_line_begin = rope.line_to_char(new_line);
+            let new_line_num_chars = last_char_idx_in_new_line - new_line_begin;
 
             //setting data
             
             c.clear_selection();
 
             if let Some(preferred_column) = c.preferred_column {
-                assert!(preferred_column >= current_column);
-                if preferred_column <= new_line_num_columns {
+                assert!(preferred_column >= current_char_idx);
+                if preferred_column <= new_line_num_chars {
                     c.clear_pc();
                     c.a = new_line_begin + preferred_column;
                 } else {
-                    c.a = new_line_begin + new_line_num_columns;
+                    c.a = new_line_begin + new_line_num_chars;
                 }
             } else {
-                if new_line_num_columns < current_column {
-                    c.a = new_line_begin + new_line_num_columns;
-                    c.preferred_column = Some(current_column);
+                if new_line_num_chars < current_char_idx + 1{
+                    if new_line_num_chars > 0 {
+                        c.a = new_line_begin + new_line_num_chars - 1;
+                    } else {
+                        c.a = new_line_begin;
+                    }
+                    c.preferred_column = Some(current_char_idx);
                 } else {
-                    c.a = new_line_begin + current_column;
+                    c.a = new_line_begin + current_char_idx;
                 }
             }
         }
@@ -175,7 +186,7 @@ impl CursorSet {
     pub fn reduce(&mut self) {
         let mut curs : HashSet<usize> = HashSet::new();
 
-        dbg!(&self.set);
+//        dbg!(&self.set);
 
         let mut old_curs : Vec<Cursor> = vec![];
         std::mem::swap(&mut old_curs, &mut self.set);
@@ -194,7 +205,7 @@ impl CursorSet {
             }
         }
 
-        dbg!(&self.set);
+//        dbg!(&self.set);
 
 //        self.set.sort();
 //        self.set.dedup();

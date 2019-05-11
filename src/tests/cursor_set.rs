@@ -15,6 +15,7 @@ limitations under the License.
 */
 
 // encoding # as cursor anchor
+// it points to a character that will be replaced/preceded, not succeeded
 
 use buffer_state::BufferState;
 use cursor_set::Cursor;
@@ -129,15 +130,15 @@ fn text_to_buffer_cursors_and_back() {
     assert_eq!(text, back);
 }
 
-fn apply(input: &str, f: fn(&mut CursorSet, &str) -> ()) -> String {
+fn apply(input: &str, f: fn(&mut CursorSet, &BufferState) -> ()) -> String {
     let (bs, mut cs) = text_to_buffer_cursors(input);
-    f(&mut cs, &input);
+    f(&mut cs, &bs);
     buffer_cursors_to_text(&bs, &cs)
 }
 
 #[test]
 fn one_cursor_move_left() {
-    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, _| {
+    let f : fn(&mut CursorSet, &BufferState) = |c: &mut CursorSet, _| {
         c.move_left();
     };
 
@@ -150,7 +151,7 @@ fn one_cursor_move_left() {
 
 #[test]
 fn one_cursor_move_left_some() {
-    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, _| {
+    let f : fn(&mut CursorSet, &BufferState) = |c: &mut CursorSet, _| {
         c.move_left_by(3);
     };
 
@@ -163,7 +164,7 @@ fn one_cursor_move_left_some() {
 
 #[test]
 fn multiple_cursor_move_left() {
-    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, _| {
+    let f : fn(&mut CursorSet, &BufferState) = |c: &mut CursorSet, _| {
         c.move_left();
         c.reduce();
     };
@@ -175,7 +176,7 @@ fn multiple_cursor_move_left() {
 
 #[test]
 fn multiple_cursor_move_left_some() {
-    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, _| {
+    let f : fn(&mut CursorSet, &BufferState) = |c: &mut CursorSet, _| {
         c.move_left_by(3);
         c.reduce();
     };
@@ -187,8 +188,7 @@ fn multiple_cursor_move_left_some() {
 
 #[test]
 fn one_cursor_move_right() {
-    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, s| {
-        let bs = BufferState::from_text(s);
+    let f : fn(&mut CursorSet, &BufferState) = |c: &mut CursorSet, bs : &BufferState| {
         c.move_right(&bs);
         c.reduce();
     };
@@ -202,9 +202,8 @@ fn one_cursor_move_right() {
 
 #[test]
 fn one_cursor_move_right_some() {
-    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, s| {
-        let bs = BufferState::from_text(s);
-        c.move_right_by(&bs, 3);
+    let f : fn(&mut CursorSet, &BufferState) = |c: &mut CursorSet, bs : &BufferState| {
+        c.move_right_by(bs, 3);
         c.reduce();
     };
 
@@ -217,8 +216,7 @@ fn one_cursor_move_right_some() {
 
 #[test]
 fn multiple_cursor_move_right() {
-    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, s| {
-        let bs = BufferState::from_text(s);
+    let f : fn(&mut CursorSet, &BufferState) = |c: &mut CursorSet, bs : &BufferState| {
         c.move_right(&bs);
         c.reduce();
     };
@@ -231,8 +229,7 @@ fn multiple_cursor_move_right() {
 
 #[test]
 fn multiple_cursor_move_right_some() {
-    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, s| {
-        let bs = BufferState::from_text(s);
+    let f : fn(&mut CursorSet, &BufferState) = |c: &mut CursorSet, bs : &BufferState| {
         c.move_right_by(&bs, 3);
         c.reduce();
     };
@@ -245,8 +242,7 @@ fn multiple_cursor_move_right_some() {
 
 #[test]
 fn single_cursor_move_down_by_1() {
-    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, s| {
-        let bs = BufferState::from_text(s);
+    let f : fn(&mut CursorSet, &BufferState) = |c: &mut CursorSet, bs : &BufferState| {
         c.move_down_by(&bs, 1);
         c.reduce();
     };
@@ -255,21 +251,50 @@ fn single_cursor_move_down_by_1() {
     assert_eq!(apply("aaaa\nbbbb", f), "aaaa\nbbbb");
 
     // moving down the line
+    assert_eq!(apply("a#aaa\nbbbb", f), "aaaa\nb#bbb");
+    assert_eq!(apply("aaaa#\nbbbb\ncccc", f), "aaaa\nbbbb#\ncccc");
+    assert_eq!(apply("aaaa#\nbbbb", f), "aaaa\nbbbb#");
+    assert_eq!(apply("aaaa\nbb#bb", f), "aaaa\nbbbb#");
+
+    // moving withing the line
     assert_eq!(apply("te#x#t", f), "text#");
     assert_eq!(apply("#t#ext", f), "text#");
     assert_eq!(apply("#text\n#", f), "text\n#");
     assert_eq!(apply("text#\n#", f), "text\n#");
 
-    // moving withing the line
-    assert_eq!(apply("a#aaa\nbbbb", f), "aaaa\nb#bbb");
+    // moving between lines varying in length
+    assert_eq!(apply("3#33\n22\n1", f), "333\n2#2\n1");
+    assert_eq!(apply("33#3\n22\n1", f), "333\n22#\n1");
+    assert_eq!(apply("333#\n22\n1", f), "333\n22#\n1");
+    assert_eq!(apply("333\n#22\n1", f), "333\n22\n#1");
+    assert_eq!(apply("333\n2#2\n1", f), "333\n22\n1#");
+}
+
+#[test]
+fn single_cursor_move_down_by_2() {
+    let f : fn(&mut CursorSet, &BufferState) = |c: &mut CursorSet, bs : &BufferState| {
+        c.move_down_by(&bs, 2);
+        c.reduce();
+    };
+
+    // moving down the line
+    assert_eq!(apply("aa#aa\nbbbb\ncccc", f), "aaaa\nbbbb\ncc#cc");
+    assert_eq!(apply("aaaa\nbbb#b\ncccc\ndddd", f), "aaaa\nbbbb\ncccc\nddd#d");
+    assert_eq!(apply("aaaa\nbbbb\nc#ccc\ndddd", f), "aaaa\nbbbb\ncccc\ndddd#");
+    assert_eq!(apply("aaaa\nbbbb\nc#ccc\ndddd\n", f), "aaaa\nbbbb\ncccc\ndddd\n#");
+    assert_eq!(apply("aa#a#a\nbbbb\ncccc\ndddd\n", f), "aaaa\nbbbb\ncc#c#c\ndddd\n");
+    assert_eq!(apply("aaaa\nb#b#b#b\ncccc\ndddd\n", f), "aaaa\nbbbb\ncccc\nd#d#d#d\n");
+    assert_eq!(apply("a#a#a#a\nbbbb\ncccc\ndddd\n", f), "aaaa\nbbbb\nc#c#c#c\ndddd\n");
+
+//    // moving withing the line
+    assert_eq!(apply("a#aaa\nbbbb", f), "aaaa\nbbbb#");
     assert_eq!(apply("aaaa#\nbbbb", f), "aaaa\nbbbb#");
     assert_eq!(apply("aaaa\nbb#bb", f), "aaaa\nbbbb#");
 }
 
 #[test]
 fn single_cursor_move_down_by_some() {
-    let f : fn(&mut CursorSet, &str) = |c: &mut CursorSet, s| {
-        let bs = BufferState::from_text(s);
+    let f : fn(&mut CursorSet, &BufferState) = |c: &mut CursorSet, bs : &BufferState| {
         c.move_down_by(&bs, 3);
         c.reduce();
     };
@@ -298,7 +323,8 @@ fn single_cursor_move_down_by_some() {
 
 
     {
-        let text = concat!("t#here was a ma#n\n",
+        let text = concat!(
+            "t#here was a ma#n\n",
             "calle#d paul\n",
             "who went to a fancy\n",
             "dress ball\n",
@@ -307,7 +333,8 @@ fn single_cursor_move_down_by_some() {
             "and dog eat him up in the hall.\n"
             );
 
-        let new_text = concat!("there was a man\n",
+        let new_text = concat!(
+            "there was a man\n",
             "called paul\n",
             "who went to a fancy\n",
             "d#ress ball#\n",
