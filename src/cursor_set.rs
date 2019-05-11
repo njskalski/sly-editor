@@ -138,24 +138,31 @@ impl CursorSet {
         let string = bs.get_content().get_lines().to_string();
 
         let rope : &Rope = bs.get_content().get_lines();
-        let last_line = rope.len_lines();
+        let last_line_idx = rope.len_lines() - 1;
 
         for mut c in &mut self.set  {
             //getting data
-            let cur_line = rope.char_to_line(c.a);
-            let new_line = std::cmp::min(cur_line + l, last_line);
-            let cur_line_begin_char_idx = rope.line_to_char(cur_line);
+            let cur_line_idx = rope.char_to_line(c.a);
+            let new_line_idx = std::cmp::min(cur_line_idx + l, last_line_idx);
+            let cur_line_begin_char_idx = rope.line_to_char(cur_line_idx);
             let current_char_idx = c.a - cur_line_begin_char_idx;
+
+            if cur_line_idx + l > last_line_idx /* && l > 0, checked before */ {
+                c.preferred_column = Some(current_char_idx);
+                c.a = rope.len_chars(); // pointing to index higher than last valid one.
+                continue;
+            }
 
 
             // This is actually right. Ropey counts '\n' as last character of current line.
-            let last_char_idx_in_new_line = if new_line == last_line {
+            let last_char_idx_in_new_line = if new_line_idx == last_line_idx {
+                //this corresponds to a notion of "potential new character" beyond the buffer. It's a valid cursor position.
                 rope.len_chars()
             } else {
-                rope.line_to_char(new_line+1) - NEWLINE_LENGTH
+                rope.line_to_char(new_line_idx+1) - NEWLINE_LENGTH
             };
 
-            let new_line_begin = rope.line_to_char(new_line);
+            let new_line_begin = rope.line_to_char(new_line_idx);
             let new_line_num_chars = last_char_idx_in_new_line + 1 - new_line_begin ;
 
             //setting data
@@ -171,11 +178,15 @@ impl CursorSet {
                     c.a = new_line_begin + new_line_num_chars;
                 }
             } else {
+                let addon = if new_line_idx == last_line_idx { 1 } else { 0 };
                 // inequality below is interesting.
                 // The line with characters 012 is 3 characters long. So if current char idx is 3
                 // it means that line below needs at least 4 character to host it without shift left.
-                if new_line_num_chars <= current_char_idx {
-                    c.a = last_char_idx_in_new_line;
+                // "addon" is there to make sure that last line is counted as "one character longer"
+                // than it actually is, so we can position cursor one character behind buffer
+                // (appending).
+                if new_line_num_chars + addon <= current_char_idx {
+                    c.a = new_line_begin + new_line_num_chars - 1; //this -1 is needed.
                     c.preferred_column = Some(current_char_idx);
                 } else {
                     c.a = new_line_begin + current_char_idx;
