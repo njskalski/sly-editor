@@ -253,7 +253,7 @@ fn multiple_cursor_move_right_some() {
 #[test]
 fn single_cursor_move_down_by_1() {
     let f : fn(&mut CursorSet, &BufferState) = |c: &mut CursorSet, bs : &BufferState| {
-        c.move_down_by(&bs, 1);
+        c.move_vertically_by(&bs, 1);
         c.reduce();
     };
 
@@ -283,7 +283,7 @@ fn single_cursor_move_down_by_1() {
 #[test]
 fn single_cursor_move_down_by_2() {
     let f : fn(&mut CursorSet, &BufferState) = |c: &mut CursorSet, bs : &BufferState| {
-        c.move_down_by(&bs, 2);
+        c.move_vertically_by(&bs, 2);
         c.reduce();
     };
 
@@ -305,7 +305,7 @@ fn single_cursor_move_down_by_2() {
 #[test]
 fn single_cursor_move_down_by_some() {
     let f : fn(&mut CursorSet, &BufferState) = |c: &mut CursorSet, bs : &BufferState| {
-        c.move_down_by(&bs, 3);
+        c.move_vertically_by(&bs, 3);
         c.reduce();
     };
 
@@ -349,6 +349,87 @@ fn single_cursor_move_down_by_some() {
             "who went to a fancy\n",
             "d#ress ball#\n",
             "he ju#st went for fun\n",
+            "dressed up as bone\n",
+            "and dog eat him up in the hall.\n"
+            );
+
+        assert_eq!(apply(text, f), new_text);
+    }
+}
+
+#[test]
+fn single_cursor_move_up_by_1() {
+    let f : fn(&mut CursorSet, &BufferState) = |c: &mut CursorSet, bs : &BufferState| {
+        c.move_vertically_by(&bs, -1);
+        c.reduce();
+    };
+
+    // noop
+    assert_eq!(apply("aaaa\nbbbb", f), "aaaa\nbbbb");
+
+    assert_eq!(apply("a#aaa\nbbbb", f), "#aaaa\nbbbb");
+    assert_eq!(apply("aaaa#\nbbbb", f), "#aaaa\nbbbb");
+    assert_eq!(apply("aaaa\nbbbb\ncccc#", f), "aaaa\nbbbb#\ncccc");
+
+    assert_eq!(apply("aaaa\nbb#bb", f), "aa#aa\nbbbb");
+
+    assert_eq!(apply("te#x#t", f), "#text");
+    assert_eq!(apply("#t#ext", f), "#text");
+    assert_eq!(apply("#text\n#", f), "#text\n");
+    assert_eq!(apply("text#\n#", f), "#text\n");
+
+
+    assert_eq!(apply("3#33\n22\n1", f), "#333\n22\n1");
+    assert_eq!(apply("333\n#22\n1", f), "#333\n22\n1");
+    assert_eq!(apply("333\n22#\n1", f), "33#3\n22\n1");
+
+    assert_eq!(apply("1\n22\n3#33", f), "1\n2#2\n333");
+    assert_eq!(apply("1\n22\n33#3", f), "1\n22#\n333");
+    assert_eq!(apply("1\n22\n333#", f), "1\n22#\n333");
+}
+
+#[test]
+fn single_cursor_move_up_by_2() {
+    let f : fn(&mut CursorSet, &BufferState) = |c: &mut CursorSet, bs : &BufferState| {
+        c.move_vertically_by(&bs, -2);
+        c.reduce();
+    };
+
+    assert_eq!(apply("aaaa\nbbbb\ncc#cc", f), "aa#aa\nbbbb\ncccc");
+    assert_eq!(apply("aaaa\nbbbb\ncccc\nddd#d", f), "aaaa\nbbb#b\ncccc\ndddd");
+    assert_eq!(apply("aaaa\nbb#bb\ncccc\ndddd", f), "#aaaa\nbbbb\ncccc\ndddd");
+    assert_eq!(apply("aaaa\nbbbb\ncccc\ndddd\n#", f), "aaaa\nbbbb\n#cccc\ndddd\n");
+    assert_eq!(apply("aaaa\nbbbb\ncc#c#c\ndddd\n", f), "aa#a#a\nbbbb\ncccc\ndddd\n");
+    assert_eq!(apply("aaaa\nbbbb\ncccc\nd#d#d#d\n", f), "aaaa\nb#b#b#b\ncccc\ndddd\n");
+    assert_eq!(apply("aaaa\nbbbb\nc#c#c#c\ndddd\n", f), "a#a#a#a\nbbbb\ncccc\ndddd\n");
+
+    assert_eq!(apply("aaaa\nbb#bb", f), "#aaaa\nbbbb");
+    assert_eq!(apply("aaaa\nbbbb#", f), "#aaaa\nbbbb");
+    assert_eq!(apply("aaaa\nbbb#b", f), "#aaaa\nbbbb");
+}
+
+#[test]
+fn single_cursor_move_up_by_some() {
+    let f : fn(&mut CursorSet, &BufferState) = |c: &mut CursorSet, bs : &BufferState| {
+        c.move_vertically_by(&bs, -3);
+        c.reduce();
+    };
+
+    {
+        let text = concat!("t#here was a man\n",
+            "called paul\n",
+            "who went to a fancy\n",
+            "dress ball\n",
+            "he just went for fun\n",
+            "d#ressed up as bone\n",
+            "and dog eat him up in the hall.#\n"
+            );
+
+        let new_text = concat!("#there was a man\n",
+            "called paul\n",
+            "w#ho went to a fancy\n",
+            "dress ball#\n",
+            "he just went for fun\n",
             "dressed up as bone\n",
             "and dog eat him up in the hall.\n"
             );

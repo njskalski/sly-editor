@@ -130,7 +130,7 @@ impl CursorSet {
         }
     }
 
-    pub fn move_down_by(&mut self, bs : &BufferState, l :usize) {
+    pub fn move_vertically_by(&mut self, bs : &BufferState, l : isize) {
         if l == 0 {
             return;
         }
@@ -143,16 +143,25 @@ impl CursorSet {
         for mut c in &mut self.set  {
             //getting data
             let cur_line_idx = rope.char_to_line(c.a);
-            let new_line_idx = std::cmp::min(cur_line_idx + l, last_line_idx);
             let cur_line_begin_char_idx = rope.line_to_char(cur_line_idx);
             let current_char_idx = c.a - cur_line_begin_char_idx;
 
-            if cur_line_idx + l > last_line_idx /* && l > 0, checked before */ {
+            if cur_line_idx as isize + l > last_line_idx as isize/* && l > 0, checked before */ {
                 c.preferred_column = Some(current_char_idx);
                 c.a = rope.len_chars(); // pointing to index higher than last valid one.
                 continue;
             }
 
+            if cur_line_idx as isize + l < 0 {
+                c.preferred_column = Some(current_char_idx);
+                c.a = 0;
+                continue;
+            }
+
+            // at this point we know that 0 <= cur_line_idx <= last_line_idx
+            debug_assert!(0 <= cur_line_idx);
+            debug_assert!(cur_line_idx <= last_line_idx);
+            let new_line_idx = (cur_line_idx as isize + l) as usize;
 
             // This is actually right. Ropey counts '\n' as last character of current line.
             let last_char_idx_in_new_line = if new_line_idx == last_line_idx {
@@ -170,7 +179,7 @@ impl CursorSet {
             c.clear_selection();
 
             if let Some(preferred_column) = c.preferred_column {
-                assert!(preferred_column >= current_char_idx);
+                debug_assert!(preferred_column >= current_char_idx);
                 if preferred_column <= new_line_num_chars {
                     c.clear_pc();
                     c.a = new_line_begin + preferred_column;
