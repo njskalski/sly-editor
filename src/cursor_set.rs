@@ -62,6 +62,10 @@ impl Cursor {
         self.s = None;
         self.preferred_column = None;
     }
+
+    pub fn single() -> Self {
+        Cursor{ s: None, a : 0, preferred_column : None }
+    }
 }
 
 impl Into<Cursor> for (usize, usize, usize) {
@@ -90,6 +94,10 @@ pub struct CursorSet {
 }
 
 impl CursorSet {
+    pub fn single() -> Self {
+        CursorSet { set : vec![Cursor::single()] }
+    }
+
     pub fn new(set : Vec<Cursor>) -> Self {
         CursorSet { set }
     }

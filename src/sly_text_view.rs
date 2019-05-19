@@ -69,19 +69,18 @@ use unicode_segmentation;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 use view_handle::ViewHandle;
+use cursor_set::CursorSet;
+use core::borrow::Borrow;
 
 const INDEX_MARGIN: usize = 1;
 const PAGE_WIDTH: usize = 80;
-
-//Cursor: offset in CHARS and "preferred column" (probably cached y coordinate, don't remember).
-type Cursor = (usize, Option<usize>);
 
 //const NEWLINE_DRAWING : char = '\u{2424}';
 
 pub struct SlyTextView {
     channel: IChannel, // interface feedback channel
     buffer: BufferStateObserver,
-    cursors: Vec<Cursor>,         // offset in CHARS, preferred column
+    cursor_set: CursorSet,
     position: Vec2,               // position of upper left corner of view in file
     last_view_size: Option<Vec2>, //not sure if using properly
     settings: Rc<RefCell<Settings>>,
@@ -103,12 +102,13 @@ impl SlyTextView {
         buffer: BufferStateObserver,
         channel: IChannel,
     ) -> IdView<Self> {
-        let syntax_highlighting: bool = settings.borrow().auto_highlighting_enabled();
+        let setting_borrowed: &RefCell<Settings> = settings.borrow();
+        let syntax_highlighting: bool = setting_borrowed.borrow().auto_highlighting_enabled();
 
         let mut view = SlyTextView {
             channel: channel,
             buffer: buffer,
-            cursors: vec![(0, None)],
+            cursor_set: CursorSet::single(),
             position: Vec2::new(0, 0),
             last_view_size: None,
             settings: settings,
@@ -138,8 +138,8 @@ impl SlyTextView {
     }
 
     /// Returns the position of the cursor in the content string.
-    pub fn cursors(&self) -> &Vec<Cursor> {
-        &self.cursors
+    pub fn cursors(&self) -> &CursorSet {
+        &self.cursor_set
     }
 
     pub fn syntax_highlighting_on(&self) -> bool {
@@ -167,7 +167,7 @@ impl View for SlyTextView {
         let line_count: usize = content.get_lines().len_lines();
         let index_length = line_count.to_string().len();
 
-        let cursors = &self.cursors; //: Vec<Vec2> = textWindow.filter_cursors(&self.cursors);
+        let cursors = &self.cursor_set;
         let lines = content.get_lines();
 
         let view_size = self.last_view_size.expect("view size not known.");
@@ -344,24 +344,30 @@ impl View for SlyTextView {
                 debug!("hit backspace");
             }
             Event::Key(Key::Left) => {
-                &self.move_all_cursors_left();
+                &self.cursor_set.move_left();
             }
             Event::Key(Key::Right) => {
-                &self.move_all_cursors_right();
+                let buffer_state = self.buffer.borrow_state();
+                &self.cursor_set.move_right(&buffer_state);
             }
             Event::Key(Key::Up) => {
-                &self.move_all_cursors_up(1);
+                let buffer_state = self.buffer.borrow_state();
+                &self.cursor_set.move_vertically_by(&buffer_state, -1);
             }
             Event::Key(Key::Down) => {
-                &self.move_all_cursors_down(1);
+                let buffer_state = self.buffer.borrow_state();
+                &self.cursor_set.move_vertically_by(&buffer_state, 1);
             }
             Event::Key(Key::PageUp) => {
-                let height = self.last_view_size.unwrap().y;
-                &self.move_all_cursors_up(height);
+                let height = self.last_view_size.unwrap().y as isize;
+                let buffer_state = self.buffer.borrow_state();
+                &self.cursor_set.move_vertically_by(&buffer_state, -height);
+
             }
             Event::Key(Key::PageDown) => {
-                let height = self.last_view_size.unwrap().y;
-                &self.move_all_cursors_down(height);
+                let height = self.last_view_size.unwrap().y as isize;
+                let buffer_state = self.buffer.borrow_state();
+                &self.cursor_set.move_vertically_by(&buffer_state, height);
             }
             _ => {
                 debug!("unhandled event (in sly_text_view) {:?}", event);
@@ -377,41 +383,44 @@ impl View for SlyTextView {
 }
 
 impl SlyTextView {
-    //TODO test
-    fn has_cursors_outside_view(&self) -> bool {
-        let content = self.buffer.borrow_content();
-        let rope = content.get_lines();
-        let first_offset: usize = rope.line_to_char(self.position.y);
-        let last_offset: usize =
-            rope.line_to_char(self.position.y + self.last_view_size.unwrap().y) - 1;
+    // //TODO test
+    // fn has_cursors_outside_view(&self) -> bool {
+    //     let content = self.buffer.borrow_content();
+    //     let rope = content.get_lines();
+    //     let first_offset: usize = rope.line_to_char(self.position.y);
+    //     let last_offset: usize =
+    //         rope.line_to_char(self.position.y + self.last_view_size.unwrap().y) - 1;
 
-        for c in &self.cursors {
-            if c.0 < first_offset || c.0 > last_offset {
-                return true;
-            }
-        }
-        false
-    }
+    //     for c in &self.cursors {
+    //         if c.0 < first_offset || c.0 > last_offset {
+    //             return true;
+    //         }
+    //     }
+    //     false
+    // }
 
-    fn make_sure_first_cursor_visible(&mut self) {
-        let y = self.last_view_size.unwrap().y;
-        let offset = self.cursors[0].0;
-        let line = self.buffer.borrow_content().get_lines().char_to_line(offset);
-        if line + 1 > self.position.y + y {
-            self.position.y = line - y + 1;
-        }
+    // fn make_sure_first_cursor_visible(&mut self) {
+    //     let y = self.last_view_size.unwrap().y;
+    //     if let cursor = self.cursor_set.set().first() {
+    //         let offset = cursor.a;
+    //         let line = self.buffer.borrow_content().get_lines().char_to_line(offset);
+    //         if line + 1 > self.position.y + y {
+    //             self.position.y = line - y + 1;
+    //         }
 
-        if line < self.position.y {
-            self.position.y = line;
-        }
-    }
+    //         if line < self.position.y {
+    //             self.position.y = line;
+    //         }
+    //     }
+    // }
 
     // These are work-in-progress implementations.
     fn add_text(&mut self, text: &String) {
         let mut edit_events: Vec<EditEvent> = self
-            .cursors
+            .cursor_set
+            .set()
             .iter()
-            .map(|&cursor| EditEvent::Insert { offset: cursor.0, content: text.clone() })
+            .map(|&cursor| EditEvent::Insert { offset: cursor.a, content: text.clone() })
             .collect();
 
         let text_len =
@@ -419,134 +428,140 @@ impl SlyTextView {
 
         edit_events.reverse();
         self.submit_events(edit_events);
-        self.mod_all_cursors(text_len as isize);
+        let buffer_state = self.buffer.borrow_state();
+        self.cursor_set.move_right_by(&buffer_state, text_len);
     }
 
-    fn move_cursor_to_line(rope: &Rope, c: &mut Cursor, other_line: usize) {
-        // let rope = &self.buffer.content().get_lines();
-        assert!(other_line < rope.len_lines());
-        let line = rope.char_to_line(c.0);
-        let pos_in_line = c.0 - rope.line_to_char(line);
-        if c.1.is_some() {
-            assert!(c.1.unwrap() > pos_in_line); //the whole point in tracking that is to be able to shift back right
-        }
+//     fn move_cursor_to_line(rope: &Rope, c: &mut Cursor, other_line: usize) {
+//         // let rope = &self.buffer.content().get_lines();
+//         assert!(other_line < rope.len_lines());
+//         let line = rope.char_to_line(c.0);
+//         let pos_in_line = c.0 - rope.line_to_char(line);
+//         if c.1.is_some() {
+//             assert!(c.1.unwrap() > pos_in_line); //the whole point in tracking that is to be able to shift back right
+//         }
+//
+//         let effective_pos_in_line = match c.1 {
+//             Some(pos) => pos,
+//             None => pos_in_line,
+//         };
+//         c.1 = None;
+//
+//         let pos_in_line_below = cmp::min(rope.line(other_line).len_chars(), effective_pos_in_line);
+//         if effective_pos_in_line > pos_in_line_below {
+//             c.1 = Some(effective_pos_in_line);
+//         }
+//
+//         c.0 = rope.line_to_char(other_line) + pos_in_line_below;
+//     }
 
-        let effective_pos_in_line = match c.1 {
-            Some(pos) => pos,
-            None => pos_in_line,
-        };
-        c.1 = None;
+//    fn move_all_cursors_up(&mut self, len: usize) {
+//        assert!(len > 0);
+//        {
+//            let content = self.buffer.borrow_content();
+//            let rope: &Rope = content.get_lines();
+//            for mut c in &mut self.cursors {
+//                let line = rope.char_to_line(c.0);
+//                if line == 0 {
+//                    c.0 = 0;
+//                    c.1 = None;
+//                } else {
+//                    let next_line_no = if line > len { line - len } else { 0 };
+//                    self.cursor_set.m
+//                    Self::move_cursor_to_line(rope, &mut c, next_line_no);
+//                }
+//            }
+//        }
+//        self.make_sure_first_cursor_visible();
+//    }
 
-        let pos_in_line_below = cmp::min(rope.line(other_line).len_chars(), effective_pos_in_line);
-        if effective_pos_in_line > pos_in_line_below {
-            c.1 = Some(effective_pos_in_line);
-        }
+//    fn move_all_cursors_down(&mut self, len: usize) {
+//        assert!(len > 0);
+//        {
+//            let content = self.buffer.borrow_content();
+//            let rope: &Rope = content.get_lines();
+//            for mut c in &mut self.cursors {
+//                let line = rope.char_to_line(c.0);
+//                if line == rope.len_lines() - 1 {
+//                    c.0 = rope.len_chars() - 1;
+//                    c.1 = None;
+//                } else {
+//                    let next_line_no = cmp::min(rope.len_lines() - 1, line + len);
+//                    Self::move_cursor_to_line(rope, &mut c, next_line_no);
+//                }
+//            }
+//        }
+//        self.make_sure_first_cursor_visible();
+//    }
 
-        c.0 = rope.line_to_char(other_line) + pos_in_line_below;
-    }
+//    fn move_all_cursors_left(&mut self) {
+//        let content = self.buffer.borrow_content();
+//        let rope = content.get_lines();
+//        for c in &mut self.cursors {
+//            if c.0 > 0 {
+//                c.0 -= 1;
+//            }
+//            if c.1.is_some() {
+//                c.1 = None;
+//            }
+//        }
+//    }
+//
+//    fn move_all_cursors_right(&mut self) {
+//        let content = self.buffer.borrow_content();
+//        let rope = content.get_lines();
+//        for c in &mut self.cursors {
+//            if c.0 < rope.len_chars() {
+//                c.0 += 1;
+//            }
+//            if c.1.is_some() {
+//                c.1 = None;
+//            }
+//        }
+//    }
 
-    fn move_all_cursors_up(&mut self, len: usize) {
-        assert!(len > 0);
-        {
-            let content = self.buffer.borrow_content();
-            let rope: &Rope = content.get_lines();
-            for mut c in &mut self.cursors {
-                let line = rope.char_to_line(c.0);
-                if line == 0 {
-                    c.0 = 0;
-                    c.1 = None;
-                } else {
-                    let next_line_no = if line > len { line - len } else { 0 };
-                    Self::move_cursor_to_line(rope, &mut c, next_line_no);
-                }
-            }
-        }
-        self.make_sure_first_cursor_visible();
-    }
-
-    fn move_all_cursors_down(&mut self, len: usize) {
-        assert!(len > 0);
-        {
-            let content = self.buffer.borrow_content();
-            let rope: &Rope = content.get_lines();
-            for mut c in &mut self.cursors {
-                let line = rope.char_to_line(c.0);
-                if line == rope.len_lines() - 1 {
-                    c.0 = rope.len_chars() - 1;
-                    c.1 = None;
-                } else {
-                    let next_line_no = cmp::min(rope.len_lines() - 1, line + len);
-                    Self::move_cursor_to_line(rope, &mut c, next_line_no);
-                }
-            }
-        }
-        self.make_sure_first_cursor_visible();
-    }
-
-    fn move_all_cursors_left(&mut self) {
-        let content = self.buffer.borrow_content();
-        let rope = content.get_lines();
-        for c in &mut self.cursors {
-            if c.0 > 0 {
-                c.0 -= 1;
-            }
-            if c.1.is_some() {
-                c.1 = None;
-            }
-        }
-    }
-
-    fn move_all_cursors_right(&mut self) {
-        let content = self.buffer.borrow_content();
-        let rope = content.get_lines();
-        for c in &mut self.cursors {
-            if c.0 < rope.len_chars() {
-                c.0 += 1;
-            }
-            if c.1.is_some() {
-                c.1 = None;
-            }
-        }
-    }
-
-    fn reduce_cursor_duplicates(&mut self) {
-        self.cursors.dedup_by(|a, b| a.0 == b.0);
-    }
-
+    // TODO(njskalski): fix, test
     fn backspace(&mut self) {
         let mut edit_events: Vec<EditEvent> = self
-            .cursors
+            .cursor_set
+            .set()
             .iter()
-            .filter(|&cursor| cursor.0 > 0)
+            .filter(|&cursor| cursor.a > 0)
             .map(|&cursor| EditEvent::Change {
-                offset: cursor.0 - 1,
+                offset: cursor.a - 1,
                 length: 1,
                 content: "".to_string(),
             })
             .collect();
 
-        self.mod_all_cursors(-1);
+//        self.mod_all_cursors(-1);
+
+//        self.cursor_set.set().iter_mut().map(|cursor| {
+//            cursor.mo
+//        });
+        self.cursor_set.move_left();
 
         edit_events.reverse();
         self.submit_events(edit_events);
     }
 
-    fn mod_all_cursors(&mut self, diff: isize) {
-        for (i, c) in self.cursors.iter_mut().enumerate() {
-            if diff > 0 {
-                c.0 += (diff as usize * (i + 1));
-            } else {
-                let pdiff = (diff * -1) as usize;
-                c.0 -= cmp::min(c.0, pdiff * (i + 1));
-            }
-            c.1 = None;
-        }
-        self.reduce_cursor_duplicates();
-    }
+//    fn mod_all_cursors(&mut self, diff: isize) {
+//        for (i, c) in self.cursors.iter_mut().enumerate() {
+//            if diff > 0 {
+//                c.0 += (diff as usize * (i + 1));
+//            } else {
+//                let pdiff = (diff * -1) as usize;
+//                c.0 -= cmp::min(c.0, pdiff * (i + 1));
+//            }
+//            c.1 = None;
+//        }
+//        self.cursor_set.reduce();
+//    }
 
+    // TODO(njskalski): color not only anchor, but also scope.
     fn had_cursor_at(&self, offset: &usize) -> bool {
-        for ref c in &self.cursors {
-            if c.0 == *offset {
+        for c in self.cursor_set.set() {
+            if c.a == *offset {
                 return true;
             }
         }
