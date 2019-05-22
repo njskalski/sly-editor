@@ -102,8 +102,11 @@ impl SlyTextView {
         buffer: BufferStateObserver,
         channel: IChannel,
     ) -> IdView<Self> {
-        let setting_borrowed: &RefCell<Settings> = settings.borrow();
-        let syntax_highlighting: bool = setting_borrowed.borrow().auto_highlighting_enabled();
+        
+        let syntax_highlighting: bool = {
+            let setting_borrowed: &RefCell<Settings> = settings.borrow();
+            setting_borrowed.borrow().auto_highlighting_enabled()
+        };
 
         let mut view = SlyTextView {
             channel: channel,
@@ -126,7 +129,7 @@ impl SlyTextView {
     }
 
     fn settings_ref(&self) -> Ref<Settings> {
-        self.settings.borrow()
+        (*self.settings).borrow()
     }
 
     pub fn buffer_obs(&self) -> &BufferStateObserver {
@@ -420,7 +423,7 @@ impl SlyTextView {
             .cursor_set
             .set()
             .iter()
-            .map(|&cursor| EditEvent::Insert { offset: cursor.a, content: text.clone() })
+            .map(|ref cursor| EditEvent::Insert { offset: cursor.a, content: text.clone() })
             .collect();
 
         let text_len =
@@ -527,7 +530,7 @@ impl SlyTextView {
             .set()
             .iter()
             .filter(|&cursor| cursor.a > 0)
-            .map(|&cursor| EditEvent::Change {
+            .map(|ref cursor| EditEvent::Change {
                 offset: cursor.a - 1,
                 length: 1,
                 content: "".to_string(),
