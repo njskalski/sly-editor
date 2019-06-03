@@ -26,7 +26,7 @@ Interface:
 - [ ] saving files
 	- [x] in-place {save_via_ctrls}
 	- [x] via save-as dialog {save_new_file_via_dialog}
-	- [ ] autosaving
+	- [ ] autosaving (!, MVP!)
 	- [ ] error handling
 	- [ ] escalate to root to save!
 - [ ] edition
