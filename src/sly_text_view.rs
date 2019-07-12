@@ -31,10 +31,9 @@ limitations under the License.
 // and not disabled in options) TODO(njskalski) use View::layout instead of View::required_size to
 // determine window size.
 
+use abstract_clipboard::ClipboardType;
 use time;
 
-use abstract_clipboard::default_clipboard;
-use abstract_clipboard::ClipboardType;
 use buffer_state_observer::BufferStateObserver;
 use clipboard;
 use clipboard::ClipboardProvider;
@@ -115,7 +114,7 @@ impl SlyTextView {
             position: Vec2::new(0, 0),
             last_view_size: None,
             settings: settings,
-            clipboard_context: default_clipboard().unwrap(),
+            clipboard_context: ClipboardType::new(),
             special_char_mappings: hashmap!['\n' => '\u{21B5}'],
             handle: ViewHandle::new(),
             syntax_highlighting: syntax_highlighting,
@@ -386,36 +385,6 @@ impl View for SlyTextView {
 }
 
 impl SlyTextView {
-    // //TODO test
-    // fn has_cursors_outside_view(&self) -> bool {
-    //     let content = self.buffer.borrow_content();
-    //     let rope = content.get_lines();
-    //     let first_offset: usize = rope.line_to_char(self.position.y);
-    //     let last_offset: usize =
-    //         rope.line_to_char(self.position.y + self.last_view_size.unwrap().y) - 1;
-
-    //     for c in &self.cursors {
-    //         if c.0 < first_offset || c.0 > last_offset {
-    //             return true;
-    //         }
-    //     }
-    //     false
-    // }
-
-    // fn make_sure_first_cursor_visible(&mut self) {
-    //     let y = self.last_view_size.unwrap().y;
-    //     if let cursor = self.cursor_set.set().first() {
-    //         let offset = cursor.a;
-    //         let line = self.buffer.borrow_content().get_lines().char_to_line(offset);
-    //         if line + 1 > self.position.y + y {
-    //             self.position.y = line - y + 1;
-    //         }
-
-    //         if line < self.position.y {
-    //             self.position.y = line;
-    //         }
-    //     }
-    // }
 
     // These are work-in-progress implementations.
     fn add_text(&mut self, text: &String) {
@@ -435,94 +404,6 @@ impl SlyTextView {
         self.cursor_set.move_right_by(&buffer_state, text_len);
     }
 
-//     fn move_cursor_to_line(rope: &Rope, c: &mut Cursor, other_line: usize) {
-//         // let rope = &self.buffer.content().get_lines();
-//         assert!(other_line < rope.len_lines());
-//         let line = rope.char_to_line(c.0);
-//         let pos_in_line = c.0 - rope.line_to_char(line);
-//         if c.1.is_some() {
-//             assert!(c.1.unwrap() > pos_in_line); //the whole point in tracking that is to be able to shift back right
-//         }
-//
-//         let effective_pos_in_line = match c.1 {
-//             Some(pos) => pos,
-//             None => pos_in_line,
-//         };
-//         c.1 = None;
-//
-//         let pos_in_line_below = cmp::min(rope.line(other_line).len_chars(), effective_pos_in_line);
-//         if effective_pos_in_line > pos_in_line_below {
-//             c.1 = Some(effective_pos_in_line);
-//         }
-//
-//         c.0 = rope.line_to_char(other_line) + pos_in_line_below;
-//     }
-
-//    fn move_all_cursors_up(&mut self, len: usize) {
-//        assert!(len > 0);
-//        {
-//            let content = self.buffer.borrow_content();
-//            let rope: &Rope = content.get_lines();
-//            for mut c in &mut self.cursors {
-//                let line = rope.char_to_line(c.0);
-//                if line == 0 {
-//                    c.0 = 0;
-//                    c.1 = None;
-//                } else {
-//                    let next_line_no = if line > len { line - len } else { 0 };
-//                    self.cursor_set.m
-//                    Self::move_cursor_to_line(rope, &mut c, next_line_no);
-//                }
-//            }
-//        }
-//        self.make_sure_first_cursor_visible();
-//    }
-
-//    fn move_all_cursors_down(&mut self, len: usize) {
-//        assert!(len > 0);
-//        {
-//            let content = self.buffer.borrow_content();
-//            let rope: &Rope = content.get_lines();
-//            for mut c in &mut self.cursors {
-//                let line = rope.char_to_line(c.0);
-//                if line == rope.len_lines() - 1 {
-//                    c.0 = rope.len_chars() - 1;
-//                    c.1 = None;
-//                } else {
-//                    let next_line_no = cmp::min(rope.len_lines() - 1, line + len);
-//                    Self::move_cursor_to_line(rope, &mut c, next_line_no);
-//                }
-//            }
-//        }
-//        self.make_sure_first_cursor_visible();
-//    }
-
-//    fn move_all_cursors_left(&mut self) {
-//        let content = self.buffer.borrow_content();
-//        let rope = content.get_lines();
-//        for c in &mut self.cursors {
-//            if c.0 > 0 {
-//                c.0 -= 1;
-//            }
-//            if c.1.is_some() {
-//                c.1 = None;
-//            }
-//        }
-//    }
-//
-//    fn move_all_cursors_right(&mut self) {
-//        let content = self.buffer.borrow_content();
-//        let rope = content.get_lines();
-//        for c in &mut self.cursors {
-//            if c.0 < rope.len_chars() {
-//                c.0 += 1;
-//            }
-//            if c.1.is_some() {
-//                c.1 = None;
-//            }
-//        }
-//    }
-
     // TODO(njskalski): fix, test
     fn backspace(&mut self) {
         let mut edit_events: Vec<EditEvent> = self
@@ -537,29 +418,11 @@ impl SlyTextView {
             })
             .collect();
 
-//        self.mod_all_cursors(-1);
-
-//        self.cursor_set.set().iter_mut().map(|cursor| {
-//            cursor.mo
-//        });
         self.cursor_set.move_left();
 
         edit_events.reverse();
         self.submit_events(edit_events);
     }
-
-//    fn mod_all_cursors(&mut self, diff: isize) {
-//        for (i, c) in self.cursors.iter_mut().enumerate() {
-//            if diff > 0 {
-//                c.0 += (diff as usize * (i + 1));
-//            } else {
-//                let pdiff = (diff * -1) as usize;
-//                c.0 -= cmp::min(c.0, pdiff * (i + 1));
-//            }
-//            c.1 = None;
-//        }
-//        self.cursor_set.reduce();
-//    }
 
     // TODO(njskalski): color not only anchor, but also scope.
     fn had_cursor_at(&self, offset: &usize) -> bool {
@@ -571,11 +434,3 @@ impl SlyTextView {
         false
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//
-//
-//
-// }

@@ -14,23 +14,42 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+use clipboard::ClipboardProvider;
 use clipboard::nop_clipboard::NopClipboardContext;
 use clipboard::ClipboardContext;
-use clipboard::ClipboardProvider;
 use std::error::Error;
 
-#[cfg(test)]
-pub type ClipboardType = NopClipboardContext;
-
-#[cfg(test)]
-pub fn default_clipboard() -> Result<ClipboardType, Box<std::error::Error>> {
-    NopClipboardContext::new()
+enum ClipboardEnum {
+    Real(ClipboardContext),
+    Fake(NopClipboardContext)
 }
 
-#[cfg(not(test))]
-pub type ClipboardType = ClipboardContext;
+pub struct ClipboardType {
+    data : ClipboardEnum
+}
 
-#[cfg(not(test))]
-pub fn default_clipboard() -> Result<ClipboardType, Box<std::error::Error>> {
-    ClipboardProvider::new()
+impl ClipboardType {
+
+    #[cfg(not(test))]
+    pub fn new() -> ClipboardType {
+        let data : ClipboardEnum = match ClipboardContext::new() {
+            Ok(context) => ClipboardEnum::Real(context),
+            Err(error) => {
+                //TODO(njskalski): add logging
+                ClipboardEnum::Fake(NopClipboardContext::new().unwrap())
+            }
+        };
+
+        ClipboardType { data }
+    }
+
+    #[cfg(test)]
+    pub fn new() -> ClipboardType { ClipboardType { data : ClipboardEnum::Fake(NopClipboardContext::new().unwrap()) } }
+
+    pub fn get_contents(&mut self) -> Result<String, Box<Error>> {
+        match &mut self.data {
+            ClipboardEnum::Fake(ref mut nop) => nop.get_contents(),
+            ClipboardEnum::Real(ref mut clip) => clip.get_contents()
+        }
+    }
 }
