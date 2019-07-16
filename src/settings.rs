@@ -117,7 +117,7 @@ impl Settings {
     fn get_value(&self, selector: &'static str) -> Option<&sj::Value> {
         let mut ptr: Option<&sj::Value> = Some(&self.tree);
         for lane in selector.split('/') {
-            ptr = ptr.map(|subtree| &subtree[lane]);
+            ptr = ptr.map(|subtree| subtree.get(lane)).unwrap_or(None);
         }
         ptr
     }
