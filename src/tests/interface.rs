@@ -18,9 +18,9 @@ use cursive::backend::puppet::observed::ObservedPieceInterface;
 use cursive::event::Event;
 use cursive::event::Key;
 use cursive::Vec2;
-use events::IEvent;
-use filesystem::*;
-use test_utils::advanced_setup::tests::AdvancedSetup;
+use crate::events::IEvent;
+use crate::test_utils::advanced_setup::tests::AdvancedSetup;
+use filesystem::FileSystem;
 
 #[test]
 fn first_interface_test() {

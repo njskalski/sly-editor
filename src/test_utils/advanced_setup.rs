@@ -28,8 +28,7 @@ pub mod tests {
     use crate::dir_tree::TreeNodeVec;
     use crate::events::IChannel;
     use crate::events::IEvent;
-    use filesystem::FakeFileSystem;
-    use filesystem::*;
+    use filesystem::{FakeFileSystem, FileSystem};
     use crate::interface::Interface;
     use ncurses::filter;
     use std::cell::RefCell;
@@ -39,7 +38,6 @@ pub mod tests {
     use std::time::Duration;
     use crate::test_utils::basic_setup::tests::*;
     use crate::test_utils::fake_tree::{fake_dir, fake_file, fake_root};
-    use FileSystemType;
     use crate::FileSystemType;
 
     pub struct AdvancedSetup {
@@ -136,7 +134,7 @@ pub mod tests {
 
                 for x in 0..screen.size().x {
                     let pos = Vec2::new(x, y);
-                    let cell_op: &Option<ObservedCell> = &screen[&pos];
+                    let cell_op: &Option<ObservedCell> = &screen[pos];
                     if cell_op.is_some() {
                         let cell = cell_op.as_ref().unwrap();
 

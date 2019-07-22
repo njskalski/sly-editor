@@ -77,7 +77,7 @@ impl Action {
 
 #[cfg(test)]
 mod tests {
-    use action::Action;
+    use crate::action::Action;
     use yaml_rust::YamlLoader;
 
     const basic_yaml: &'static str = r###"

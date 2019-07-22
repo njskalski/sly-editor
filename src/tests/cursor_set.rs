@@ -17,9 +17,9 @@ limitations under the License.
 // encoding # as cursor anchor
 // it points to a character that will be replaced/preceded, not succeeded
 
-use buffer_state::BufferState;
-use cursor_set::Cursor;
-use cursor_set::CursorSet;
+use crate::buffer_state::BufferState;
+use crate::cursor_set::Cursor;
+use crate::cursor_set::CursorSet;
 use serde::de::Unexpected::Str;
 use std::borrow::Borrow;
 

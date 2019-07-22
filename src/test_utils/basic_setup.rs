@@ -132,7 +132,7 @@ pub mod tests {
 
                 for x in 0..screen.size().x {
                     let pos = Vec2::new(x, y);
-                    let cell_op: &Option<ObservedCell> = &screen[&pos];
+                    let cell_op: &Option<ObservedCell> = &screen[pos];
                     if cell_op.is_some() {
                         let cell = cell_op.as_ref().unwrap();
 
