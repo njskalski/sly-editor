@@ -16,7 +16,7 @@ limitations under the License.
 
 #[cfg(test)]
 pub mod tests {
-    use app_state::AppState;
+    use crate::app_state::AppState;
     use cursive::backend;
     use cursive::backend::puppet::observed::ObservedCell;
     use cursive::backend::puppet::observed::ObservedScreen;
@@ -24,22 +24,23 @@ pub mod tests {
     use cursive::event::Key;
     use cursive::Cursive;
     use cursive::Vec2;
-    use dir_tree::TreeNodeRef;
-    use dir_tree::TreeNodeVec;
-    use events::IChannel;
-    use events::IEvent;
+    use crate::dir_tree::TreeNodeRef;
+    use crate::dir_tree::TreeNodeVec;
+    use crate::events::IChannel;
+    use crate::events::IEvent;
     use filesystem::FakeFileSystem;
     use filesystem::*;
-    use interface::Interface;
+    use crate::interface::Interface;
     use ncurses::filter;
     use std::cell::RefCell;
     use std::path::Path;
     use std::path::PathBuf;
     use std::sync::mpsc;
     use std::time::Duration;
-    use test_utils::basic_setup::tests::*;
-    use test_utils::fake_tree::{fake_dir, fake_file, fake_root};
+    use crate::test_utils::basic_setup::tests::*;
+    use crate::test_utils::fake_tree::{fake_dir, fake_file, fake_root};
     use FileSystemType;
+    use crate::FileSystemType;
 
     pub struct AdvancedSetup {
         ss: Box<dyn BasicSetupSetupTrait>,

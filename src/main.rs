@@ -67,7 +67,7 @@ mod sly_text_view;
 mod sly_view;
 mod test_utils;
 mod view_handle;
-use dir_tree::TreeNode;
+use crate::dir_tree::TreeNode;
 
 #[cfg(test)]
 mod tests;
@@ -102,10 +102,10 @@ extern crate serde;
 extern crate yaml_rust;
 extern crate filesystem;
 
-use app_state::AppState;
+use crate::app_state::AppState;
 use cursive::Cursive;
 use filesystem::*;
-use interface::Interface;
+use crate::interface::Interface;
 use std::borrow::Borrow;
 use std::borrow::BorrowMut;
 use std::env;

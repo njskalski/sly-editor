@@ -33,16 +33,16 @@ use std::env;
 use std::path::Path;
 use std::sync::Arc;
 
-use buffer_state::BufferOpenMode;
-use buffer_state::BufferState;
-use buffer_state::BufferStateS;
-use buffer_state_observer::BufferStateObserver;
-use fuzzy_index::FuzzyIndex;
-use fuzzy_index_trait::FuzzyIndexTrait;
-use fuzzy_view_item::file_list_to_items;
+use crate::buffer_state::BufferOpenMode;
+use crate::buffer_state::BufferState;
+use crate::buffer_state::BufferStateS;
+use crate::buffer_state_observer::BufferStateObserver;
+use crate::fuzzy_index::FuzzyIndex;
+use crate::fuzzy_index_trait::FuzzyIndexTrait;
+use crate::fuzzy_view_item::file_list_to_items;
 
-use content_provider;
-use content_provider::RopeBasedContentProvider;
+use crate::content_provider;
+use crate::content_provider::RopeBasedContentProvider;
 use cursive;
 use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
@@ -51,13 +51,13 @@ use std::io;
 use std::io::Write;
 use std::rc::Rc;
 
-use buffer_id::BufferId;
-use buffer_index::BufferIndex;
-use buffer_state::ExistPolicy;
+use crate::buffer_id::BufferId;
+use crate::buffer_index::BufferIndex;
+use crate::buffer_state::ExistPolicy;
 use core::borrow::Borrow;
-use dir_tree::TreeNode;
-use dir_tree::TreeNodeRef;
-use settings::Settings;
+use crate::dir_tree::TreeNode;
+use crate::dir_tree::TreeNodeRef;
+use crate::settings::Settings;
 use std::cell::Cell;
 use std::collections::VecDeque;
 use std::io::Error;
@@ -65,12 +65,12 @@ use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::Sender;
-use view_handle::ViewHandle;
+use crate::view_handle::ViewHandle;
 
-use buffer_state::BufferStateRef;
+use crate::buffer_state::BufferStateRef;
 use filesystem::*;
 use std::borrow::*;
-use FileSystemType;
+use crate::FileSystemType;
 
 pub struct AppState {
     buffers_to_load: VecDeque<PathBuf>,

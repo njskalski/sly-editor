@@ -31,13 +31,13 @@ limitations under the License.
 // and not disabled in options) TODO(njskalski) use View::layout instead of View::required_size to
 // determine window size.
 
-use abstract_clipboard::ClipboardType;
+use crate::abstract_clipboard::ClipboardType;
 use time;
 
-use buffer_state_observer::BufferStateObserver;
+use crate::buffer_state_observer::BufferStateObserver;
 use clipboard;
 use clipboard::ClipboardProvider;
-use content_provider::{EditEvent, RopeBasedContentProvider};
+use crate::content_provider::{EditEvent, RopeBasedContentProvider};
 use cursive::direction::Direction;
 use cursive::event::{Event, EventResult, Key, MouseButton, MouseEvent};
 use cursive::theme::{Color, ColorType};
@@ -49,12 +49,12 @@ use cursive::view::ViewWrapper;
 use cursive::views::IdView;
 use cursive::views::ViewRef;
 use cursive::{Printer, With, XY};
-use events::IChannel;
-use events::IEvent;
-use rich_content::{RichContent, RichLine};
+use crate::events::IChannel;
+use crate::events::IEvent;
+use crate::rich_content::{RichContent, RichLine};
 use ropey::Rope;
-use settings::Settings;
-use sly_view::SlyView;
+use crate::settings::Settings;
+use crate::sly_view::SlyView;
 use std::borrow::BorrowMut;
 use std::cell::Ref;
 use std::cell::RefCell;
@@ -67,8 +67,8 @@ use std::usize::MAX;
 use unicode_segmentation;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
-use view_handle::ViewHandle;
-use cursor_set::CursorSet;
+use crate::view_handle::ViewHandle;
+use crate::cursor_set::CursorSet;
 use core::borrow::Borrow;
 
 const INDEX_MARGIN: usize = 1;

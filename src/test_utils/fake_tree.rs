@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-use dir_tree::TreeNode;
-use dir_tree::TreeNodeRef;
-use dir_tree::TreeNodeVec;
+use crate::dir_tree::TreeNode;
+use crate::dir_tree::TreeNodeRef;
+use crate::dir_tree::TreeNodeVec;
 use std::convert::Into;
 use std::fmt;
 use std::path::Path;

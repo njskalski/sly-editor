@@ -14,36 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-use app_state::*;
-use buffer_state::BufferState;
-use buffer_state_observer::BufferStateObserver;
-use cursive;
-use cursive::theme;
+
 use cursive::theme::BaseColor::*;
 use cursive::theme::Color;
 use cursive::theme::PaletteColor;
 use cursive::theme::{BorderStyle, Palette, Theme};
-use cursive::traits::*;
-use cursive::views::*;
-use cursive::*;
-use settings::Settings;
-
-use events::IEvent;
-use file_dialog::{self, *};
-use fuzzy_query_view::FuzzyQueryView;
-use sly_text_view::SlyTextView;
 use std::thread;
-use utils;
 
-use buffer_id::BufferId;
 use core::borrow::BorrowMut;
-use events::IChannel;
-use file_dialog::FileDialog;
-use fuzzy_query_view::FuzzyQueryResult;
-use lsp_client::LspClient;
-use overlay_dialog::OverlayDialog;
-use simple_fuzzy_index::SimpleIndex;
-use sly_view::SlyView;
+
 use std::any::Any;
 use std::cell::Ref;
 use std::cell::RefCell;
@@ -62,7 +41,20 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::thread::ThreadId;
 use std::time::Duration;
-use view_handle::ViewHandle;
+use crate::app_state::AppState;
+use crate::events::{IEvent, IChannel};
+use cursive::{Cursive, CbSink};
+use crate::buffer_id::BufferId;
+use crate::sly_text_view::SlyTextView;
+use cursive::views::{IdView, ViewRef};
+use crate::lsp_client::LspClient;
+use crate::view_handle::ViewHandle;
+use crate::sly_view::SlyView;
+use cursive::traits::View;
+use crate::file_dialog::{FileDialogResult, FileDialog, FileDialogVariant};
+use crate::fuzzy_query_view::{FuzzyQueryResult, FuzzyQueryView};
+use crate::simple_fuzzy_index::SimpleIndex;
+use crate::settings::Settings;
 
 const FILE_BAR_MARKER: &'static str = "file_bar";
 const BUFFER_LIST_MARKER: &'static str = "buffer_list";
@@ -421,7 +413,7 @@ impl Interface {
 
     fn active_editor(&mut self) -> ViewRef<SlyTextView> {
         let editor = self.siv.find_id(&self.active_editor_handle.to_string()).unwrap()
-            as views::ViewRef<SlyTextView>;
+            as ViewRef<SlyTextView>;
         editor
     }
 
@@ -627,7 +619,7 @@ pub enum InterfaceError {
 
 #[derive(Clone, Debug)]
 pub struct InterfaceNotifier {
-    siv_cb_sink: crossbeam_channel::Sender<Box<CbFunc>>,
+    siv_cb_sink: CbSink,
     ichan: IChannel,
 }
 

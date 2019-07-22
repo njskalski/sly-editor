@@ -14,10 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-use fuzzy_view_item::*;
-use interface::InterfaceNotifier;
 use std::fmt::Debug;
 use std::rc::Rc;
+use crate::fuzzy_view_item::ViewItem;
+use crate::interface::InterfaceNotifier;
 
 /*
 Index became a trait, because a default (fst-based) implementation cannot be modified after initial

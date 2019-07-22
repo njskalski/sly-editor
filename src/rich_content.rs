@@ -24,7 +24,7 @@ limitations under the License.
 // 1) replace Vec in cache with rpds Vector, this way implementing versioning of colors
 // 2) then you can remove Rc from Rich Line (probably) and give indexing again (not sure what for)
 
-use content_provider::RopeBasedContentProvider;
+use crate::content_provider::RopeBasedContentProvider;
 use ropey::Rope;
 use std::borrow::Borrow;
 use std::cell::Ref;

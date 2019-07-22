@@ -16,7 +16,7 @@ limitations under the License.
 
 // this is a collection of functions I expect to use in multiple places
 
-use rich_content::HighlightSettings;
+use crate::rich_content::HighlightSettings;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::Path;

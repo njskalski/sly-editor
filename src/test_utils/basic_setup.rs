@@ -23,20 +23,20 @@ pub mod tests {
     use cursive::event::Key;
     use cursive::Cursive;
     use cursive::Vec2;
-    use dir_tree::TreeNodeRef;
-    use events::IChannel;
-    use events::IEvent;
-    use file_dialog::FileDialog;
-    use file_dialog::FileDialogVariant;
-    use settings::Settings;
-    use sly_view::SlyView;
+    use crate::dir_tree::TreeNodeRef;
+    use crate::events::IChannel;
+    use crate::events::IEvent;
+    use crate::file_dialog::FileDialog;
+    use crate::file_dialog::FileDialogVariant;
+    use crate::settings::Settings;
+    use crate::sly_view::SlyView;
     use std::cell::RefCell;
     use std::rc::Rc;
     use std::sync::mpsc;
     use std::time::Duration;
-    use test_utils::advanced_setup::tests::get_fake_filetree;
-    use test_utils::fake_tree::{fake_dir, fake_file, fake_root};
-    use view_handle::ViewHandle;
+    use crate::test_utils::advanced_setup::tests::get_fake_filetree;
+    use crate::test_utils::fake_tree::{fake_dir, fake_file, fake_root};
+    use crate::view_handle::ViewHandle;
 
     pub trait BasicSetupSetupTrait {
         fn settings(&self) -> &Rc<Settings>;

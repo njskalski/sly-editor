@@ -21,16 +21,16 @@ use std::rc::Rc;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use buffer_state::BufferState;
-use content_provider::RopeBasedContentProvider;
+use crate::buffer_state::BufferState;
+use crate::content_provider::RopeBasedContentProvider;
 
-use buffer_id::BufferId;
-use buffer_state::BufferStateRef;
-use content_provider;
+use crate::buffer_id::BufferId;
+use crate::buffer_state::BufferStateRef;
+use crate::content_provider;
 use cursive;
-use rich_content::RichContent;
+use crate::rich_content::RichContent;
 use std::cell::RefMut;
-use view_handle::ViewHandle;
+use crate::view_handle::ViewHandle;
 
 #[derive(Clone)]
 pub struct BufferStateObserver {

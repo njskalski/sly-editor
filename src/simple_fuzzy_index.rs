@@ -14,12 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-use fuzzy_index_trait::FuzzyIndexTrait;
-use fuzzy_view_item::*;
-use interface::InterfaceNotifier;
 use regex;
 use std::iter::FromIterator;
 use std::rc::Rc;
+use crate::fuzzy_view_item::ViewItem;
+use crate::fuzzy_index_trait::FuzzyIndexTrait;
+use crate::interface::InterfaceNotifier;
 
 #[derive(Debug)]
 pub struct SimpleIndex {

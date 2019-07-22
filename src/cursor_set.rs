@@ -27,8 +27,8 @@ limitations under the License.
 // Newline is always an end of previous line, not a beginning of new.
 
 use ropey::Rope;
-use fuzzy_query_view::FuzzyQueryResult::Selected;
-use buffer_state::BufferState;
+use crate::fuzzy_query_view::FuzzyQueryResult::Selected;
+use crate::buffer_state::BufferState;
 use std::borrow::Borrow;
 use std::collections::HashSet;
 use serde::de::Unexpected::NewtypeStruct;

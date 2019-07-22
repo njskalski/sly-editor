@@ -14,9 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-use content_provider::EditEvent;
-use content_provider::RopeBasedContentProvider;
-use view_handle::ViewHandle;
+use crate::buffer_id::BufferId;
+use crate::buffer_state_observer::BufferStateObserver;
+use crate::content_provider::EditEvent;
+use crate::content_provider::RopeBasedContentProvider;
+use crate::utils::highlight_settings_from_path;
+use crate::view_handle::ViewHandle;
 
 use cursive;
 use std::io;
@@ -27,12 +30,9 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use buffer_id::BufferId;
-use buffer_state_observer::BufferStateObserver;
 use filesystem::*;
 use std::borrow::Borrow;
-use utils::highlight_settings_from_path;
-use FileSystemType;
+use crate::FileSystemType;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BufferOpenMode {

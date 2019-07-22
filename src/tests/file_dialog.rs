@@ -18,18 +18,16 @@ use crossbeam_channel;
 use cursive::backend::puppet::observed::ObservedCell;
 use cursive::backend::puppet::observed::ObservedScreen;
 use cursive::backend::puppet::observed_screen_view::ObservedScreenView;
+use cursive::event::Key;
 use cursive::Cursive;
-use file_dialog::FileDialog;
 use std::sync::mpsc;
 use std::sync::mpsc::Receiver;
-use std::time::Duration;
-
-use buffer_id::BufferId;
-use cursive::event::Key;
-use file_dialog::FileDialogVariant;
 use std::path::Path;
-use test_utils::basic_setup::tests::BasicSetup;
-use utils::is_prefix_of;
+use std::time::Duration;
+use crate::utils::is_prefix_of;
+use crate::file_dialog::{FileDialogVariant, FileDialog};
+use crate::test_utils::basic_setup::tests::BasicSetup;
+use crate::buffer_id::BufferId;
 
 #[test]
 fn is_prefix_of_test() {

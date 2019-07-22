@@ -2,6 +2,7 @@
 name = "sly"
 version = "0.0.14"
 authors = ["Google LLC <njskalski@google.com>"]
+edition = "2018"
 
 [dependencies]
 ropey = "0.8"

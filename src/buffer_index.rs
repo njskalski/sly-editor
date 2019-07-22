@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-use buffer_state_observer::BufferStateObserver;
-use fuzzy_index_trait::FuzzyIndexTrait;
-use fuzzy_view_item::*;
-use interface::InterfaceNotifier;
+use crate::buffer_state_observer::BufferStateObserver;
+use crate::fuzzy_index_trait::FuzzyIndexTrait;
+use crate::interface::InterfaceNotifier;
 use std::cmp;
 use std::fmt;
 use std::rc::Rc;
+use crate::fuzzy_view_item::ViewItem;
 
 pub struct BufferIndex {
     buffers: Vec<BufferStateObserver>,

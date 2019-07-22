@@ -34,8 +34,8 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 use std::thread::JoinHandle;
 
-use events::IChannel;
-use events::IEvent;
+use crate::events::IChannel;
+use crate::events::IEvent;
 use jsonrpc_core::types as jt;
 use jsonrpc_core::Output;
 use languageserver_types;

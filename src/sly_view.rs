@@ -18,7 +18,7 @@ use core::borrow::BorrowMut;
 use cursive::view::View;
 use cursive::view::ViewWrapper;
 use cursive::views::IdView;
-use view_handle::ViewHandle;
+use crate::view_handle::ViewHandle;
 
 /// This is a common trait of all windows used in this program.
 pub trait SlyView {

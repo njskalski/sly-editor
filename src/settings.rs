@@ -20,13 +20,9 @@ limitations under the License.
 // TODO(njskalski) add validation if commands are known (plugins must be loaded first)
 // TODO(njskalski) parse more keys.
 
-use action::Action;
 use cursive;
 use cursive::event::{Event, Key};
 use cursive::theme;
-use default_settings::*;
-use fuzzy_view_item::ViewItem;
-use keyboard_shortcut::KeyboardShortcut;
 use log;
 use serde_json as sj;
 use serde_json::error::ErrorCode::KeyMustBeAString;
@@ -35,6 +31,10 @@ use std::collections::{HashMap, HashSet};
 use std::io::{Error, ErrorKind, Read};
 use std::iter::FromIterator;
 use std::rc::Rc;
+use crate::default_settings::get_default_settings;
+use crate::action::Action;
+use crate::keyboard_shortcut::KeyboardShortcut;
+use crate::fuzzy_view_item::ViewItem;
 
 pub type EventToMarker = HashMap<Event, String>;
 pub type MarkerToEvent = HashMap<String, Event>;

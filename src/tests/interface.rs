@@ -57,6 +57,8 @@ fn basic_typing() {
     s.type_letters(".txt");
     s.step2();
 
+    s.dump_debug();
+
     let screen = s.last_screen().unwrap();
     let piece = screen.piece(Vec2::new(0, 0), Vec2::new(6, 4));
     let text = piece.as_strings();

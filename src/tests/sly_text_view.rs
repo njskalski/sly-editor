@@ -14,14 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-use buffer_state::BufferState;
-use buffer_state::BufferStateRef;
-use buffer_state_observer::BufferStateObserver;
-use settings::Settings;
-use sly_text_view::SlyTextView;
+use crate::buffer_state::BufferState;
+use crate::buffer_state::BufferStateRef;
+use crate::buffer_state_observer::BufferStateObserver;
+use crate::settings::Settings;
+use crate::sly_text_view::SlyTextView;
 use std::cell::RefCell;
 use std::rc::Rc;
-use test_utils::basic_setup::tests::BasicSetup;
+use crate::test_utils::basic_setup::tests::BasicSetup;
 
 fn basic_setup() -> (BasicSetup, BufferStateRef) {
     let settings = Rc::new(RefCell::new(Settings::load_default()));

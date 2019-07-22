@@ -14,12 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-use buffer_id::BufferId;
-use content_provider;
+use crate::buffer_id::BufferId;
+use crate::content_provider;
 use serde_json as sj;
 use std::path::PathBuf;
 use std::sync::mpsc;
-use view_handle::ViewHandle;
+use crate::view_handle::ViewHandle;
 
 pub type IChannel = mpsc::Sender<IEvent>;
 

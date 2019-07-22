@@ -41,17 +41,7 @@ use cursive::vec::Vec2;
 use cursive::view::{ScrollBase, View};
 use cursive::views::*;
 use cursive::{Cursive, Printer};
-
-use fuzzy_index_trait::FuzzyIndexTrait;
-use settings::Settings;
 use unicode_segmentation::UnicodeSegmentation as us;
-
-use events::IChannel;
-use events::IEvent;
-use fuzzy_view_item::*;
-use interface::InterfaceNotifier;
-use overlay_dialog::OverlayDialog;
-use sly_view::SlyView;
 use std::cell::Cell;
 use std::cell::Ref;
 use std::cell::RefCell;
@@ -61,7 +51,14 @@ use std::error;
 use std::fmt;
 use std::marker::Sized;
 use std::sync::Arc;
-use view_handle::ViewHandle;
+use crate::fuzzy_index_trait::FuzzyIndexTrait;
+use crate::settings::Settings;
+use crate::fuzzy_view_item::ViewItem;
+use crate::view_handle::ViewHandle;
+use crate::interface::InterfaceNotifier;
+use crate::events::IChannel;
+use crate::overlay_dialog::OverlayDialog;
+use crate::sly_view::SlyView;
 
 const WIDTH: usize = 100;
 

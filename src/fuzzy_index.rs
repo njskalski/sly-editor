@@ -24,11 +24,6 @@ use self::fst::{IntoStreamer, Map, Streamer};
 use self::fst_regex::Regex;
 use std::char::{ToLowercase, ToUppercase};
 use std::iter::FromIterator;
-
-use fuzzy_index_trait::*;
-use fuzzy_view_item::*;
-
-use interface::InterfaceNotifier;
 use serde::de::Unexpected::Option as SerdeOption;
 use std::cell::*;
 use std::collections::HashMap;
@@ -40,6 +35,9 @@ use std::sync::mpsc::*;
 use std::sync::Arc;
 use std::thread;
 use std::thread::ThreadId;
+use crate::fuzzy_view_item::ViewItem;
+use crate::fuzzy_index_trait::FuzzyIndexTrait;
+use crate::interface::InterfaceNotifier;
 
 const MAX_CACHE_SIZE: usize = 30;
 pub const HARD_QUERY_LIMIT: usize = 50;

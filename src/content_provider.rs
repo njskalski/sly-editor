@@ -21,9 +21,9 @@ use std::rc::Rc;
 use time;
 use unicode_segmentation::UnicodeSegmentation;
 
-use rich_content::HighlightSettings;
-use rich_content::RichContent;
-use rich_content::RichLine;
+use crate::rich_content::HighlightSettings;
+use crate::rich_content::RichContent;
+use crate::rich_content::RichLine;
 use ropey::RopeSlice;
 
 const DEFAULT_BLANK: char = ' ';

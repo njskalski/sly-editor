@@ -52,33 +52,33 @@ use cursive::*;
 use cursive_tree_view::*;
 
 use core::any::Any;
-use dir_tree::TreeNode;
-use dir_tree::TreeNodeRef;
+use crate::dir_tree::TreeNode;
+use crate::dir_tree::TreeNodeRef;
 use std::borrow::BorrowMut;
 use std::boxed::Box;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use color_view_wrapper::{ColorViewWrapper, PrinterModifierType};
-use settings::Settings;
+use crate::color_view_wrapper::{ColorViewWrapper, PrinterModifierType};
+use crate::settings::Settings;
 use std::env;
 use std::path::Path;
 
-use buffer_id::BufferId;
-use dir_tree::LazyTreeNode;
-use dir_tree::TreeNodeVec;
-use events::IChannel;
-use events::IEvent;
-use overlay_dialog::OverlayDialog;
-use sly_view::SlyView;
+use crate::buffer_id::BufferId;
+use crate::dir_tree::LazyTreeNode;
+use crate::dir_tree::TreeNodeVec;
+use crate::events::IChannel;
+use crate::events::IEvent;
+use crate::overlay_dialog::OverlayDialog;
+use crate::sly_view::SlyView;
 use std::borrow::Borrow;
 use std::cell::Ref;
 use std::error;
 use std::fmt;
 use std::ops::Deref;
 use std::path::PathBuf;
-use utils::is_prefix_of;
-use view_handle::ViewHandle;
+use crate::utils::is_prefix_of;
+use crate::view_handle::ViewHandle;
 
 // TODO(njskalski) this view took longer than anticipated to implement, so I rushed to the end
 // sacrificing quality a refactor is required.

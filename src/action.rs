@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-use fuzzy_view_item::ViewItem;
-use keyboard_shortcut::KeyboardShortcut;
+use crate::fuzzy_view_item::ViewItem;
+use crate::keyboard_shortcut::KeyboardShortcut;
 use yaml_rust::yaml::Yaml;
 
 #[derive(Clone, Debug)]

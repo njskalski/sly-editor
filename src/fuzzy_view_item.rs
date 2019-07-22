@@ -27,13 +27,13 @@ use cursive::view::{ScrollBase, View};
 use cursive::views::*;
 use cursive::{Cursive, Printer};
 
-use settings::KeybindingsType;
+use crate::settings::KeybindingsType;
 use unicode_segmentation::UnicodeSegmentation as us;
 
 use std::collections::HashMap;
 use std::marker::Sized;
 
-use keyboard_shortcut::KeyboardShortcut;
+use crate::keyboard_shortcut::KeyboardShortcut;
 use std::cmp::{Eq, PartialEq};
 use std::path::Path;
 use std::path::PathBuf;
