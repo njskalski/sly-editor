@@ -55,6 +55,8 @@ use crate::file_dialog::{FileDialogResult, FileDialog, FileDialogVariant};
 use crate::fuzzy_query_view::{FuzzyQueryResult, FuzzyQueryView};
 use crate::simple_fuzzy_index::SimpleIndex;
 use crate::settings::Settings;
+use crate::overlay_dialog::OverlayDialog;
+use std::borrow::Borrow;
 
 const FILE_BAR_MARKER: &'static str = "file_bar";
 const BUFFER_LIST_MARKER: &'static str = "buffer_list";

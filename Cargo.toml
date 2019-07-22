@@ -1,6 +1,6 @@
 [package]
 name = "sly"
-version = "0.0.14"
+version = "0.0.15"
 authors = ["Google LLC <njskalski@google.com>"]
 edition = "2018"
 
