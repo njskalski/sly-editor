@@ -150,15 +150,18 @@ pub type FileSystemType = FakeFileSystem;
 pub type FileSystemType = OsFileSystem;
 
 fn main() {
-    //        setup_panic!();
-    stderrlog::new().module(module_path!()).verbosity(5).init().unwrap();
-
     let yml = clap::load_yaml!("clap.yml");
     let mut app = clap::App::from_yaml(yml)
         .author("Andrzej J Skalski <ajskalski@google.com>")
         .long_version(crate_version!());
 
     let matches = app.clone().get_matches();
+    stderrlog::new()
+        .module(module_path!())
+        .quiet(!matches.is_present("debug"))
+        .verbosity(5)
+        .init()
+        .unwrap();
 
     if matches.is_present("help") {
         app.write_long_help(std::io::stdout().borrow_mut());

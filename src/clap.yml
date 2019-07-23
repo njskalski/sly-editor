@@ -31,6 +31,12 @@ args:
       long: help
       takes_value: false
       required: false
+  - debug:
+      help: Turns on debugging to stderr
+      short: d
+      long: debug
+      takes_value: false
+      required: false
 
 help_message: prints help with a nonstandard description
 
